@@ -1,0 +1,15 @@
+# python
+
+# R
+
+# osx
+
+# Folders
+data
+output
+figs
+*cache
+*.ipynb_checkpoints
+
+# Files
+notebook/*/*.html
