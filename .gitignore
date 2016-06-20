@@ -10,6 +10,7 @@ output
 figs
 *cache
 *.ipynb_checkpoints
+*.snakemake
 
 # Files
 notebook/*/*.html

@@ -1,0 +1,8 @@
+__default__:
+    mem: '2g'
+    time: '4:00:00'
+    partition: 'niddk,norm'
+    threads: 2
+
+bigWigMergeToBedGraph:
+    mem: '30g'

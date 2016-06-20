@@ -1,0 +1,30 @@
+#!/bin/bash
+#SBATCH --job-name="seq_pipeline"
+#SBATCH --partition="niddk"
+#SBATCH --cpus-per-task=2
+#SBATCH --time=48:00:00
+#SBATCH --mem=700
+
+SNAKEFILE=$1
+EXTRA=$2
+CLUSTER=$3
+
+LOGS=../output/logs
+if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
+
+if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
+
+(time snakemake \
+    -p \
+    --rerun-incomplete \
+    --jobname "s.{rulename}.{jobid}.sh" \
+    -j 500 \
+    --verbose \
+    --cluster-config $3 \
+    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {cluster.threads} --mem {cluster.mem} --time {cluster.time} --output=slurm_logs/${SNAKEFILE}_${EXTRA}.%j --error=slurm_logs/${SNAKEFILE}_${EXTRA}.%j" \
+    --latency-wait=60 \
+    -s $SNAKEFILE \
+    $EXTRA \
+    ) > "$LOGS/${SNAKEFILE}_${EXTRA}.log" 2>&1
+
+mail -s "$SNAKEFILE finished" $USER < "$LOGS/${SNAKEFILE}_${EXTRA}.log"

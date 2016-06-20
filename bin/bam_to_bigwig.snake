@@ -1,0 +1,110 @@
+""" Builds a swarm file for converting bam to bigwig files using a list of SRAs.
+
+Jean has provided me with a list of 318 SRA IDs that we would like to convert
+from BAM to BigWig for visualization on UCSC genome browser. 
+
+"""
+shell.prefix('set -eou pipefail;')
+workdir: '.'
+
+localrules: all
+
+# Get List of SRAs
+FNAME='312_sample_golden_set_2016-06-14'
+with open('../data/{fname}.txt'.format(fname=FNAME), 'r') as SRAs:
+    sras = [x.strip() for x in SRAs]
+
+# Rules
+rule all:
+    """ Build Targets """
+    input: expand('../output/{fname}.{strand}.merged.bw', fname=FNAME, strand=['Sf', 'Sr'])
+
+rule bamTobedgraph:
+    """ Converts bam to bedgraph.
+    
+    These are all stranded libraries so we want to do each strand separately.
+    When converting bams to bigwig we need to pass '+' for forward strand and a
+    '-' for reverse strand.
+
+    """
+    input: '{prefix}.bam'
+    output: temp('{prefix}.{strand,Sf|Sr}.bedgraph')
+    run: 
+        if (wildcards.strand) == 'Sf':
+            strand = '+'
+        else:
+            strand = '-'
+
+        shell("""module load bedtools
+              export LC_COLLATE=C
+              bedtools genomecov -bg -split -strand {strand} -ibam {{input[0]}} | grep -v 'ERCC-' | sort -k1,1 -k2,2n > {{output[0]}}
+              """.format(strand=strand))
+
+rule bedgraphToBigwig:
+    """ Converts a bedgraph to a BigWig 
+    
+    BigWigs are needed for easy merging with ucsc's bigWigMerge tool.
+
+    """
+    input: '{prefix}.{strand}.bedgraph'
+    output: '{prefix}.{strand,Sf|Sr}.bw'
+    params: chrom='/data/Oliverlab/data/FlyBase/FB2015_04/dmel.chrom.sizes'
+    shell:"""
+    module load ucsc
+    bedGraphToBigWig {input[0]} {params.chrom} {output[0]} 
+    """
+
+rule ucscChromSizes:
+    """ Creates a UCSC friendly version of chrom sizes. 
+
+    UCSC uses chromosome names with 'chr' in the the title, which flybase does
+    not. Here I convert the flybase chromsizes file to use chr. I also filter
+    out the main chromosome arms.
+
+    """
+    input: '/data/Oliverlab/data/FlyBase/FB2015_04/dmel.chrom.sizes'
+    output: temp('../output/dmel.chrom.sizes')
+    shell:"""
+    export LC_COLLATE=C
+
+    # Create a UCSC friendly chrom sizes
+    awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' {input[0]} | \\
+    sort -k1,1 -k2,2n > {output[0]}
+    """
+
+def _bigwigs(wildcards):
+    """ Input function. 
+    
+    Returns all 'forward' or all 'reverse' stranded samples. 
+
+    """
+    return expand('/data/Oliverlab/project/remap/result/realignment/result/BAM/{sample}/{sample}.{strand}.bw', sample=sras, strand=wildcards.strand)
+
+rule bigWigMergeToBedGraph:
+    """ Merges all of the strand specific bigwigs into a single sorted bedgraph.
+
+    This rule also filters out only the main chromosome arms and prints a 'chr'
+    before their name.
+
+    """
+    input: _bigwigs
+    output: temp('../output/{fname}.{strand}.merged.bedgraph')
+    shell: """
+    module load ucsc
+    export LC_COLLATE=C
+
+    # Create UCSC friendly merged bigwig
+    bigWigMerge {input} stdout | \\
+    awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' | \\
+    sort -k1,1 -k2,2n > {output[0]}
+    """
+
+rule finalBigWig:
+    """ Makes the final bigwig file. """
+    input: bg = '../output/{fname}.{strand}.merged.bedgraph',
+           chrom = '../output/dmel.chrom.sizes'
+    output: '../output/{fname}.{strand}.merged.bw',
+    shell: """
+    module load ucsc
+    bedGraphToBigWig {input.bg} {input.chrom} {output[0]} 
+    """
