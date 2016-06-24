@@ -1,0 +1,162 @@
+# vim: set ft=snakemake:
+shell.prefix("""set -euo pipefail;
+             if [ -e /lscratch/$SLURM_JOBID ]; then
+                 export TMPDIR=/lscratch/$SLURM_JOBID
+             else
+                 export TMPDIR=/tmp
+             fi;
+             """)
+workdir: '.'
+
+################################################################################
+# Config
+################################################################################
+sra_file = '/data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt'
+BAM_dir = '/data/Oliverlab/project/remap/result/pre_alignment'
+hisat2_version = '2.0.4'
+stringtie_version = '1.2.3'
+samtools_version = '1.3'
+rseqc_version = '2.6.3'
+splice_file = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC.splicesites.txt'
+hisat2_index = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC'
+bed12_file = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC.bed12'
+
+################################################################################
+# Sample Information
+################################################################################
+import pandas as pd
+sras = pd.read_csv(sra_file, sep='\t', header=None)
+#ALL_SAMPLES = sras.iloc[:,0]
+ALL_SAMPLES = sras.iloc[:20,0]
+
+################################################################################
+# Targets
+################################################################################
+ALL_BAM = expand("{path}/{sample}/{sample}.bam", path = BAM_dir, sample = ALL_SAMPLES)
+ALL_EXP = expand("{path}/{sample}/{sample}.exp", path = BAM_dir, sample = ALL_SAMPLES)
+ALL_BAMSTAT = expand("{path}/{sample}/{sample}.bam_stat", path = BAM_dir, sample = ALL_SAMPLES)
+ALL_TIN = expand("{path}/{sample}/{sample}.summary.txt", path = BAM_dir, sample = ALL_SAMPLES)
+ALL_COVERAGE = expand("{path}/{sample}/{sample}.geneBodyCoverage.r", path = BAM_dir, sample = ALL_SAMPLES)
+#ALL_HTSEQCOUNT = expand(config["BAM_dir"] + "/{sample}/{sample}.htseq_count", sample = ALL_SAMPLES)
+
+rule all:
+     input: ALL_BAM + ALL_EXP + ALL_BAMSTAT + ALL_TIN + ALL_COVERAGE
+#    input: ALL_BAM + ALL_EXP + ALL_BAMSTAT + ALL_TIN + ALL_COVERAGE + ALL_LOG + ALL_GTF + ALL_HTSEQCOUNT
+
+localrules: all
+
+################################################################################
+# Rules
+################################################################################
+rule hisat2:
+    output: bam = '{prefix}/{sample}.bam',
+            bai = '{prefix}/{sample}.bam.bai'
+    log: "{prefix}/{sample}.log"
+    threads: 6
+    params: 
+        hisat_version = hisat2_version,
+        samtools_version = samtools_version,
+        hisat_index = hisat2_index,
+        sra = '{sample}',
+        splice_file = splice_file
+    shell:
+        """
+        module load hisat/{params.hisat_version}
+        module load samtools/{params.samtools_version}
+
+        # Stage Index
+        if [ ! -e $TMPDIR/references ]; then
+            mkdir $TMPDIR/references
+            cp {params.hisat_index}*.ht2 $TMPDIR/references/
+        fi
+        REF=$TMPDIR/references/$(basename {params.hisat_index})
+
+        # Run Hisat2
+        hisat2 -p {threads} \\
+                -x $REF \\
+                --dta \\
+                --sra-acc {params.sra} \\
+                --known-splicesite-infile {params.splice_file} 2> {log} | samtools view -b | \\
+                samtools sort - \\
+                -T $TMPDIR/{wildcards.sample}.sort \\
+                -o $TMPDIR/{wildcards.sample}.bam
+        
+        samtools index $TMPDIR/{wildcards.sample}.bam
+        cp $TMPDIR/{wildcards.sample}.bam {output.bam}
+        cp $TMPDIR/{wildcards.sample}.bam.bai {output.bai}
+        """
+
+rule infer_experiment:
+    input: '{prefix}/{sample}.bam'
+    output: '{prefix}/{sample}.exp'
+    params:
+        rseqc_version = rseqc_version,
+        bed12_file = bed12_file
+    shell:
+        """
+        module load rseqc/{params.rseqc_version}
+
+        BED12=$TMPDIR/$(basename {params.bed12_file})
+        if [ ! -e $BED12 ]; then
+            cp {params.bed12_file} $BED12
+        fi
+
+        infer_experiment.py -i {input[0]} -r $BED12 > {output[0]}
+        """
+
+rule bam_stat:
+    input: '{prefix}/{sample}.bam'
+    output: '{prefix}/{sample}.bam_stat',
+    params:
+        rseqc_version = rseqc_version
+    shell:
+        """
+        module load rseqc/{params.rseqc_version}
+        bam_stat.py -i {input[0]} > {output[0]}
+        """
+
+rule tin:
+    input: '{prefix}/{sample}.bam'
+    output: txt = '{prefix}/{sample}.summary.txt',
+            tsv = '{prefix}/{sample}.tin.tsv'
+    params:
+        rseqc_version = rseqc_version,
+        bed12_file = bed12_file
+    shell:
+        """
+        module load rseqc/{params.rseqc_version}
+
+        # Move to TMPDIR
+        cd $TMPDIR
+
+        # Copy bed12
+        BED12=$(basename {params.bed12_file})
+        if [ ! -e $BED12 ]; then
+            cp {params.bed12_file} $BED12
+        fi
+
+        tin.py -i {input[0]} -r $BED12
+
+        cp {wildcards.sample}.summary.txt {output.txt}
+        cp {wildcards.sample}.tin.xls {output.tsv} 
+        """
+
+rule coverage:
+    input: '{prefix}/{sample}.bam'
+    output: '{prefix}/{sample}.geneBodyCoverage.r',
+    params:
+        rseqc_version = rseqc_version,
+        bed12_file = bed12_file,
+        prefix = '{prefix}/{sample}'
+    shell:
+        """
+        module load rseqc/{params.rseqc_version}
+        module load R
+
+        BED12=$TMPDIR/$(basename {params.bed12_file})
+        if [ ! -e $BED12 ]; then
+            cp {params.bed12_file} $BED12
+        fi
+
+        geneBody_coverage.py -i {input} -r $BED12 -o {params.prefix} 
+        """

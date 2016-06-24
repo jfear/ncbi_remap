@@ -1,0 +1,21 @@
+#sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
+__default__:
+    mem: "2000"
+    time: "4:00:00"
+    gres: "lscratch:0"
+    partition: 'niddk,norm'
+
+hisat2:
+    mem: "5000"
+    time: "24:00:00"
+    gres: "lscratch:40"
+
+infer_experiment:
+    gres: "lscratch:5"
+
+tin:
+    gres: "lscratch:5"
+
+coverage:
+    gres: "lscratch:5"
+    

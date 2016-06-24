@@ -3,6 +3,8 @@ __default__:
     time: '4:00:00'
     partition: 'niddk,norm'
     threads: 2
+    gres: "lscratch:0"
 
 bigWigMergeToBedGraph:
     mem: '30g'
+    gres: "lscratch:0"
