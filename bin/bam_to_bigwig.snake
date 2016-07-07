@@ -17,7 +17,33 @@ with open('../data/{fname}.txt'.format(fname=FNAME), 'r') as SRAs:
 # Rules
 rule all:
     """ Build Targets """
-    input: expand('../output/{fname}.{strand}.merged.bw', fname=FNAME, strand=['Sf', 'Sr'])
+    input: expand('../output/{fname}.{strand}.merged.bw', fname=FNAME, strand=['Sf', 'Sr']),
+           expand('../output/{fname}.{strand}.deeptools.bw', fname=FNAME, strand=['Sf', 'Sr'])
+
+
+rule mergeBam:
+    input: expand('/data/Oliverlab/project/remap/result/realignment/result/BAM/{sra}/{sra}.bam', sra=sras)
+    output: temp("../output/merged.bam")
+    shell: """
+
+    samtools merge /lscratch/$SLURM_JOBID/merged.bam {input}
+    mv /lscratch/$SLURM_JOBID/merged.bam {output[0]}
+
+    """
+
+rule bamToBigWig:
+    input: '../output/merged.bam'
+    output: '../output/{fname}.{strand,Sf|Sr}.deeptools.bw'
+    run:
+        if (wildcards.strand) == 'Sf':
+            flag = '--samFlagExclude 16'
+        else:
+            flag = '--samFlagInclude 16'
+
+        shell("""
+        source activate py27
+        bamCoverage --bam {{input[0]}} -o {{output[0]}} {flag}
+        """.format(flag=flag))
 
 rule bamTobedgraph:
     """ Converts bam to bedgraph.
@@ -72,12 +98,7 @@ rule ucscChromSizes:
     sort -k1,1 -k2,2n > {output[0]}
     """
 
-def _bigwigs(wildcards):
-    """ Input function. 
-    
-    Returns all 'forward' or all 'reverse' stranded samples. 
-
-    """
+def _bam_bigwig(wildcards):
     return expand('/data/Oliverlab/project/remap/result/realignment/result/BAM/{sample}/{sample}.{strand}.bw', sample=sras, strand=wildcards.strand)
 
 rule bigWigMergeToBedGraph:
@@ -87,7 +108,7 @@ rule bigWigMergeToBedGraph:
     before their name.
 
     """
-    input: _bigwigs
+    input: _bam_bigwig
     output: temp('../output/{fname}.{strand}.merged.bedgraph')
     shell: """
     module load ucsc

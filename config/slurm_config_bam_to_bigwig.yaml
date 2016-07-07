@@ -7,4 +7,10 @@ __default__:
 
 bigWigMergeToBedGraph:
     mem: '30g'
-    gres: "lscratch:0"
+
+mergeBam:
+    mem: '30g'
+    gres: "lscratch:60"
+
+bamToBigWig:
+    mem: '30g'

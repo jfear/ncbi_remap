@@ -11,6 +11,7 @@ figs
 *cache
 *.ipynb_checkpoints
 *.snakemake
+*/slurm_logs
 
 # Files
 notebook/*/*.html
