@@ -8,14 +8,8 @@ __default__:
 hisat2:
     mem: "5000"
     time: "24:00:00"
-    gres: "lscratch:40"
+    gres: "lscratch:60"
 
-infer_experiment:
-    gres: "lscratch:5"
-
-tin:
-    gres: "lscratch:5"
-
-coverage:
-    gres: "lscratch:5"
-    
+rseqc:
+    gres: "lscratch:60"
+    mem: "6000"

@@ -27,7 +27,7 @@ bed12_file = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC.bed12'
 import pandas as pd
 sras = pd.read_csv(sra_file, sep='\t', header=None)
 #ALL_SAMPLES = sras.iloc[:,0]
-ALL_SAMPLES = sras.iloc[:20,0]
+ALL_SAMPLES = sras.iloc[:1000,0]
 
 ################################################################################
 # Targets
@@ -86,64 +86,13 @@ rule hisat2:
         cp $TMPDIR/{wildcards.sample}.bam.bai {output.bai}
         """
 
-rule infer_experiment:
+rule rseqc:
     input: '{prefix}/{sample}.bam'
-    output: '{prefix}/{sample}.exp'
-    params:
-        rseqc_version = rseqc_version,
-        bed12_file = bed12_file
-    shell:
-        """
-        module load rseqc/{params.rseqc_version}
-
-        BED12=$TMPDIR/$(basename {params.bed12_file})
-        if [ ! -e $BED12 ]; then
-            cp {params.bed12_file} $BED12
-        fi
-
-        infer_experiment.py -i {input[0]} -r $BED12 > {output[0]}
-        """
-
-rule bam_stat:
-    input: '{prefix}/{sample}.bam'
-    output: '{prefix}/{sample}.bam_stat',
-    params:
-        rseqc_version = rseqc_version
-    shell:
-        """
-        module load rseqc/{params.rseqc_version}
-        bam_stat.py -i {input[0]} > {output[0]}
-        """
-
-rule tin:
-    input: '{prefix}/{sample}.bam'
-    output: txt = '{prefix}/{sample}.summary.txt',
-            tsv = '{prefix}/{sample}.tin.tsv'
-    params:
-        rseqc_version = rseqc_version,
-        bed12_file = bed12_file
-    shell:
-        """
-        module load rseqc/{params.rseqc_version}
-
-        # Move to TMPDIR
-        cd $TMPDIR
-
-        # Copy bed12
-        BED12=$(basename {params.bed12_file})
-        if [ ! -e $BED12 ]; then
-            cp {params.bed12_file} $BED12
-        fi
-
-        tin.py -i {input[0]} -r $BED12
-
-        cp {wildcards.sample}.summary.txt {output.txt}
-        cp {wildcards.sample}.tin.xls {output.tsv} 
-        """
-
-rule coverage:
-    input: '{prefix}/{sample}.bam'
-    output: '{prefix}/{sample}.geneBodyCoverage.r',
+    output: infer_exp = '{prefix}/{sample}.exp',
+            bam_stat = '{prefix}/{sample}.bam_stat',
+            tin_txt = '{prefix}/{sample}.summary.txt',
+            tin_tsv = '{prefix}/{sample}.tin.tsv',
+            coverage = '{prefix}/{sample}.geneBodyCoverage.r'
     params:
         rseqc_version = rseqc_version,
         bed12_file = bed12_file,
@@ -153,10 +102,33 @@ rule coverage:
         module load rseqc/{params.rseqc_version}
         module load R
 
+        # Move to TMPDIR
+        cd $TMPDIR
+
         BED12=$TMPDIR/$(basename {params.bed12_file})
         if [ ! -e $BED12 ]; then
             cp {params.bed12_file} $BED12
         fi
 
-        geneBody_coverage.py -i {input} -r $BED12 -o {params.prefix} 
+        BAM=$TMPDIR/$(basename {input[0]})
+        if [ ! -e $BAM ]; then
+            cp {input[0]} $BAM
+            cp {input[0]}.bai $BAM.bai
+        fi
+
+        # Infer Experiment
+        infer_experiment.py -i $BAM -r $BED12 > {output.infer_exp}
+
+        # BAM stat
+        bam_stat.py -i $BAM > {output.bam_stat}
+
+        # TIN
+        tin.py -i $BAM -r $BED12
+        cp {wildcards.sample}.summary.txt {output.tin_txt}
+        cp {wildcards.sample}.tin.xls {output.tin_tsv} 
+
+        # Coverage
+        geneBody_coverage.py -i $BAM -r $BED12 -o {params.prefix} 
+
         """
+
