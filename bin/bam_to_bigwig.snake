@@ -4,7 +4,7 @@ Jean has provided me with a list of 318 SRA IDs that we would like to convert
 from BAM to BigWig for visualization on UCSC genome browser. 
 
 """
-shell.prefix('set -eou pipefail;')
+shell.prefix('set -eo pipefail;')
 workdir: '.'
 
 localrules: all
@@ -14,70 +14,53 @@ FNAME='312_sample_golden_set_2016-06-14'
 with open('../data/{fname}.txt'.format(fname=FNAME), 'r') as SRAs:
     sras = [x.strip() for x in SRAs]
 
+#sras = sras[:200]
+
 # Rules
 rule all:
     """ Build Targets """
-    input: expand('../output/{fname}.{strand}.merged.bw', fname=FNAME, strand=['Sf', 'Sr']),
-           expand('../output/{fname}.{strand}.deeptools.bw', fname=FNAME, strand=['Sf', 'Sr'])
-
-
-rule mergeBam:
-    input: expand('/data/Oliverlab/project/remap/result/realignment/result/BAM/{sra}/{sra}.bam', sra=sras)
-    output: temp("../output/merged.bam")
-    shell: """
-
-    samtools merge /lscratch/$SLURM_JOBID/merged.bam {input}
-    mv /lscratch/$SLURM_JOBID/merged.bam {output[0]}
-
-    """
+    input: expand('../output/{fname}.{strand}.deeptools.merged.bw', fname=FNAME, strand=['Sf', 'Sr'])
+    #input: expand('/data/Oliverlab/project/remap/result/realignment/result/BW/{sample}/{sample}.{strand}.deeptools.bw', sample=sras[0], strand=['Sf', 'Sr'])
 
 rule bamToBigWig:
-    input: '../output/merged.bam'
-    output: '../output/{fname}.{strand,Sf|Sr}.deeptools.bw'
+    input: '/data/Oliverlab/project/remap/result/realignment/result/BAM/{sample}/{sample}.bam'
+    output: '/data/Oliverlab/project/remap/result/realignment/result/BW/{sample}/{sample}.{strand,Sf|Sr}.deeptools.bw'
     run:
         if (wildcards.strand) == 'Sf':
-            flag = '--samFlagExclude 16'
+            # Exlude alignments on minus strand
+            flag = '-isReverseStrand false'
         else:
-            flag = '--samFlagInclude 16'
+            # Only inlude alignments on minus strand
+            flag = '-isReverseStrand true'
 
         shell("""
-        source activate py27
-        bamCoverage --bam {{input[0]}} -o {{output[0]}} {flag}
+        bamtools filter {flag} -in {{input[0]}} -out /lscratch/$SLURM_JOBID/{{wildcards.sample}}.{{wildcards.strand}}.bam
+
+        source activate deeptools
+        cd /lscratch/$SLURM_JOBID
+        samtools index {{wildcards.sample}}.{{wildcards.strand}}.bam
+        bamCoverage --binSize 10 --bam {{wildcards.sample}}.{{wildcards.strand}}.bam -o {{output[0]}}
+        source deactivate
         """.format(flag=flag))
 
-rule bamTobedgraph:
-    """ Converts bam to bedgraph.
-    
-    These are all stranded libraries so we want to do each strand separately.
-    When converting bams to bigwig we need to pass '+' for forward strand and a
-    '-' for reverse strand.
 
-    """
-    input: '{prefix}.bam'
-    output: temp('{prefix}.{strand,Sf|Sr}.bedgraph')
-    run: 
-        if (wildcards.strand) == 'Sf':
-            strand = '+'
-        else:
-            strand = '-'
+def _mergeBW(wildcards):
+    return expand('/data/Oliverlab/project/remap/result/realignment/result/BW/{sample}/{sample}.{strand}.deeptools.bw', sample=sras, strand=wildcards.strand)
 
-        shell("""module load bedtools
-              export LC_COLLATE=C
-              bedtools genomecov -bg -split -strand {strand} -ibam {{input[0]}} | grep -v 'ERCC-' | sort -k1,1 -k2,2n > {{output[0]}}
-              """.format(strand=strand))
-
-rule bedgraphToBigwig:
-    """ Converts a bedgraph to a BigWig 
-    
-    BigWigs are needed for easy merging with ucsc's bigWigMerge tool.
-
-    """
-    input: '{prefix}.{strand}.bedgraph'
-    output: '{prefix}.{strand,Sf|Sr}.bw'
-    params: chrom='/data/Oliverlab/data/FlyBase/FB2015_04/dmel.chrom.sizes'
-    shell:"""
+rule mergeBW:
+    input: bam = _mergeBW,
+           chrom = '../output/dmel.chrom.sizes'
+    output: '{prefix}.{strand,Sf|Sr}.deeptools.merged.bw'
+    shell: """
     module load ucsc
-    bedGraphToBigWig {input[0]} {params.chrom} {output[0]} 
+    export LC_COLLATE=C
+
+    # Create UCSC friendly merged bigwig
+    bigWigMerge {input.bam} stdout | \\
+    awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' | \\
+    sort -k1,1 -k2,2n > /lscratch/$SLURM_JOBID/tmp.bg
+
+    bedGraphToBigWig /lscratch/$SLURM_JOBID/tmp.bg {input.chrom} {output[0]} 
     """
 
 rule ucscChromSizes:
@@ -96,36 +79,4 @@ rule ucscChromSizes:
     # Create a UCSC friendly chrom sizes
     awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' {input[0]} | \\
     sort -k1,1 -k2,2n > {output[0]}
-    """
-
-def _bam_bigwig(wildcards):
-    return expand('/data/Oliverlab/project/remap/result/realignment/result/BAM/{sample}/{sample}.{strand}.bw', sample=sras, strand=wildcards.strand)
-
-rule bigWigMergeToBedGraph:
-    """ Merges all of the strand specific bigwigs into a single sorted bedgraph.
-
-    This rule also filters out only the main chromosome arms and prints a 'chr'
-    before their name.
-
-    """
-    input: _bam_bigwig
-    output: temp('../output/{fname}.{strand}.merged.bedgraph')
-    shell: """
-    module load ucsc
-    export LC_COLLATE=C
-
-    # Create UCSC friendly merged bigwig
-    bigWigMerge {input} stdout | \\
-    awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' | \\
-    sort -k1,1 -k2,2n > {output[0]}
-    """
-
-rule finalBigWig:
-    """ Makes the final bigwig file. """
-    input: bg = '../output/{fname}.{strand}.merged.bedgraph',
-           chrom = '../output/dmel.chrom.sizes'
-    output: '../output/{fname}.{strand}.merged.bw',
-    shell: """
-    module load ucsc
-    bedGraphToBigWig {input.bg} {input.chrom} {output[0]} 
     """

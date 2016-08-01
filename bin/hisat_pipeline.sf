@@ -26,9 +26,8 @@ bed12_file = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC.bed12'
 ################################################################################
 import pandas as pd
 sras = pd.read_csv(sra_file, sep='\t', header=None)
-#ALL_SAMPLES = sras.iloc[:,0]
-ALL_SAMPLES = sras.iloc[:1000,0]
-
+ALL_SAMPLES = sras.iloc[:,0]
+#ALL_SAMPLES  = ['SRR2147111']
 ################################################################################
 # Targets
 ################################################################################
@@ -43,7 +42,10 @@ rule all:
      input: ALL_BAM + ALL_EXP + ALL_BAMSTAT + ALL_TIN + ALL_COVERAGE
 #    input: ALL_BAM + ALL_EXP + ALL_BAMSTAT + ALL_TIN + ALL_COVERAGE + ALL_LOG + ALL_GTF + ALL_HTSEQCOUNT
 
-localrules: all
+rule align:
+     input: ALL_BAM
+
+localrules: all, align
 
 ################################################################################
 # Rules
@@ -61,8 +63,9 @@ rule hisat2:
         splice_file = splice_file
     shell:
         """
-        module load hisat/{params.hisat_version}
-        module load samtools/{params.samtools_version}
+        #module load sratoolkit
+        #module load hisat/{params.hisat_version}
+        #module load samtools/{params.samtools_version}
 
         # Stage Index
         if [ ! -e $TMPDIR/references ]; then

@@ -1,16 +1,7 @@
 __default__:
-    mem: '2g'
-    time: '4:00:00'
+    mem: '60g'
+    time: '24:00:00'
     partition: 'niddk,norm'
     threads: 2
-    gres: "lscratch:0"
+    gres: "lscratch:100"
 
-bigWigMergeToBedGraph:
-    mem: '30g'
-
-mergeBam:
-    mem: '30g'
-    gres: "lscratch:60"
-
-bamToBigWig:
-    mem: '30g'
