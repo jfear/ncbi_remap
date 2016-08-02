@@ -1,0 +1,148 @@
+<?xml version="1.0" ?>
+<EXPERIMENT_PACKAGE_SET>
+    <EXPERIMENT_PACKAGE>
+        <EXPERIMENT alias="E-MTAB-1976:C2" accession="ERX330954" broker_name="ArrayExpress">
+            <IDENTIFIERS>
+                <PRIMARY_ID>ERX330954</PRIMARY_ID>
+                <SUBMITTER_ID namespace="UNIVERSITY OF MANCHESTER">E-MTAB-1976:C2</SUBMITTER_ID>
+                <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976:C2</SUBMITTER_ID>
+            </IDENTIFIERS>
+            <TITLE>AB SOLiD 4 System sequencing; Deignan</TITLE>
+            <STUDY_REF refname="E-MTAB-1976" refcenter="University of Manchester" accession="ERP004143">
+                <IDENTIFIERS>
+                    <PRIMARY_ID>ERP004143</PRIMARY_ID>
+                    <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976</SUBMITTER_ID>
+                </IDENTIFIERS>
+            </STUDY_REF>
+            <DESIGN>
+                <DESIGN_DESCRIPTION>Deignan</DESIGN_DESCRIPTION>
+                <SAMPLE_DESCRIPTOR refname="E-MTAB-1976:C2" accession="ERS362579" refcenter="University of Manchester">
+                    <IDENTIFIERS>
+                        <PRIMARY_ID>ERS362579</PRIMARY_ID>
+                        <EXTERNAL_ID namespace="BioSample">SAMEA2225912</EXTERNAL_ID>
+                        <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976:C2</SUBMITTER_ID>
+                    </IDENTIFIERS>
+                </SAMPLE_DESCRIPTOR>
+                <LIBRARY_DESCRIPTOR>
+                    <LIBRARY_NAME>C2</LIBRARY_NAME>
+                    <LIBRARY_STRATEGY>RNA-Seq</LIBRARY_STRATEGY>
+                    <LIBRARY_SOURCE>TRANSCRIPTOMIC</LIBRARY_SOURCE>
+                    <LIBRARY_SELECTION>cDNA</LIBRARY_SELECTION>
+                    <LIBRARY_LAYOUT><SINGLE/></LIBRARY_LAYOUT>
+                    <LIBRARY_CONSTRUCTION_PROTOCOL>The Decepentaplegic...</LIBRARY_CONSTRUCTION_PROTOCOL>
+                </LIBRARY_DESCRIPTOR>
+            </DESIGN>
+            <PLATFORM>
+                <ABI_SOLID>
+                    <INSTRUMENT_MODEL>AB SOLiD 4 System</INSTRUMENT_MODEL>
+                </ABI_SOLID>
+            </PLATFORM>
+            <EXPERIMENT_ATTRIBUTES>
+                <EXPERIMENT_ATTRIBUTE>
+                    <TAG>Experimental Factor: genotype</TAG>
+                    <VALUE>Gal4-Tub:VP16/+</VALUE>
+                </EXPERIMENT_ATTRIBUTE>
+            </EXPERIMENT_ATTRIBUTES>
+        </EXPERIMENT>
+
+        <SUBMISSION alias="E-MTAB-1976" broker_name="ArrayExpress" lab_name="ArrayExpress" accession="ERA259843">
+            <IDENTIFIERS>
+                <PRIMARY_ID>ERA259843</PRIMARY_ID>
+                <SUBMITTER_ID namespace="UNIVERSITY OF MANCHESTER">E-MTAB-1976</SUBMITTER_ID>
+                <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976</SUBMITTER_ID>
+            </IDENTIFIERS>
+            <TITLE>Submitted by UNIVERSITY OF MANCHESTER on 21-OCT-2013</TITLE>
+        </SUBMISSION>
+         
+        <Organization type="center">
+            <Name abbr="University Of Manchester">University Of Manchester</Name>
+            <Contact email="john.archer@manchester.ac.uk">
+                <Name>
+                    <First>John</First>
+                    <Last>Archer</Last>
+                    <Middle/>
+                </Name>
+            </Contact>
+        </Organization>
+
+        <STUDY alias="E-MTAB-1976" accession="ERP004143" center_name="UNIVERSITY OF MANCHESTER" broker_name="ArrayExpress">
+            <IDENTIFIERS>
+                <PRIMARY_ID>ERP004143</PRIMARY_ID>
+                <EXTERNAL_ID namespace="BioProject">PRJEB4822</EXTERNAL_ID>
+                <SUBMITTER_ID namespace="UNIVERSITY OF MANCHESTER">E-MTAB-1976</SUBMITTER_ID>
+                <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976</SUBMITTER_ID>
+            </IDENTIFIERS>
+            <DESCRIPTOR>
+                <STUDY_TITLE>Deignan</STUDY_TITLE>
+                <STUDY_TYPE existing_study_type="Transcriptome Analysis"/>
+                <STUDY_ABSTRACT>The goal of the ...</STUDY_ABSTRACT>
+                <STUDY_DESCRIPTION>The goal of the ...</STUDY_DESCRIPTION>
+            </DESCRIPTOR>
+            <STUDY_LINKS>
+                <STUDY_LINK>
+                    <URL_LINK>
+                        <LABEL>E-MTAB-1976 in ArrayExpress</LABEL>
+                        <URL>http://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-1976</URL>
+                    </URL_LINK>
+                </STUDY_LINK>
+            </STUDY_LINKS>
+            <STUDY_ATTRIBUTES>
+                <STUDY_ATTRIBUTE>
+                    <TAG>ArrayExpress</TAG>
+                    <VALUE>E-MTAB-1976</VALUE>
+                </STUDY_ATTRIBUTE>
+            </STUDY_ATTRIBUTES>
+        </STUDY>
+        
+        <SAMPLE alias="E-MTAB-1976:C2" accession="ERS362579" center_name="UNIVERSITY OF MANCHESTER" broker_name="ArrayExpress">
+            <IDENTIFIERS>
+                <PRIMARY_ID>ERS362579</PRIMARY_ID>
+                <EXTERNAL_ID namespace="BioSample">SAMEA2225912</EXTERNAL_ID>
+                <SUBMITTER_ID namespace="UNIVERSITY OF MANCHESTER">E-MTAB-1976:C2</SUBMITTER_ID>
+                <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976:C2</SUBMITTER_ID>
+            </IDENTIFIERS>
+            <TITLE>C2</TITLE>
+            <SAMPLE_NAME>
+                <TAXON_ID>7227</TAXON_ID>
+                <SCIENTIFIC_NAME>Drosophila melanogaster</SCIENTIFIC_NAME>
+                <COMMON_NAME>fruit fly</COMMON_NAME>
+            </SAMPLE_NAME>
+            <DESCRIPTION>Protocols: The Decepentaplegic ...</DESCRIPTION>
+            <SAMPLE_ATTRIBUTES>
+                <SAMPLE_ATTRIBUTE>
+                    <TAG>organism</TAG>
+                    <VALUE>Drosophila melanogaster</VALUE>
+                </SAMPLE_ATTRIBUTE>
+                <SAMPLE_ATTRIBUTE>
+                    <TAG>developmental stage</TAG>
+                    <VALUE>larval stage</VALUE>
+                </SAMPLE_ATTRIBUTE>
+                <SAMPLE_ATTRIBUTE>
+                    <TAG>genotype</TAG>
+                    <VALUE>Gal4-Tub:VP16/+</VALUE>
+                </SAMPLE_ATTRIBUTE>
+                <SAMPLE_ATTRIBUTE>
+                    <TAG>age</TAG>
+                    <VALUE>3-3.5 hour</VALUE>
+                </SAMPLE_ATTRIBUTE>
+            </SAMPLE_ATTRIBUTES>
+        </SAMPLE>
+            
+        <RUN_SET>
+            <RUN alias="E-MTAB-1976:C2_LD.fastq.gz" run_center="Genomic Technolgies Core Facility, Faculty of Life Sciences, University of Manchester" accession="ERR358180" broker_name="ArrayExpress" load_done="false" unavailable="true" published="2016-06-16 08:04:14" is_public="true" cluster_name="public" static_data_available="1">
+                <IDENTIFIERS>
+                    <PRIMARY_ID>ERR358180</PRIMARY_ID>
+                    <SUBMITTER_ID namespace="UNIVERSITY OF MANCHESTER">E-MTAB-1976:C2_LD.fastq.gz</SUBMITTER_ID>
+                    <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976:C2_LD.fastq.gz</SUBMITTER_ID>
+                </IDENTIFIERS>
+                <TITLE>AB SOLiD 4 System sequencing; Deignan</TITLE>
+                <EXPERIMENT_REF refname="E-MTAB-1976:C2" refcenter="University of Manchester" accession="ERX330954">
+                    <IDENTIFIERS>
+                        <PRIMARY_ID>ERX330954</PRIMARY_ID>
+                        <SUBMITTER_ID namespace="University of Manchester">E-MTAB-1976:C2</SUBMITTER_ID>
+                    </IDENTIFIERS>
+                </EXPERIMENT_REF>
+            </RUN>
+        </RUN_SET>
+    </EXPERIMENT_PACKAGE> 
+</EXPERIMENT_PACKAGE_SET>
