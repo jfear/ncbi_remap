@@ -3,10 +3,12 @@
 from xml.etree import ElementTree as ET
 import re
 
+import pandas as pd
+
 from Bio import Entrez
 
 # List of headers from the Run Info output by SRA website Save as -> File -> RunInfo
-SraRunInfo_Headers = ['Run', 'ReleaseDate', 'LoadDate', 'spots', 'bases',
+SraRunInfo_Headers = ['Run', 'RunSecondary', 'ReleaseDate', 'LoadDate', 'spots', 'bases',
         'spots_with_mates', 'avgLength', 'size_MB', 'AssemblyName',
         'download_path', 'Experiment', 'LibraryName', 'LibraryStrategy',
         'LibrarySelection', 'LibrarySource', 'LibraryLayout', 'InsertSize',
@@ -34,43 +36,79 @@ InBoth_Headers = ['AssemblyName', 'BioProject', 'BioSample', 'Consent',
         'LibrarySource', 'LoadDate', 'Platform', 'ReleaseDate', 'Run',
         'Sex', 'g1k_analysis_group', 'g1k_pop_code', 'source']
 
+CV = {'sex': ['sex']}
+
 class SraResultsTable(object):
     def __init__(self, fname):
         tree = ET.parse(fname)
         root = tree.getroot()
         self.experiment_package = root.getchildren()
 
-#         self.rowList = []
-# 
-#         for package in experiment_package:
-#             for run in package.findall('RUN_SET/RUN'):
-#                 row = {}
-#                 row['LoadDate'] = ''
-#                 row['bases'] = run.get('total_bases')
-#                 row['spots_with_mates'] = self.get_spots_with_mates(run)
-#                 row['avgLength'] = self.get_avgLength(run)
-#                 row['size_MB'] = ''
-#                 row['AssemblyName'] = ''
-#                 row['download_path'] = ''
-#                 row['Experiment'] = package.find('EXPERIMENT/IDENTIFIERS/PRIMARY_ID').text
-#                 row['LibraryName'] = package.find('EXPERIMENT/DESIGN/LIBRARY_DESCRIPTOR/LIBRARY_NAME').text
-#                 row['LibraryStrategy'] = package.find('EXPERIMENT/DESIGN/LIBRARY_DESCRIPTOR/LIBRARY_STRATEGY').text
-#                 row['LibrarySelection'] = package.find('EXPERIMENT/DESIGN/LIBRARY_DESCRIPTOR/LIBRARY_SELECTION').text
-#                 row['LibrarySource'] = package.find('EXPERIMENT/DESIGN/LIBRARY_DESCRIPTOR/LIBRARY_SOURCE').text
-#                 row['LibraryLayout'] = self.get_LibraryLayout(package)
-#                 row['InsertSize'] = self.get_InsertSize(package)
-#                 row['InsertDev'] = ''
-#                 row['Platform'] = self.get_Platform(package)
-#                 row['Model'] = self.get_Model(package, row['Platform'])
-#                 row['SRAStudy'] = package.find('STUDY/IDENTIFIERS/PRIMARY_ID').text
-#                 row['BioProject'] = self.get_BioProject(package)
-#                 row['Study_Pubmed_id'] = ''
-#                 row['ProjectID'] = ''
-#                 row['Sample'] = package.find('SAMPLE/IDENTIFIERS/PRIMARY_ID').text
-#                 row['BioSample'] = self.get_BioSample(package)
-#                 row['SampleType'] = ''
-#                 row['TaxID'] = package.find('SAMPLE/SAMPLE_NAME/TAXON_ID').text
-#                 row['ScientificName'] = package.find('SAMPLE/SAMPLE_NAME/SCIENTIFIC_NAME').text
+    def build_rows(self):
+        experiments = []
+        for package in self.experiment_package:
+            row = {}
+            row['LoadDate'] = self.get_LoadDate(package)
+            row['size_MB'] = self.get_size_MB(package)
+            row['AssemblyName'] = self.get_AssemblyName(package)
+            row['download_path'] = self.get_download_path(package)
+            row['Experiment'] = self.get_Experiment(package)
+            row['LibraryName'] = self.get_LibraryName(package)
+            row['LibraryStrategy'] = self.get_LibraryStrategy(package)
+            row['LibrarySelection'] = self.get_LibrarySelection(package)
+            row['LibrarySource'] = self.get_LibrarySource(package)
+            row['LibraryLayout'] = self.get_LibraryLayout(package)
+            row['InsertSize'] = self.get_InsertSize(package)
+            row['InsertDev'] = self.get_InsertDev(package)
+            row['Platform'] = self.get_Platform(package)
+            row['Model'] = self.get_Model(package)
+            row['SRAStudy'] = self.get_SRAStudy(package)
+            row['BioProject'] = self.get_BioProject(package)
+            row['Study_Pubmed_id'] = self.get_Study_Pubmed_id(package)
+            row['ProjectID'] = self.get_ProjectID(package)
+            row['Sample'] = self.get_Sample(package)
+            row['BioSample'] = self.get_BioSample(package)
+            row['SampleType'] = self.get_SampleType(package)
+            row['TaxID'] = self.get_TaxID(package)
+            row['ScientificName'] = self.get_ScientificName(package)
+            row['SampleName'] = self.get_SampleName(package)
+            row['g1k_pop_code'] = self.get_g1k_pop_code(package)
+            row['source'] = self.get_source(package)
+            row['g1k_analysis_group'] = self.get_g1k_analysis_group(package)
+            row['Subject_ID'] = self.get_Subject_ID(package)
+            row['Sex'] = self.get_Sex(package)
+            row['Disease'] = self.get_Disease(package)
+            row['Tumor'] = self.get_Tumor(package)
+            row['Affection_Status'] = self.get_Affection_Status(package)
+            row['Analyte_Type'] = self.get_Analyte_Type(package)
+            row['Histological_Type'] = self.get_Histological_Type(package)
+            row['Body_Site'] = self.get_Body_Site(package)
+            row['Submission'] = self.get_Submission(package)
+            row['dbgap_study_accession'] = self.get_dbgap_study_accession(package)
+
+            rows = []
+            try:
+                for run in package.findall('RUN_SET/RUN'):
+                    current_run = {}
+                    current_run['Run'] = self.get_Run(run)
+                    current_run['RunSecondary'] = self.get_RunSecondary(run)
+                    current_run['ReleaseDate'] = self.get_ReleaseDate(run)
+                    current_run['spots'] = self.get_spots(run)
+                    current_run['bases'] = self.get_bases(run)
+                    current_run['spots_with_mates'] = self.get_spots_with_mates(run)
+                    current_run['avgLength'] = self.get_avgLength(run)
+                    current_run['CenterName'] = self.get_CenterName(run)
+                    current_run['Consent'] = self.get_Consent(run)
+                    current_run['RunHash'] = self.get_RunHash(run)
+                    current_run['ReadHash'] = self.get_ReadHash(run)
+                    current_run.update(row)
+                    rows.append(pd.Series(current_run))
+                experiments.extend(rows)
+            except:
+                pass
+
+        return pd.concat(experiments, axis=1).T[SraRunInfo_Headers]
+
 
     def wrap_try(func):
         def wrapper(self, *args):
@@ -83,6 +121,13 @@ class SraResultsTable(object):
     @wrap_try
     def get_Run(self, run):
         return run.find('IDENTIFIERS/PRIMARY_ID').text
+
+    def get_RunSecondary(self, run):
+        try:
+            secondary = run.findall('IDENTIFIERS/SECONDARY_ID')
+            return ';'.join([x.text for x in secondary])
+        except:
+            return ''
 
     @wrap_try
     def get_ReleaseDate(self, run):
@@ -252,75 +297,99 @@ class SraResultsTable(object):
 
     @wrap_try
     def get_SampleName(self, package):
-        return package.find('SAMPLE/SAMPLE_NAME/COMMON_NAME').text
+        # NOTE: It looks like ERR samples use COMMON_NAME as their SampleName.
+        # I think it is still better to use the alias because it is a more
+        # descriptive name
+        return package.find('SAMPLE').get('alias')
 
     @wrap_try
     def get_g1k_pop_code(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_source(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_g1k_analysis_group(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_Subject_ID(self, package):
-        pass
+        return ''
 
-    @wrap_try
     def get_Sex(self, package):
-        pass
+        try:
+            attribs = package.findall('SAMPLE/SAMPLE_ATTRIBUTES/SAMPLE_ATTRIBUTE')
+            for attrib in attribs:
+                if attrib.tag.lower() in CV['sex']:
+                    return attrib.value
+        except:
+            pass
+
+        return ''
 
     @wrap_try
     def get_Disease(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_Tumor(self, package):
-        pass
+        return 'no'
 
     @wrap_try
     def get_Affection_Status(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_Analyte_Type(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_Histological_Type(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_Body_Site(self, package):
-        pass
+        try:
+            attribs = package.findall('SAMPLE/SAMPLE_ATTRIBUTES/SAMPLE_ATTRIBUTE')
+            for attrib in attribs:
+                if attrib.tag.lower() == 'body_site':
+                    return attrib.value
+        except:
+            pass
 
-    @wrap_try
-    def get_CenterName(self, package):
-        pass
+        return ''
+
+    def get_CenterName(self, run):
+        try:
+            return run.get('run_center')
+        except:
+            pass
+        return ''
 
     @wrap_try
     def get_Submission(self, package):
-        pass
+        return package.find('SUBMISSION/IDENTIFIERS/PRIMARY_ID').text
 
     @wrap_try
     def get_dbgap_study_accession(self, package):
-        pass
+        return ''
 
     @wrap_try
-    def get_Consent(self, package):
-        pass
+    def get_Consent(self, run):
+        if run.get('is_public') == 'true':
+            return 'public'
+        else:
+            return 'not public'
 
     @wrap_try
     def get_RunHash(self, package):
-        pass
+        return ''
 
     @wrap_try
     def get_ReadHash(self, package):
-        pass
+        return ''
 
     def render(self):
         pass

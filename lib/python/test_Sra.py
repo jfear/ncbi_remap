@@ -1,8 +1,7 @@
+import unittest
 from unittest import TestCase
+
 import Sra
-
-fname = './test_xml.xml'
-
 
 class TestSraResultsTableRowQuery(TestCase):
     def setUp(self):
@@ -10,8 +9,14 @@ class TestSraResultsTableRowQuery(TestCase):
         self.package = self.sra.experiment_package[0]
         self.run = self.package.find('RUN_SET/RUN')
 
+    def test_build_rows(self):
+        self.sra.build_rows()
+
     def test_get_Run(self):
         print('Run', self.sra.get_Run(self.run))
+
+    def test_get_RunSecondary(self):
+        print('RunSecondary', self.sra.get_RunSecondary(self.run))
 
     def test_get_ReleaseDate(self):
         self.sra.get_ReleaseDate(self.run)
@@ -98,66 +103,73 @@ class TestSraResultsTableRowQuery(TestCase):
         self.sra.get_ScientificName(self.package)
 
     def test_get_SampleName(self):
-        print(self.sra.get_SampleName(self.package))
+        self.sra.get_SampleName(self.package)
 
     def test_get_g1k_pop_code(self):
-        pass
+        self.sra.get_g1k_pop_code(self.package)
 
     def test_get_source(self):
-        pass
+        self.sra.get_source(self.package)
 
     def test_get_g1k_analysis_group(self):
-        pass
+        self.sra.get_g1k_analysis_group(self.package)
 
     def test_get_Subject_ID(self):
-        pass
+        self.sra.get_Subject_ID(self.package)
 
     def test_get_Sex(self):
-        pass
+        self.sra.get_Sex(self.package)
 
     def test_get_Disease(self):
-        pass
+        self.sra.get_Disease(self.package)
 
     def test_get_Tumor(self):
-        pass
+        self.sra.get_Tumor(self.package)
 
     def test_get_Affection_Status(self):
-        pass
+        self.sra.get_Affection_Status(self.package)
 
     def test_get_Analyte_Type(self):
-        pass
+        self.sra.get_Analyte_Type(self.package)
 
     def test_get_Histological_Type(self):
-        pass
+        self.sra.get_Histological_Type(self.package)
 
     def test_get_Body_Site(self):
-        pass
+        self.sra.get_Body_Site(self.package)
 
     def test_get_CenterName(self):
-        pass
+        self.sra.get_CenterName(self.run)
 
     def test_get_Submission(self):
-        pass
+        self.sra.get_Submission(self.package)
 
     def test_get_dbgap_study_accession(self):
-        pass
+        self.sra.get_dbgap_study_accession(self.package)
 
     def test_get_Consent(self):
-        pass
+        self.sra.get_Consent(self.run)
 
     def test_get_RunHash(self):
-        pass
+        self.sra.get_RunHash(self.run)
 
     def test_get_ReadHash(self):
-        pass
+        self.sra.get_ReadHash(self.run)
 
 if __name__ == '__main__':
-    import unittest
+
+    fname = './test_xml.xml'
+
+    # Change the run id and download fresh XML
+    if False:
+        from Bio import Entrez
+        Entrez.email = 'justin.fear@nih.gov'
+
+        srr = 'ERR358180'
+        #srr = 'SRR1068438'
+
+        with open(fname, 'w') as OUT:
+            record = Entrez.read(Entrez.esearch(db='sra', term=srr, usehistory='y'))
+            OUT.write(Entrez.efetch(db='sra', webenv=record['WebEnv'], query_key=record['QueryKey']).read())
+
     unittest.main()
-
-
-
-
-
-
-
