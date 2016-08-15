@@ -14,7 +14,7 @@ FNAME='312_sample_golden_set_2016-06-14'
 with open('../data/{fname}.txt'.format(fname=FNAME), 'r') as SRAs:
     sras = [x.strip() for x in SRAs]
 
-#sras = sras[:200]
+#sras = sras[:2]
 
 # Rules
 rule all:
@@ -28,19 +28,24 @@ rule bamToBigWig:
     run:
         if (wildcards.strand) == 'Sf':
             # Exlude alignments on minus strand
-            flag = '-isReverseStrand false'
+            flag = '--filterRNAstrand forward'
         else:
             # Only inlude alignments on minus strand
-            flag = '-isReverseStrand true'
+            flag = '--filterRNAstrand reverse'
 
         shell("""
-        bamtools filter {flag} -in {{input[0]}} -out /lscratch/$SLURM_JOBID/{{wildcards.sample}}.{{wildcards.strand}}.bam
-
-        source activate deeptools
         cd /lscratch/$SLURM_JOBID
-        samtools index {{wildcards.sample}}.{{wildcards.strand}}.bam
-        bamCoverage --binSize 10 --bam {{wildcards.sample}}.{{wildcards.strand}}.bam -o {{output[0]}}
-        source deactivate
+        cp {{input[0]}} .
+
+        if [ -e {{input[0]}}.bai ]; then
+            cp {{input[0]}}.bai .
+        else
+            samtools index {{wildcards.sample}}.bam
+        fi
+
+        source activate deeptools;
+        bamCoverage --binSize 10 {flag} --bam {{wildcards.sample}}.bam -o {{output[0]}}
+        source deactivate;
         """.format(flag=flag))
 
 
@@ -48,7 +53,7 @@ def _mergeBW(wildcards):
     return expand('/data/Oliverlab/project/remap/result/realignment/result/BW/{sample}/{sample}.{strand}.deeptools.bw', sample=sras, strand=wildcards.strand)
 
 rule mergeBW:
-    input: bam = _mergeBW,
+    input: bw = _mergeBW,
            chrom = '../output/dmel.chrom.sizes'
     output: '{prefix}.{strand,Sf|Sr}.deeptools.merged.bw'
     shell: """
@@ -56,7 +61,7 @@ rule mergeBW:
     export LC_COLLATE=C
 
     # Create UCSC friendly merged bigwig
-    bigWigMerge {input.bam} stdout | \\
+    bigWigMerge {input.bw} stdout | \\
     awk '{{if( $1 == "2L" || $1 == "2R" || $1 == "3L" || $1 == "3R"  || $1 == "4" || $1 == "X" || $1 == "Y"){{print "chr"$0}}}}' | \\
     sort -k1,1 -k2,2n > /lscratch/$SLURM_JOBID/tmp.bg
 

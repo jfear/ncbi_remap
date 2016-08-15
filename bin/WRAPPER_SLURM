@@ -2,7 +2,7 @@
 #SBATCH --job-name="seq_pipeline"
 #SBATCH --partition="niddk"
 #SBATCH --cpus-per-task=2
-#SBATCH --time=48:00:00
+#SBATCH --time=120:00:00
 #SBATCH --mem=700
 
 SNAKEFILE=$1
