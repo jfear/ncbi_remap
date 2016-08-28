@@ -1,0 +1,12 @@
+blat:
+    transcriptome:
+        ref: /data/Oliverlab/references/genomes/Dmelanogaster/dm6/blat/dm6_r6.09_mRNA.2bit
+    genome:
+        ref: /data/Oliverlab/references/genomes/Dmelanogaster/dm6/blat/dm6.2bit
+gmap:
+    transcriptome:
+        ref_dir: /data/Oliverlab/references/genomes/Dmelanogaster/dm6/gmap
+        ref: dm6_r6.09_mRNA
+    genome:
+        ref_dir: /data/Oliverlab/references/genomes/Dmelanogaster/dm6/gmap
+        ref: dm6

@@ -1,0 +1,17 @@
+__default__:
+    mem: '4g'
+    time: '24:00:00'
+    gres: "lscratch:0"
+    partition: 'niddk,norm'
+    threads: 2
+
+blat:
+    mem: '20g'
+
+gmap_ts:
+    mem: '40g'
+    gres: "lscratch:40"
+
+gmap_genome:
+    mem: '40g'
+    gres: "lscratch:40"

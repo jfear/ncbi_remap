@@ -13,7 +13,9 @@ figs
 *.ipynb_checkpoints
 *.snakemake
 */slurm_logs
+*/cachedir
 
 # Files
 notebook/*/*.html
 lib/python/test_xml.xml
+*slurm-*.out

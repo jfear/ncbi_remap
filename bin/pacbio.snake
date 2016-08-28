@@ -1,0 +1,103 @@
+""" Various rules for handling the pacbio data
+
+We have done pacbio sequencing of 4 samples. Here I am doing all of the various
+bioinformatics tasks for these.
+
+"""
+import pandas as pd
+from snakemake import update_config
+
+shell.prefix('set -eo pipefail;')
+workdir: '.'
+
+localrules: all
+configfile: '../config/pacbio.yaml'
+
+sampletable = pd.read_csv('../config/pacbio_samples_20160620.csv', index_col=5)
+config['samples'] = sampletable.index.tolist()
+#update_config(config, sampletable.to_dict())
+
+PATTERNS = ['../output/pacbio/{sampleID}/{processID}_{SMART}_{date}.ts.psl',
+            '../output/pacbio/{sampleID}/{processID}_{SMART}_{date}.genome.psl',
+            '../output/pacbio/{sampleID}/{processID}_{SMART}_{date}.gmap.ts.bam',
+            '../output/pacbio/{sampleID}/{processID}_{SMART}_{date}.gmap.genome.bam',
+           ]
+
+FILES = []
+for sample in config['samples']:
+    for pattern in PATTERNS:
+        for f in expand(pattern, sampleID=sampletable.loc[sample, 'sampleID'], processID=sample, date=sampletable.loc[sample, 'date'], SMART=['roi1', 'ccs2']):
+            FILES.append(f)
+
+rule all:
+    input: FILES
+
+def _fq_input_fn(wildcards):
+    return '../' + sampletable[sampletable.date == wildcards.date].loc[wildcards.processID, wildcards.SMART]
+
+rule fq2fa:
+    input: _fq_input_fn
+    output: '../output/pacbio/fasta/{processID}_{SMART}_{date}.fa'
+    run:
+        import re
+        import gzip
+
+        with open(output[0], 'w') as out:
+            with gzip.open(input[0], 'rt') as fh:
+                for i, j in enumerate(fh.readlines()):
+                    if i%4 == 0:
+                        out.write(re.sub('^@','>', j))
+                    elif i%4 == 1:
+                        out.write(j)
+
+rule blat_ts:
+    input: '../output/pacbio/fasta/{processID}_{SMART}_{date}.fa'
+    output: '{prefix}/{processID}_{SMART}_{date}.ts.psl'
+    params: reference=config['blat']['transcriptome']['ref']
+    log: '{prefix}/{processID}_{SMART}.blat.ts.log'
+    shell: """
+    blat {params.reference} {input[0]} {output[0]} 2>{log}
+    """
+
+rule blat_genome:
+    input: '../output/pacbio/fasta/{processID}_{SMART}_{date}.fa'
+    output: '{prefix}/{processID}_{SMART}_{date}.genome.psl'
+    params: reference=config['blat']['genome']['ref']
+    log: '{prefix}/{processID}_{SMART}.blat.genome.log'
+    shell: """
+    blat {params.reference} {input[0]} {output[0]} 2>{log}
+    """
+
+rule sam2bam:
+    input: '{prefix}.sam'
+    output: '{prefix}.bam'
+
+rule gmap_ts:
+    input: _fq_input_fn
+    output: '{prefix}/{processID}_{SMART}_{date}.gmap.ts.bam'
+    log: '{prefix}/{processID}_{SMART}_{date}.gmap.ts.log'
+    params: refdir=config['gmap']['transcriptome']['ref_dir'], ref=config['gmap']['transcriptome']['ref']
+    shell: """
+    module load gmap-gsnap
+    FANAME=/lscratch/$SLURM_JOBID/$(basename {input[0]} .gz)
+    SAMNAME=/lscratch/$SLURM_JOBID/$(basename {output[0]} .bam).sam
+
+    gunzip -c {input[0]} > $FANAME
+    gmap -D {params.refdir} -d {params.ref} -f samse -n 0 -t 16 $FANAME > $SAMNAME 2>{log}
+    samtools view -Sb $SAMNAME > {output[0]}
+    """
+
+rule gmap_genome:
+    input: _fq_input_fn
+    output: '{prefix}/{processID}_{SMART}_{date}.gmap.genome.bam'
+    log: '{prefix}/{processID}_{SMART}_{date}.gmap.genome.log'
+    params: refdir=config['gmap']['genome']['ref_dir'], ref=config['gmap']['genome']['ref']
+    shell: """
+    module load gmap-gsnap
+    FANAME=/lscratch/$SLURM_JOBID/$(basename {input[0]} .gz)
+    SAMNAME=/lscratch/$SLURM_JOBID/$(basename {output[0]} .bam).sam
+
+    gunzip -c {input[0]} > $FANAME
+    gmap -D {params.refdir} -d {params.ref} -f samse -n 0 -t 16 $FANAME > $SAMNAME 2>{log}
+    samtools view -Sb $SAMNAME > {output[0]}
+    """

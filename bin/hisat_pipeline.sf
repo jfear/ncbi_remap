@@ -26,8 +26,9 @@ bed12_file = '/data/Oliverlab/data/FlyBase/FB2015_04/dmel_ERCC.bed12'
 ################################################################################
 import pandas as pd
 sras = pd.read_csv(sra_file, sep='\t', header=None)
-ALL_SAMPLES = sras.iloc[:,0]
+#ALL_SAMPLES = sras.iloc[:,0]
 #ALL_SAMPLES  = ['SRR2147111']
+ALL_SAMPLES = sras.iloc[:6000,0]
 ################################################################################
 # Targets
 ################################################################################

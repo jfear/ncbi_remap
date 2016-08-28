@@ -20,7 +20,6 @@ with open('../data/{fname}.txt'.format(fname=FNAME), 'r') as SRAs:
 rule all:
     """ Build Targets """
     input: expand('../output/{fname}.{strand}.deeptools.merged.bw', fname=FNAME, strand=['Sf', 'Sr'])
-    #input: expand('/data/Oliverlab/project/remap/result/realignment/result/BW/{sample}/{sample}.{strand}.deeptools.bw', sample=sras[0], strand=['Sf', 'Sr'])
 
 rule bamToBigWig:
     input: '/data/Oliverlab/project/remap/result/realignment/result/BAM/{sample}/{sample}.bam'
