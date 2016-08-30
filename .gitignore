@@ -13,7 +13,7 @@ figs
 *.ipynb_checkpoints
 *.snakemake
 */slurm_logs
-*/cachedir
+*cachedir
 
 # Files
 notebook/*/*.html
