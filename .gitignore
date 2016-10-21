@@ -1,21 +1,24 @@
 # python
 __pycache__
+*.ipynb_checkpoints
+*.pyc
 
 # R
 
 # osx
 
+# Snakemake and Slurm
+*.snakemake
+*/slurm_logs
+*slurm-*.out
+
 # Folders
 data
 output
+scratch
 figs
-*cache
-*.ipynb_checkpoints
-*.snakemake
-*/slurm_logs
 *cachedir
 
 # Files
 notebook/*/*.html
 lib/python/test_xml.xml
-*slurm-*.out
