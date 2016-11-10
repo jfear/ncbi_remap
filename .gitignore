@@ -18,6 +18,7 @@ output
 scratch
 figs
 *cachedir
+wip
 
 # Files
 notebook/*/*.html
