@@ -1,0 +1,177 @@
+#!/usr/bin/env python
+# vim: set ft=python.snakemake
+""" The prealignment workflow to identify basic characteristics about SRA runs.
+
+Zhenxia originally developed this workflow. The goal here is to use the data to
+determine if the sample is really RNA-seq and strandedness.
+
+"""
+import os
+import pandas as pd
+from lcdblib.snakemake import helpers, aligners
+from lcdblib.utils import utils
+
+shell.prefix("""set -euo pipefail;
+             if [ ! -z ${{SLURM_JOBID+x}} ]; then
+                 if [ -e /lscratch/$SLURM_JOBID ]; then
+                     export TMPDIR=/lscratch/$SLURM_JOBID
+                 else
+                     export TMPDIR=/tmp
+                 fi;
+             else
+                 export TMPDIR=/tmp
+             fi
+
+             source activate ncbi_remap;
+             """)
+
+workdir: '.'
+configfile: '../config/prealignment.yaml'
+
+references_dir = os.environ.get('REFERENCES_DIR', config.get('references_idr', None))
+if references_dir is None:
+    raise ValueError('No references dir specified')
+config['references_dir'] = references_dir
+
+patterns = {
+    'gtf': '/data/LCDB/lcdb-references/dm6/gtf/dm6_r6-11.gtf',
+    'splice_sites':     '../output/known_splice_sites_r6-11.txt',
+    'bed12': '../output/dm6_r6-11.bed12',
+    'bam': '../output/prealignment/{sample}/{sample}.prealn.bam',
+    'bai': '../output/prealignment/{sample}/{sample}.prealn.bam.bai',
+    'rseqc': {
+        'bam_stat': '../output/prealignment/{sample}/{sample}.bam_stat.txt',
+        'infer_experiment': '../output/prealignment/{sample}/{sample}.infer_experiment.txt',
+        'geneBodyCoverage': {
+            'txt': '../output/prealignment/{sample}/{sample}.geneBody_coverage.txt',
+            'r': '../output/prealignment/{sample}/{sample}.geneBody_coverage.r',
+            'img': '../output/prealignment/{sample}/{sample}.geneBody_coverage.pdf',
+        },
+        'tin': {
+            'table': '../output/prealignment/{sample}/{sample}.tin.tsv',
+            'summary': '../output/prealignment/{sample}/{sample}.tin.txt',
+        },
+    },
+}
+
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    samples = [x.strip() for x in fh.readlines()]
+
+fill = dict(sample=samples[:2])
+targets = helpers.fill_patterns(patterns, fill)
+
+
+def wrapper_for(path):
+    #URL = 'https://github.com/lcdb/lcdb-wrapper-tests/tree/9c5325cfdb25b016d131ba154aea18f6a264f534'
+    #return os.path.join(URL, 'wrappers', path)
+    #URI = '/data/fearjm/devel/lcdb-wrapper-tests'
+    URI = 'lcdb-wrapper-tests'
+    return 'file://' + os.path.join(URI, 'wrappers', path)
+
+
+rule targets:
+    input:
+        utils.flatten(targets)
+
+
+rule hisat2_splice_site:
+    input:
+        gtf = patterns['gtf']
+    output:
+        patterns['splice_sites']
+    shell:
+        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+
+
+rule hisat2:
+    input:
+        index = aligners.hisat2_index_from_prefix(config['aligner_prefix'].format(references_dir=references_dir)),
+        splice_sites = patterns['splice_sites']
+    output:
+        bam = patterns['bam']
+    threads: 8
+    params:
+        hisat2_extra = '--sra-acc {sample} --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        samtools_sort_extra = '--threads 4 -l 9'
+    log:
+        patterns['bam'] + '.log'
+    wrapper:
+        wrapper_for('hisat2/align')
+
+
+rule bai:
+    input:
+        bam = patterns['bam']
+    output:
+        bai = patterns['bai']
+    shell:
+        "samtools index {input.bam}"
+
+
+rule gtf2bed12:
+    input:
+        gtf = patterns['gtf']
+    output:
+        bed12 = patterns['bed12']
+    run:
+        import gffutils
+        if not os.path.exists(input.gtf + '.db'):
+            db = gffutils.create_db(data=input.gtf, dbfn=input.gtf + '.db', merge_strategy='merge',
+                    id_spec={'transcript': ['transcript_id', 'transcript_symbol'],
+                             'gene': ['gene_id', 'gene_symbol']},
+                    gtf_transcript_key='transcript_id', gtf_gene_key='gene_id')
+        else:
+            db = gffutils.FeatureDB(input.gtf + '.db')
+
+        with open(output.bed12, 'w') as fo:
+            for t in db.features_of_type('transcript'):
+                fo.write(db.bed12(t, name_field='transcript_id') + '\n')
+
+
+rule infer_experiment:
+    input:
+        bam = patterns['bam'],
+        bed = patterns['bed12']
+    output:
+        txt = patterns['rseqc']['infer_experiment']
+    log:
+        patterns['rseqc']['infer_experiment'] + '.log'
+    wrapper:
+        wrapper_for('rseqc/infer_experiment')
+
+
+rule geneBody_coverage:
+    input:
+        bam = patterns['bam'],
+        bai = patterns['bai'],
+        bed = patterns['bed12']
+    output:
+        txt = patterns['rseqc']['geneBodyCoverage']['txt'],
+        r=patterns['rseqc']['geneBodyCoverage']['r'],
+        img=patterns['rseqc']['geneBodyCoverage']['img']
+    log:
+        patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
+    wrapper:
+        wrapper_for('rseqc/geneBody_coverage')
+
+
+rule tin:
+    input:
+        bam = patterns['bam'],
+        bai = patterns['bai'],
+        bed = patterns['bed12']
+    output:
+        table = patterns['rseqc']['tin']['table'],
+        summary = patterns['rseqc']['tin']['summary']
+    log:
+        patterns['rseqc']['tin']['summary'] + '.log'
+    wrapper:
+        wrapper_for('rseqc/tin')
+
+rule bam_stat:
+    input:
+        bam = patterns['bam']
+    output:
+        txt = patterns['rseqc']['bam_stat']
+    wrapper:
+        wrapper_for('rseqc/bam_stat')
