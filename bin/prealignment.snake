@@ -20,9 +20,7 @@ shell.prefix("""set -euo pipefail;
                  fi;
              else
                  export TMPDIR=/tmp
-             fi
-
-             source activate ncbi_remap;
+             fi;
              """)
 
 workdir: '.'
@@ -62,10 +60,7 @@ targets = helpers.fill_patterns(patterns, fill)
 
 
 def wrapper_for(path):
-    #URL = 'https://github.com/lcdb/lcdb-wrapper-tests/tree/9c5325cfdb25b016d131ba154aea18f6a264f534'
-    #return os.path.join(URL, 'wrappers', path)
-    #URI = '/data/fearjm/devel/lcdb-wrapper-tests'
-    URI = 'lcdb-wrapper-tests'
+    URI = '../lcdb-wrapper-tests'
     return 'file://' + os.path.join(URI, 'wrappers', path)
 
 
@@ -147,8 +142,8 @@ rule geneBody_coverage:
         bed = patterns['bed12']
     output:
         txt = patterns['rseqc']['geneBodyCoverage']['txt'],
-        r=patterns['rseqc']['geneBodyCoverage']['r'],
-        img=patterns['rseqc']['geneBodyCoverage']['img']
+        r = patterns['rseqc']['geneBodyCoverage']['r'],
+        img = patterns['rseqc']['geneBodyCoverage']['img']
     log:
         patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
     wrapper:
@@ -167,6 +162,7 @@ rule tin:
         patterns['rseqc']['tin']['summary'] + '.log'
     wrapper:
         wrapper_for('rseqc/tin')
+
 
 rule bam_stat:
     input:
