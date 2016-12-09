@@ -1,0 +1,6 @@
+[submodule "lcdblib"]
+	path = lcdblib
+	url = git@github.com:lcdb/lcdblib
+[submodule "snakemake"]
+	path = snakemake
+	url = https://bitbucket.org/snakemake/snakemake
