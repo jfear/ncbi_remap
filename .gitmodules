@@ -4,3 +4,6 @@
 [submodule "snakemake"]
 	path = snakemake
 	url = https://bitbucket.org/snakemake/snakemake
+[submodule "lcdb-wrapper-tests"]
+	path = lcdb-wrapper-tests
+	url = git@github.com:lcdb/lcdb-wrapper-tests
