@@ -1,5 +1,5 @@
 __default__:
-    mem: '60g'
+    mem: '80g'
     time: '24:00:00'
     partition: 'niddk,norm'
     threads: 2
