@@ -7,6 +7,9 @@ determine if the sample is really RNA-seq and strandedness.
 
 """
 import os
+import re
+from textwrap import dedent
+import numpy as np
 import pandas as pd
 from lcdblib.snakemake import helpers, aligners
 from lcdblib.utils import utils
@@ -21,54 +24,54 @@ shell.prefix("""set -euo pipefail;
              else
                  export TMPDIR=/tmp
              fi;
+             source activate ncbi_remap;
              """)
 
 workdir: '.'
-configfile: '../config/prealignment.yaml'
-
-references_dir = os.environ.get('REFERENCES_DIR', config.get('references_idr', None))
-if references_dir is None:
-    raise ValueError('No references dir specified')
-config['references_dir'] = references_dir
 
 patterns = {
     'gtf': '/data/LCDB/lcdb-references/dm6/gtf/dm6_r6-11.gtf',
+    'hisat2_index': ['/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.1.ht2',
+                     '/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.2.ht2'],
     'splice_sites':     '../output/known_splice_sites_r6-11.txt',
     'bed12': '../output/dm6_r6-11.bed12',
-    'bam': '../output/prealignment/{sample}/{sample}.prealn.bam',
-    'bai': '../output/prealignment/{sample}/{sample}.prealn.bam.bai',
+    'bam': '../output/prealignment/samples/{sample}/{sample}.prealn.bam',
+    'bai': '../output/prealignment/samples/{sample}/{sample}.prealn.bam.bai',
     'rseqc': {
-        'bam_stat': '../output/prealignment/{sample}/{sample}.bam_stat.txt',
-        'infer_experiment': '../output/prealignment/{sample}/{sample}.infer_experiment.txt',
+        'bam_stat': '../output/prealignment/samples/{sample}/{sample}.bam_stat.txt',
+        'bam_stat_agg': '../output/prealignment/rseqc_bam_stat.txt',
+        'infer_experiment': '../output/prealignment/samples/{sample}/{sample}.infer_experiment.txt',
+        'infer_experiment_agg': '../output/prealignment/rseqc_infer_experiment.txt',
         'geneBodyCoverage': {
-            'txt': '../output/prealignment/{sample}/{sample}.geneBody_coverage.txt',
-            'r': '../output/prealignment/{sample}/{sample}.geneBody_coverage.r',
-            'img': '../output/prealignment/{sample}/{sample}.geneBody_coverage.pdf',
+            'txt': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.txt',
+            'r': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.r',
+            'img': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.pdf',
         },
+        'geneBodyCoverage_agg': '../output/prealignment/rseqc_geneBody_coverage.txt',
         'tin': {
-            'table': '../output/prealignment/{sample}/{sample}.tin.tsv',
-            'summary': '../output/prealignment/{sample}/{sample}.tin.txt',
+            'table': '../output/prealignment/samples/{sample}/{sample}.tin.tsv',
+            'summary': '../output/prealignment/samples/{sample}/{sample}.tin.txt',
         },
+        'tin_agg': '../output/prealignment/rseqc_tin.txt',
     },
 }
 
 with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
     samples = [x.strip() for x in fh.readlines()]
 
-fill = dict(sample=samples[:2])
+fill = dict(sample=samples)
 targets = helpers.fill_patterns(patterns, fill)
 
+rule targets:
+    input:
+        utils.flatten(targets['rseqc'])
 
 def wrapper_for(path):
     URI = '../lcdb-wrapper-tests'
     return 'file://' + os.path.join(URI, 'wrappers', path)
 
 
-rule targets:
-    input:
-        utils.flatten(targets)
-
-
+# Alignment ##############################################################################
 rule hisat2_splice_site:
     input:
         gtf = patterns['gtf']
@@ -77,22 +80,21 @@ rule hisat2_splice_site:
     shell:
         "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
-
 rule hisat2:
     input:
-        index = aligners.hisat2_index_from_prefix(config['aligner_prefix'].format(references_dir=references_dir)),
+        index=patterns['hisat2_index'],
         splice_sites = patterns['splice_sites']
     output:
         bam = patterns['bam']
     threads: 8
     params:
         hisat2_extra = '--sra-acc {sample} --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
-        samtools_sort_extra = '--threads 4 -l 9'
+        samtools_view_extra = '-q 20',
+        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log:
         patterns['bam'] + '.log'
     wrapper:
         wrapper_for('hisat2/align')
-
 
 rule bai:
     input:
@@ -101,7 +103,6 @@ rule bai:
         bai = patterns['bai']
     shell:
         "samtools index {input.bam}"
-
 
 rule gtf2bed12:
     input:
@@ -122,18 +123,74 @@ rule gtf2bed12:
             for t in db.features_of_type('transcript'):
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
-
+# RSEQC ##############################################################################
 rule infer_experiment:
     input:
         bam = patterns['bam'],
         bed = patterns['bed12']
     output:
         txt = patterns['rseqc']['infer_experiment']
-    log:
-        patterns['rseqc']['infer_experiment'] + '.log'
     wrapper:
         wrapper_for('rseqc/infer_experiment')
 
+rule infer_experiment_agg:
+    input:
+        txt = targets['rseqc']['infer_experiment']
+    output:
+        txt = patterns['rseqc']['infer_experiment_agg']
+    run:
+        header = ['sample_id', 'Type', 'Undetermined', '++,--', '+-,+-', 'stranded']
+
+        se_regex = dedent("""\
+                This is SingleEnd Data
+                Fraction of reads failed to determine: (\d\.\d+)
+                Fraction of reads explained by \"\+\+\,\-\-\"\: (\d\.\d+)
+                Fraction of reads explained by \"\+\-\,\-\+\"\: (\d\.\d+).*""")
+
+        pe_regex = dedent("""\
+                This is PairEnd Data
+                Fraction of reads failed to determine: (\d\.\d+)
+                Fraction of reads explained by \"1\+\+\,1\-\-,2\+\-\,2\-\+\"\: (\d\.\d+)
+                Fraction of reads explained by \"1\+\-\,1\-\+,2\+\+,2\-\-\"\: (\d\.\d+).*""")
+
+        with open(output.txt, 'w') as fo:
+            fo.write('\t'.join(header) + '\n')
+
+            for f in input.txt:
+                sample = os.path.basename(f).replace('.infer_experiment.txt', '')
+
+                with open(f, 'r') as fh:
+                    data = fh.read().strip()
+                    try:
+                        # SingleEnd
+                        m = re.match(se_regex, data, flags=re.DOTALL).groups()
+                        _type = 'SingleEnd'
+                    except:
+                        try:
+                            # PairEnd
+                            m = re.match(pe_regex, data, flags=re.DOTALL).groups()
+                            _type = 'PairEnd'
+                        except:
+                            print(f)
+                            print(regex)
+                            print(data)
+                            raise
+
+                    if np.abs(float(m[1]) - float(m[2])) >= .20:
+                        if _type == 'SingleEnd':
+                            if float(m[1]) > float(m[2]):
+                                stranded = 'F'
+                            else:
+                                stranded = 'R'
+                        else:
+                            if float(m[1]) > float(m[2]):
+                                stranded = 'FR'
+                            else:
+                                stranded = 'RF'
+                    else:
+                        stranded = 'NonStranded'
+
+                    fo.write('\t'.join([sample, _type, *m, stranded]) + '\n')
 
 rule geneBody_coverage:
     input:
@@ -149,6 +206,22 @@ rule geneBody_coverage:
     wrapper:
         wrapper_for('rseqc/geneBody_coverage')
 
+rule geneBody_coverage_agg:
+    input:
+        txt = targets['rseqc']['geneBodyCoverage']['txt']
+    output:
+        txt = patterns['rseqc']['geneBodyCoverage_agg']
+    run:
+        with open(output.txt , 'w') as fo:
+            for i, f in enumerate(input.txt):
+                with open(f, 'r') as fh:
+                    if i == 0:
+                        fo.write(fh.read().replace('.prealn', '').replace('Percentile', 'sample_id'))
+                    else:
+                        try:
+                            fo.write(fh.readlines()[1].replace('.prealn', ''))
+                        except IndexError:
+                            print(f)
 
 rule tin:
     input:
@@ -158,11 +231,22 @@ rule tin:
     output:
         table = patterns['rseqc']['tin']['table'],
         summary = patterns['rseqc']['tin']['summary']
-    log:
-        patterns['rseqc']['tin']['summary'] + '.log'
     wrapper:
         wrapper_for('rseqc/tin')
 
+rule tin_agg:
+    input:
+        txt = targets['rseqc']['tin']['summary']
+    output:
+        txt = patterns['rseqc']['tin_agg']
+    run:
+        with open(output.txt , 'w') as fo:
+            for i, f in enumerate(input.txt):
+                with open(f, 'r') as fh:
+                    if i == 0:
+                        fo.write(fh.read().replace('.prealn.bam', '').replace('Bam_file', 'sample_id'))
+                    else:
+                        fo.write(fh.readlines()[1].replace('.prealn.bam', ''))
 
 rule bam_stat:
     input:
@@ -171,3 +255,42 @@ rule bam_stat:
         txt = patterns['rseqc']['bam_stat']
     wrapper:
         wrapper_for('rseqc/bam_stat')
+
+rule bam_stat_agg:
+    input:
+        txt = targets['rseqc']['bam_stat']
+    output:
+        txt = patterns['rseqc']['bam_stat_agg']
+    run:
+        header = ['sample_id', 'Total_records', 'QC_failed', 'Optical_PCR_duplicate',
+                  'Non_primary_hits', 'Unmapped_reads', 'non-unique',
+                  'unique', 'Read-1', 'Read-2', 'Reads_map_plus', 'Reads_map_minus', 'Non-splice_reads',
+                  'Splice_reads', 'Reads_mapped_in_proper_pairs',
+                  'Proper-paired_reads_map_to_different_chrom']
+
+        regex = dedent("""\
+            .*Total.* (\d+)
+
+            QC.* (\d+)
+            Optical.* (\d+)
+            Non primary hits.* (\d+)
+            Unmapped reads.* (\d+)
+            mapq.* (\d+)
+
+            mapq.* (\d+)
+            Read-1.* (\d+)
+            Read-2.* (\d+)
+            Reads map to \'\+\'.* (\d+)
+            Reads map to \'-\'.* (\d+)
+            Non-splice reads.* (\d+)
+            Splice reads.* (\d+)
+            Reads mapped.* (\d+)
+            Proper-paired.*:(\d+)""")
+
+        with open(output.txt, 'w') as fo:
+            fo.write('\t'.join(header) + '\n')
+            for f in input.txt:
+                sample = os.path.basename(f).replace('.bam_stat.txt', '')
+                with open(f, 'r') as fh:
+                    m = re.match(regex, fh.read().strip(), flags=re.DOTALL).groups()
+                    fo.write('\t'.join([sample, *m]) + '\n')
