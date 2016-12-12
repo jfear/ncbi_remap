@@ -1,0 +1,98 @@
+#!/usr/bin/env python
+# vim: set ft=python.snakemake
+""" The prealignment workflow to identify basic characteristics about SRA runs.
+
+Zhenxia originally developed this workflow. The goal here is to use the data to
+determine if the sample is really RNA-seq and strandedness.
+
+"""
+import os
+import re
+from textwrap import dedent
+import pandas as pd
+from lcdblib.snakemake import helpers, aligners
+from lcdblib.utils import utils
+
+shell.prefix("""set -euo pipefail;
+             if [ ! -z ${{SLURM_JOBID+x}} ]; then
+                 if [ -e /lscratch/$SLURM_JOBID ]; then
+                     export TMPDIR=/lscratch/$SLURM_JOBID
+                 else
+                     export TMPDIR=/tmp
+                 fi;
+             else
+                 export TMPDIR=/tmp
+             fi;
+             source activate ncbi_remap;
+             """)
+
+workdir: '.'
+
+patterns = {
+    'gtf': '/data/LCDB/lcdb-references/dm6/gtf/dm6_r6-11.gtf',
+    'hisat2_index': ['/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.1.ht2',
+                     '/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.2.ht2'],
+    'splice_sites':     '../output/known_splice_sites_r6-11.txt',
+    'bed12': '../output/dm6_r6-11.bed12',
+    'bam': '../output/realignment/samples/{sample}/{sample}.sort.bam',
+    'bai': '../output/realignment/samples/{sample}/{sample}.sort.bam.bai',
+}
+
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    samples = [x.strip() for x in fh.readlines()]
+
+fill = dict(sample=samples)
+targets = helpers.fill_patterns(patterns, fill)
+
+rule targets:
+    input:
+        utils.flatten(targets['bai'])
+
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file://' + os.path.join(URI, 'wrappers', path)
+
+
+# Alignment ##############################################################################
+# Import infered information from prealignments
+expDes = pd.read_csv('../output/prealignment/rseqc_infer_experiment.txt', sep='\t', index_col=0)
+
+rule hisat2_splice_site:
+    input:
+        gtf = patterns['gtf']
+    output:
+        patterns['splice_sites']
+    shell:
+        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+
+def _hisat2_extra(wildcards):
+    s = expDes.loc[wildcards.sample, 'stranded']
+    extra_str = '--sra-acc {sample} --max-intronlen 300000 --known-splicesite-infile ' + patterns['splice_sites']
+    if s == 'NonStranded':
+        return extra_str
+    else:
+        return extra_str + ' --rna-strandness {} '.format(s)
+
+rule hisat2:
+    input:
+        index=patterns['hisat2_index'],
+        splice_sites = patterns['splice_sites']
+    output:
+        bam = patterns['bam']
+    threads: 8
+    params:
+        hisat2_extra = _hisat2_extra,
+        samtools_view_extra = '-q 20',
+        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log:
+        patterns['bam'] + '.log'
+    wrapper:
+        wrapper_for('hisat2/align')
+
+rule bai:
+    input:
+        bam = patterns['bam']
+    output:
+        bai = patterns['bai']
+    shell:
+        "samtools index {input.bam}"
