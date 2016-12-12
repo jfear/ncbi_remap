@@ -1,16 +1,20 @@
 """ Builds a swarm file for converting bam to bigwig files using a list of SRAs.
 
 """
+import os
+from tempfile import NamedTemporaryFile
+import pandas as pd
 from lcdblib.snakemake.helpers import fill_patterns
 from lcdblib.utils.utils import flatten
 
 shell.prefix("""set -eo pipefail;
-            source activate ncbi_remap;
             if [ -e /lscratch/$SLURM_JOBID ]; then
                 export TMPDIR=/lscratch/$SLURM_JOBID
             else
                 export TMPDIR=/tmp
             fi;
+
+            source activate ncbi_remap;
             """)
 workdir: '.'
 
@@ -40,7 +44,7 @@ patterns = {
     'orig_bam': '/data/MiegNCBI/magic_blast/mb_{sample_id}.sort.bam',
     'bam': '/data/MiegNCBI/magic_blast/{sample_id}.chr.sort.bam',
     'bai': '/data/MiegNCBI/magic_blast/{sample_id}.chr.sort.bam.bai',
-    'bigwig': '/data/Oliverlab/project/ncbi_remap/output/BW/magic_blast_{sample_id}.{strand}.deeptools.bw',
+    'bigwig': '/data/Oliverlab/project/ncbi_remap/output/BW/magic_blast/{sample_id}.{strand}.deeptools.bw',
     'merged': '/data/Oliverlab/project/ncbi_remap/output/BW/magic_blast.{strand}.deeptools.merged.bw',
     'chromSizes': '/data/LCDB/lcdb-references/dm6/fasta/dm6_default.chromsizes'
 }
@@ -48,9 +52,9 @@ patterns = {
 targets = fill_patterns(patterns, dict(sample_id=sample_id, strand=['Sf', 'Sr']))
 
 # Rules
-rule run:
+rule targets:
     """ Build Targets """
-    input: flatten(targets)
+    input: flatten(targets['merged'])
 
 rule chr:
     """ Convert NCBI chromosome to UCSC chromosome. """
@@ -63,20 +67,44 @@ rule bai:
     output: bai = patterns['bai']
     shell: "samtools index {input.bam}"
 
+expDesc = pd.read_csv('../output/prealignment/rseqc_infer_experiment.txt', sep='\t', index_col=0)
+
 rule bamToBigWig:
     input: bam = rules.chr.output.bam,
            bai = rules.chr.output.bam + '.bai'
     output: bigwig=patterns['bigwig']
     log: patterns['bigwig'] + '.log'
     run:
-        if (wildcards.strand) == 'Sf':
-            # Exlude alignments on minus strand
-            flag = '--filterRNAstrand forward'
-        else:
-            # Only inlude alignments on minus strand
-            flag = '--filterRNAstrand reverse'
+        try:
+            if expDesc.loc[wildcards.sample_id, 'Type'] == 'PairEnd':
+                if (wildcards.strand) == 'Sf':
+                    # Exlude alignments on minus strand
+                    flag = '--filterRNAstrand forward'
+                else:
+                    # Only inlude alignments on minus strand
+                    flag = '--filterRNAstrand reverse'
+                shell("bamCoverage --binSize 10 {flag} --bam {input.bam} -o {output.bigwig} 2>{log}")
+            elif expDesc.loc[wildcards.sample_id, 'Type'] == 'SingleEnd':
 
-        shell("bamCoverage --binSize 10 {flag} --bam {input.bam} -o {output.bigwig} 2>{log}")
+                slurmid = os.getenv('SLURM_JOBID', '')
+                if os.path.exists(os.path.join('/lscratch', slurmid)):
+                    tdir = os.path.join('/lscratch', slurmid)
+                else:
+                    tdir = os.path.basename(output.bigwig)
+
+                if (wildcards.strand) == 'Sf':
+                    forward = NamedTemporaryFile(dir=tdir)
+                    shell('samtools view -b -f 0x10 {input.bam} > {forward.name} '
+                          '&& samtools index {forward.name} '
+                          '&& bamCoverage --binSize 10 --bam {forward.name} -o {output.bigwig} 2>{log}')
+                else:
+                    reverse = NamedTemporaryFile(dir=tdir)
+                    shell('samtools view -b -F 0x10 {input.bam} > {reverse.name} '
+                          '&& samtools index {reverse.name} '
+                          '&& bamCoverage --binSize 10 --bam {reverse.name} -o {output.bigwig} 2>{log}')
+        except:
+            print(wildcards)
+            raise
 
 
 rule mergeBW:
