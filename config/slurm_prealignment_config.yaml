@@ -1,16 +1,17 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-    mem: "2g"
-    time: "4:00:00"
+    mem: "4g"
+    time: "12:00:00"
     gres: "lscratch:0"
     partition: 'niddk,norm'
 
 hisat2:
-    mem: "10g"
+    mem: "80g"
     time: "24:00:00"
-    gres: "lscratch:100"
+    gres: "lscratch:80"
 
-rseqc:
+tin:
     gres: "lscratch:60"
-    mem: "6g"
-    time: "8:00:00"
+
+geneBody_coverage:
+    gres: "lscratch:60"
