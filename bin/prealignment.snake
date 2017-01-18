@@ -7,9 +7,10 @@ determine if the sample is really RNA-seq and strandedness.
 
 """
 import os
+import signal
 import re
 from textwrap import dedent
-from shutil import move as shmove
+import shutil as sh
 from gzip import open as gopen
 
 import numpy as np
@@ -36,28 +37,51 @@ except:
         TMPDIR = mkdtemp(dir='.snakemake/')
         print('Temporary storage is at: {}'.format(TMPDIR))
 
-shell.prefix("set -euo pipefail; export TMPDIR={}; source activate ncbi_remap;".format(TMPDIR))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 workdir: '.'
 
+# Store mongodb hostname
+MONGODB_HOSTNAME = '.mongodb_host'
+MONGODB_PID = '.mongodb_pid'
 
-# onstart:
-#     # Start mongo
-#     global pid
-#     pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
-#
-# onsuccess:
-#     # Shutdown mongo
-#     pid.kill()
-#     print('Script complete.')
-#
-# onerror:
-#     # Shutdown mongo
-#     pid.kill()
-#     print('There was an error.')
+if not os.path.exists(MONGODB_HOSTNAME):
+    # Record host
+    with open(MONGODB_HOSTNAME, 'w') as fh:
+        fh.write(os.getenv('SLURMD_NODENAME'))
+
+    # Start mongo and save PID
+    pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
+    with open(MONGODB_PID, 'w') as fh:
+        fh.write(pid.pid)
+
+onsuccess:
+    # Stop mongodb
+    with open(MONGODB_PID, 'r') as fh:
+        pid = fh.read()
+    os.kill(pid, signal.SIGTERM)
+    sh.rmtree(MONGODB_PID)
+
+    # Remove hostname
+    sh.rmtree(MONGODB_HOSTNAME)
+
+    print('Script complete.')
+
+onerror:
+    # Stop mongodb
+    with open(MONGODB_PID, 'r') as fh:
+        pid = fh.read()
+    os.kill(pid, signal.SIGTERM)
+    sh.rmtree(MONGODB_PID)
+
+    # Remove hostname
+    sh.rmtree(MONGODB_HOSTNAME)
+
+    print('There was an error.')
 
 # connect to mongo engine
-mongo_client = connect('sra')
+with open(MONGODB_HOSTNAME, 'r') as fh:
+    mongo_client = connect(db='sra', host=fh.read())
 
 
 patterns = {
@@ -68,36 +92,31 @@ patterns = {
     'bed12': '../output/dm6_r6-11.bed12',
     'bam': '../output/prealignment/samples/{sample}/{sample}.bam',
     'bai': '../output/prealignment/samples/{sample}/{sample}.bam.bai',
-    'fastq_dump': {
-        'fastq_1': '../output/prealignment/samples/{sample}/{sample}_1.fastq.gz',
-        },
     'fastqc': {
         'html': '../output/prealignment/samples/{sample}/{sample}.fastqc.html',
         'zip': '../output/prealignment/samples/{sample}/{sample}.fastqc.zip',
         },
     'rseqc': {
         'bam_stat': '../output/prealignment/samples/{sample}/{sample}.bam_stat.txt',
-        'bam_stat_agg': '../output/prealignment/rseqc_bam_stat.txt',
         'infer_experiment': '../output/prealignment/samples/{sample}/{sample}.infer_experiment.txt',
-        'infer_experiment_agg': '../output/prealignment/rseqc_infer_experiment.txt',
         'geneBodyCoverage': {
             'txt': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.txt',
             'r': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.r',
             'img': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.pdf',
         },
-        'geneBodyCoverage_agg': '../output/prealignment/rseqc_geneBody_coverage.txt',
         'tin': {
             'table': '../output/prealignment/samples/{sample}/{sample}.tin.tsv',
             'summary': '../output/prealignment/samples/{sample}/{sample}.tin.txt',
         },
-        'tin_agg': '../output/prealignment/rseqc_tin.txt',
     },
 }
 
+FASTQ_pattern = '../output/prealignment/samples/{sample}/{sample}_{num}.fastq.gz'
+FASTQ_TRIM_pattern = '../output/prealignment/samples/{sample}/{sample}_{num}.trim.fastq.gz'
 
 samples = ['SRR3001915', 'SRR5100246']
 
-fill = dict(sample=samples)
+fill = dict(sample=samples, num='1')
 targets = helpers.fill_patterns(patterns, fill)
 
 rule targets:
@@ -108,7 +127,6 @@ def wrapper_for(path):
     return 'file://' + os.path.join(URI, 'wrappers', path)
 
 # FASTQ Pre-process ##############################################################################
-
 def check_fastq(fn):
     try:
         with gopen(fn, 'rt') as fh:
@@ -122,7 +140,7 @@ def check_fastq(fn):
 """Downloads fastq and checks if there is one or two sets of reads."""
 rule fastq_dump:
     output:
-        fastq = patterns['fastq_dump']['fastq_1'],
+        fastq = dynamic(FASTQ_pattern),
     run:
         srr = ms.Run.objects(pk=wildcards.sample).first()
         shell("fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample}")
@@ -130,27 +148,18 @@ rule fastq_dump:
         # Check read 1
         fn1 = wildcards.sample + '_1.fastq.gz'
         if check_fastq(os.path.join(TMPDIR, fn1)):
-            shmove(os.path.join(TMPDIR, fn1), output.fastq)
+            sh.move(os.path.join(TMPDIR, fn1), patterns['fastq_dump']['fastq'].format(sample=wildcards.sample, num=1))
 
         # Check read 2
         fn2 = wildcards.sample + '_2.fastq.gz'
         if check_fastq(os.path.join(TMPDIR, fn2)):
-            shmove(os.path.join(TMPDIR, fn2), output.fastq.replace('_1.fastq', '_2.fastq'))
+            sh.move(os.path.join(TMPDIR, fn2), patterns['fastq_dump']['fastq'].format(sample=wildcards.sample, num=2))
             srr.modify(add_to_set__pipeline_flags='PE')
         else:
             srr.modify(add_to_set__pipeline_flags='SE')
 
-def _fastqc(wildcards):
-    _sample = wildcards.sample
-    srr = ms.Run.objects(pk=_sample).first()
-    fn1 = patterns['fastq_dump']['fastq_1'].format(sample=_sample)
-    if 'SE' in srr.pipeline_flags:
-        return fn1
-    elif 'PE' in srr.pipeline_flags:
-        return fn1, fn1.replace('_1.fastq', '_2.fastq')
-
 rule fastqc:
-    input: _fastqc
+    input: dynamic(FASTQ_pattern)
     output:
         html=patterns['fastqc']['html'],
         zip=patterns['fastqc']['zip']
@@ -158,6 +167,21 @@ rule fastqc:
     wrapper:
         wrapper_for('fastqc')
 
+#TODO: fix wrapper to accept a list and use length to determine how it handles output.
+rule cutadapt:
+    input: dynamic(FASTQ_pattern)
+    output: dynamic(FASTQ_TRIM_pattern)
+    params:
+    wrapper:
+        wrapper_for('cutadapt')
+
+#TODO: make wraper for fastq screen
+rule fastqscreen:
+    input:
+    output:
+    params:
+    wrapper:
+        wrapper_for('fastqscreen')
 
 # Alignment ##############################################################################
 rule hisat2_splice_site:
@@ -168,20 +192,11 @@ rule hisat2_splice_site:
     shell:
         "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
-def _hisat2(wildcards):
-    _sample = wildcards.sample
-    srr = ms.Run.objects(pk=_sample).first()
-    fn1 = patterns['fastq_dump']['fastq_1'].format(sample=_sample)
-    if 'SE' in srr.pipeline_flags:
-        return fn1
-    elif 'PE' in srr.pipeline_flags:
-        return fn1, fn1.replace('_1.fastq', '_2.fastq')
-
 rule hisat2:
     input:
         index=patterns['hisat2_index'],
-        splice_sites = patterns['splice_sites'],
-        fastq = _hisat2
+        splice_sites=patterns['splice_sites'],
+        fastq=dynamic(FASTQ_pattern)
     output:
         bam = patterns['bam']
     threads: 8
@@ -231,65 +246,6 @@ rule infer_experiment:
     wrapper:
         wrapper_for('rseqc/infer_experiment')
 
-rule infer_experiment_agg:
-    input:
-        txt = targets['rseqc']['infer_experiment']
-    output:
-        txt = patterns['rseqc']['infer_experiment_agg']
-    run:
-        header = ['sample_id', 'Type', 'Undetermined', '++,--', '+-,+-', 'stranded']
-
-        se_regex = dedent("""\
-                This is SingleEnd Data
-                Fraction of reads failed to determine: (\d\.\d+)
-                Fraction of reads explained by \"\+\+\,\-\-\"\: (\d\.\d+)
-                Fraction of reads explained by \"\+\-\,\-\+\"\: (\d\.\d+).*""")
-
-        pe_regex = dedent("""\
-                This is PairEnd Data
-                Fraction of reads failed to determine: (\d\.\d+)
-                Fraction of reads explained by \"1\+\+\,1\-\-,2\+\-\,2\-\+\"\: (\d\.\d+)
-                Fraction of reads explained by \"1\+\-\,1\-\+,2\+\+,2\-\-\"\: (\d\.\d+).*""")
-
-        with open(output.txt, 'w') as fo:
-            fo.write('\t'.join(header) + '\n')
-
-            for f in input.txt:
-                sample = os.path.basename(f).replace('.infer_experiment.txt', '')
-
-                with open(f, 'r') as fh:
-                    data = fh.read().strip()
-                    try:
-                        # SingleEnd
-                        m = re.match(se_regex, data, flags=re.DOTALL).groups()
-                        _type = 'SingleEnd'
-                    except:
-                        try:
-                            # PairEnd
-                            m = re.match(pe_regex, data, flags=re.DOTALL).groups()
-                            _type = 'PairEnd'
-                        except:
-                            print(f)
-                            print(regex)
-                            print(data)
-                            raise
-
-                    if np.abs(float(m[1]) - float(m[2])) >= .20:
-                        if _type == 'SingleEnd':
-                            if float(m[1]) > float(m[2]):
-                                stranded = 'F'
-                            else:
-                                stranded = 'R'
-                        else:
-                            if float(m[1]) > float(m[2]):
-                                stranded = 'FR'
-                            else:
-                                stranded = 'RF'
-                    else:
-                        stranded = 'NonStranded'
-
-                    fo.write('\t'.join([sample, _type, *m, stranded]) + '\n')
-
 rule geneBody_coverage:
     input:
         bam = patterns['bam'],
@@ -304,23 +260,6 @@ rule geneBody_coverage:
     wrapper:
         wrapper_for('rseqc/geneBody_coverage')
 
-rule geneBody_coverage_agg:
-    input:
-        txt = targets['rseqc']['geneBodyCoverage']['txt']
-    output:
-        txt = patterns['rseqc']['geneBodyCoverage_agg']
-    run:
-        with open(output.txt , 'w') as fo:
-            for i, f in enumerate(input.txt):
-                with open(f, 'r') as fh:
-                    if i == 0:
-                        fo.write(fh.read().replace('.prealn', '').replace('Percentile', 'sample_id'))
-                    else:
-                        try:
-                            fo.write(fh.readlines()[1].replace('.prealn', ''))
-                        except IndexError:
-                            print(f)
-
 rule tin:
     input:
         bam = patterns['bam'],
@@ -332,20 +271,6 @@ rule tin:
     wrapper:
         wrapper_for('rseqc/tin')
 
-rule tin_agg:
-    input:
-        txt = targets['rseqc']['tin']['summary']
-    output:
-        txt = patterns['rseqc']['tin_agg']
-    run:
-        with open(output.txt , 'w') as fo:
-            for i, f in enumerate(input.txt):
-                with open(f, 'r') as fh:
-                    if i == 0:
-                        fo.write(fh.read().replace('.prealn.bam', '').replace('Bam_file', 'sample_id'))
-                    else:
-                        fo.write(fh.readlines()[1].replace('.prealn.bam', ''))
-
 rule bam_stat:
     input:
         bam = patterns['bam']
@@ -353,42 +278,3 @@ rule bam_stat:
         txt = patterns['rseqc']['bam_stat']
     wrapper:
         wrapper_for('rseqc/bam_stat')
-
-rule bam_stat_agg:
-    input:
-        txt = targets['rseqc']['bam_stat']
-    output:
-        txt = patterns['rseqc']['bam_stat_agg']
-    run:
-        header = ['sample_id', 'Total_records', 'QC_failed', 'Optical_PCR_duplicate',
-                  'Non_primary_hits', 'Unmapped_reads', 'non-unique',
-                  'unique', 'Read-1', 'Read-2', 'Reads_map_plus', 'Reads_map_minus', 'Non-splice_reads',
-                  'Splice_reads', 'Reads_mapped_in_proper_pairs',
-                  'Proper-paired_reads_map_to_different_chrom']
-
-        regex = dedent("""\
-            .*Total.* (\d+)
-
-            QC.* (\d+)
-            Optical.* (\d+)
-            Non primary hits.* (\d+)
-            Unmapped reads.* (\d+)
-            mapq.* (\d+)
-
-            mapq.* (\d+)
-            Read-1.* (\d+)
-            Read-2.* (\d+)
-            Reads map to \'\+\'.* (\d+)
-            Reads map to \'-\'.* (\d+)
-            Non-splice reads.* (\d+)
-            Splice reads.* (\d+)
-            Reads mapped.* (\d+)
-            Proper-paired.*:(\d+)""")
-
-        with open(output.txt, 'w') as fo:
-            fo.write('\t'.join(header) + '\n')
-            for f in input.txt:
-                sample = os.path.basename(f).replace('.bam_stat.txt', '')
-                with open(f, 'r') as fh:
-                    m = re.match(regex, fh.read().strip(), flags=re.DOTALL).groups()
-                    fo.write('\t'.join([sample, *m]) + '\n')
