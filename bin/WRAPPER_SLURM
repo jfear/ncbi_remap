@@ -4,6 +4,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=120:00:00
 #SBATCH --mem=700
+source activate ncbi_remap
 
 SNAKEFILE=$1
 EXTRA=$2
@@ -21,6 +22,7 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
     -j 100 \
     -k \
     --verbose \
+    --use-conda \
     --cluster-config $CLUSTER \
     --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_${EXTRA}.o.%j --error=slurm_logs/${SNAKEFILE}_${EXTRA}.e.%j" \
     --latency-wait=60 \
