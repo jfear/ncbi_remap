@@ -1,6 +1,3 @@
-[submodule "lcdblib"]
-	path = lcdblib
-	url = git@github.com:lcdb/lcdblib
 [submodule "lcdb-wrapper-tests"]
 	path = lcdb-wrapper-tests
 	url = git@github.com:lcdb/lcdb-wrapper-tests
