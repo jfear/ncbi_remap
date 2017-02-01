@@ -25,4 +25,4 @@ references
 notebook/*/*.html
 lib/python/test_xml.xml
 *DS_Store*
-*.mongodb
+*.mongodb*

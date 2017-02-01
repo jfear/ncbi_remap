@@ -41,6 +41,9 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 workdir: '.'
 
+################################################################################
+# Start/Stop MongoDB
+################################################################################
 # Store mongodb hostname
 MONGODB_HOSTNAME = '.mongodb_host'
 MONGODB_PID = '.mongodb_pid'
@@ -53,84 +56,90 @@ if not os.path.exists(MONGODB_HOSTNAME):
     # Start mongo and save PID
     pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
     with open(MONGODB_PID, 'w') as fh:
-        fh.write(pid.pid)
+        fh.write(str(pid.pid))
 
 onsuccess:
     # Stop mongodb
     with open(MONGODB_PID, 'r') as fh:
-        pid = fh.read()
+        pid = int(fh.read())
     os.kill(pid, signal.SIGTERM)
-    sh.rmtree(MONGODB_PID)
+    os.remove(MONGODB_PID)
 
     # Remove hostname
-    sh.rmtree(MONGODB_HOSTNAME)
-
+    os.remove(MONGODB_HOSTNAME)
     print('Script complete.')
 
 onerror:
     # Stop mongodb
     with open(MONGODB_PID, 'r') as fh:
-        pid = fh.read()
+        pid = int(fh.read())
     os.kill(pid, signal.SIGTERM)
-    sh.rmtree(MONGODB_PID)
+    os.remove(MONGODB_PID)
 
     # Remove hostname
-    sh.rmtree(MONGODB_HOSTNAME)
-
+    os.remove(MONGODB_HOSTNAME)
     print('There was an error.')
 
 # connect to mongo engine
 with open(MONGODB_HOSTNAME, 'r') as fh:
     mongo_client = connect(db='sra', host=fh.read())
 
-
+################################################################################
+# Set up file naming patterns
+################################################################################
 patterns = {
     'gtf': '../references/dm6/r6-11/gtf/dm6_r6-11.gtf',
     'hisat2_index': ['../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.1.ht2',
                      '../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.2.ht2'],
     'splice_sites':     '../output/known_splice_sites_r6-11.txt',
     'bed12': '../output/dm6_r6-11.bed12',
-    'bam': '../output/prealignment/samples/{sample}/{sample}.bam',
-    'bai': '../output/prealignment/samples/{sample}/{sample}.bam.bai',
+    'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam',
+    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam.bai',
     'fastqc': {
-        'html': '../output/prealignment/samples/{sample}/{sample}.fastqc.html',
-        'zip': '../output/prealignment/samples/{sample}/{sample}.fastqc.zip',
+        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
+        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.zip',
         },
     'rseqc': {
-        'bam_stat': '../output/prealignment/samples/{sample}/{sample}.bam_stat.txt',
-        'infer_experiment': '../output/prealignment/samples/{sample}/{sample}.infer_experiment.txt',
+        'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
+        'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
         'geneBodyCoverage': {
-            'txt': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.txt',
-            'r': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.r',
-            'img': '../output/prealignment/samples/{sample}/{sample}.geneBody_coverage.pdf',
+            'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.txt',
+            'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.r',
+            'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.pdf',
         },
         'tin': {
-            'table': '../output/prealignment/samples/{sample}/{sample}.tin.tsv',
-            'summary': '../output/prealignment/samples/{sample}/{sample}.tin.txt',
+            'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
+            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
         },
     },
 }
 
-FASTQ_pattern = '../output/prealignment/samples/{sample}/{sample}_{num}.fastq.gz'
-FASTQ_TRIM_pattern = '../output/prealignment/samples/{sample}/{sample}_{num}.trim.fastq.gz'
+FASTQ_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.fastq.gz'
+# FASTQ_TRIM_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.fastq.gz'
 
-samples = ['SRR3001915', 'SRR5100246']
+# Import run_id and experiment_id and dump into a dataframe
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({}, {'_id': 1, 'experiment_id': 1})))
+sample_table.columns = ['sample', 'experiment']
+sample_table.sort_values(by='sample', inplace=True)
+sample_table['num'] = 1
 
-fill = dict(sample=samples, num='1')
-targets = helpers.fill_patterns(patterns, fill)
+#targets = helpers.fill_patterns(patterns, sample_table.iloc[0:10000,:])
+targets = helpers.fill_patterns(patterns, sample_table.iloc[0:5000,:])
 
 rule targets:
     input: utils.flatten(targets)
 
 def wrapper_for(path):
     URI = '../lcdb-wrapper-tests'
-    return 'file://' + os.path.join(URI, 'wrappers', path)
+    return 'file:' + os.path.join(URI, 'wrappers', path)
 
-# FASTQ Pre-process ##############################################################################
+################################################################################
+# FASTQ Pre-process
+################################################################################
 def check_fastq(fn):
+    """Checks if a gzip file actually has data in it."""
     try:
-        with gopen(fn, 'rt') as fh:
-            assert len(fh.read()) > 10
+        assert os.stat(fn).st_size > 10000
         return True
     except (FileNotFoundError, AssertionError) as err:
         return False
@@ -148,12 +157,12 @@ rule fastq_dump:
         # Check read 1
         fn1 = wildcards.sample + '_1.fastq.gz'
         if check_fastq(os.path.join(TMPDIR, fn1)):
-            sh.move(os.path.join(TMPDIR, fn1), patterns['fastq_dump']['fastq'].format(sample=wildcards.sample, num=1))
+            sh.move(os.path.join(TMPDIR, fn1), FASTQ_pattern.format(sample=wildcards.sample, experiment=wildcards.experiment, num=1))
 
         # Check read 2
         fn2 = wildcards.sample + '_2.fastq.gz'
         if check_fastq(os.path.join(TMPDIR, fn2)):
-            sh.move(os.path.join(TMPDIR, fn2), patterns['fastq_dump']['fastq'].format(sample=wildcards.sample, num=2))
+            sh.move(os.path.join(TMPDIR, fn2), FASTQ_pattern.format(sample=wildcards.sample, experiment=wildcards.experiment, num=2))
             srr.modify(add_to_set__pipeline_flags='PE')
         else:
             srr.modify(add_to_set__pipeline_flags='SE')
@@ -168,22 +177,16 @@ rule fastqc:
         wrapper_for('fastqc')
 
 #TODO: fix wrapper to accept a list and use length to determine how it handles output.
-rule cutadapt:
-    input: dynamic(FASTQ_pattern)
-    output: dynamic(FASTQ_TRIM_pattern)
-    params:
-    wrapper:
-        wrapper_for('cutadapt')
+# rule cutadapt:
+#     input: dynamic(FASTQ_pattern)
+#     output: dynamic(FASTQ_TRIM_pattern)
+#     params: extra="-a file:../data/adapters.fa"
+#     wrapper:
+#         wrapper_for('cutadapt')
 
-#TODO: make wraper for fastq screen
-rule fastqscreen:
-    input:
-    output:
-    params:
-    wrapper:
-        wrapper_for('fastqscreen')
-
-# Alignment ##############################################################################
+################################################################################
+# Alignment
+################################################################################
 rule hisat2_splice_site:
     input:
         gtf = patterns['gtf']
@@ -217,6 +220,9 @@ rule bai:
     shell:
         "samtools index {input.bam}"
 
+################################################################################
+# RSEQC
+################################################################################
 rule gtf2bed12:
     input:
         gtf = patterns['gtf']
@@ -236,7 +242,6 @@ rule gtf2bed12:
             for t in db.features_of_type('transcript'):
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
-# RSEQC ##############################################################################
 rule infer_experiment:
     input:
         bam = patterns['bam'],

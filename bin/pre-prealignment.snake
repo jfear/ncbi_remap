@@ -1,0 +1,136 @@
+#/usr/bin/env python
+# vim: set ft=python.snakemake
+""" The prealignment workflow to identify basic characteristics about SRA runs.
+
+Zhenxia originally developed this workflow. The goal here is to use the data to
+determine if the sample is really RNA-seq and strandedness.
+
+"""
+import os
+import signal
+import re
+from textwrap import dedent
+import shutil as sh
+from gzip import open as gopen
+
+import numpy as np
+import pandas as pd
+
+from lcdblib.snakemake import helpers, aligners
+from lcdblib.utils import utils
+
+from sramongo.mongo import start_mongo
+from mongoengine import connect
+
+sys.path.insert(0, '../lib/python')
+from ncbi_remap import mongo_schema as ms
+
+try:
+    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+    assert os.path.exists(TMPDIR)
+except:
+    try:
+        TMPDIR = os.getenv('TMPDIR')
+        assert os.path.exists(TMPDIR)
+    except:
+        from tempfile import mkdtemp
+        TMPDIR = mkdtemp(dir='.snakemake/')
+        print('Temporary storage is at: {}'.format(TMPDIR))
+
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+workdir: '.'
+
+################################################################################
+# Start/Stop MongoDB
+################################################################################
+# Store mongodb hostname
+MONGODB_HOSTNAME = '.mongodb_host'
+MONGODB_PID = '.mongodb_pid'
+
+if not os.path.exists(MONGODB_HOSTNAME):
+    # Record host
+    with open(MONGODB_HOSTNAME, 'w') as fh:
+        fh.write(os.getenv('SLURMD_NODENAME'))
+
+    # Start mongo and save PID
+    pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
+    with open(MONGODB_PID, 'w') as fh:
+        fh.write(str(pid.pid))
+
+onsuccess:
+    # Stop mongodb
+    with open(MONGODB_PID, 'r') as fh:
+        pid = int(fh.read())
+    os.kill(pid, signal.SIGTERM)
+    os.remove(MONGODB_PID)
+
+    # Remove hostname
+    os.remove(MONGODB_HOSTNAME)
+    print('Script complete.')
+
+onerror:
+    # Stop mongodb
+    with open(MONGODB_PID, 'r') as fh:
+        pid = int(fh.read())
+    os.kill(pid, signal.SIGTERM)
+    os.remove(MONGODB_PID)
+
+    # Remove hostname
+    os.remove(MONGODB_HOSTNAME)
+    print('There was an error.')
+
+# connect to mongo engine
+with open(MONGODB_HOSTNAME, 'r') as fh:
+    mongo_client = connect(db='sra', host=fh.read())
+
+################################################################################
+# Set up file naming patterns
+################################################################################
+patterns = {'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.fastq.gz'}
+
+# Import run_id and experiment_id and dump into a dataframe
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({}, {'_id': 1, 'experiment_id': 1})))
+sample_table.columns = ['sample', 'experiment']
+sample_table.sort_values(by='sample', inplace=True)
+sample_table['num'] = 1
+
+#targets = helpers.fill_patterns(patterns, sample_table.iloc[0:10000,:])
+targets = helpers.fill_patterns(patterns, sample_table)
+
+rule targets:
+    input: utils.flatten(targets)
+
+################################################################################
+# FASTQ dump and check for SE or PE
+################################################################################
+def check_fastq(fn):
+    """Checks if a gzip file actually has data in it."""
+    try:
+        assert os.stat(fn).st_size > 10000
+        return True
+    except (FileNotFoundError, AssertionError) as err:
+        return False
+    except:
+        raise
+
+"""Downloads fastq and checks if there is one or two sets of reads."""
+rule fastq_dump:
+    output:
+        fastq = patterns['fastq']
+    run:
+        srr = ms.Run.objects(pk=wildcards.sample).first()
+        shell("fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample}")
+
+        # Check read 1
+        fn1 = wildcards.sample + '_1.fastq.gz'
+        if check_fastq(os.path.join(TMPDIR, fn1)):
+            sh.move(os.path.join(TMPDIR, fn1), patterns['fastq'].format(sample=wildcards.sample, experiment=wildcards.experiment, num=1))
+
+        # Check read 2
+        fn2 = wildcards.sample + '_2.fastq.gz'
+        if check_fastq(os.path.join(TMPDIR, fn2)):
+            sh.move(os.path.join(TMPDIR, fn2), patterns['fastq'].format(sample=wildcards.sample, experiment=wildcards.experiment, num=2))
+            srr.modify(add_to_set__pipeline_flags='PE')
+        else:
+            srr.modify(add_to_set__pipeline_flags='SE')

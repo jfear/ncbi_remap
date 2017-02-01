@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name="seq_pipeline"
 #SBATCH --partition="niddk,norm"
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 #SBATCH --time=120:00:00
-#SBATCH --mem=700
+#SBATCH --mem=12G
 source activate ncbi_remap
 
 SNAKEFILE=$1
@@ -19,7 +19,7 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 100 \
+    -j 200 \
     -k \
     --verbose \
     --use-conda \
