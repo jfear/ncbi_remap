@@ -7,6 +7,7 @@ determine if the sample is really RNA-seq and strandedness.
 
 """
 import os
+import sys
 import signal
 import re
 from textwrap import dedent
@@ -45,55 +46,60 @@ workdir: '.'
 # Start/Stop MongoDB
 ################################################################################
 # Store mongodb hostname
-MONGODB_HOSTNAME = '.mongodb_host'
-MONGODB_PID = '.mongodb_pid'
+# MONGODB_HOSTNAME = '.mongodb_host'
+# MONGODB_PID = '.mongodb_pid'
+#
+# if not os.path.exists(MONGODB_HOSTNAME):
+#     # Record host
+#     with open(MONGODB_HOSTNAME, 'w') as fh:
+#         fh.write(os.getenv('SLURMD_NODENAME'))
+#
+#     # Start mongo and save PID
+#     pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
+#     with open(MONGODB_PID, 'w') as fh:
+#         fh.write(str(pid.pid))
+#
+# onsuccess:
+#     # Stop mongodb
+#     with open(MONGODB_PID, 'r') as fh:
+#         pid = int(fh.read())
+#     os.kill(pid, signal.SIGTERM)
+#     os.remove(MONGODB_PID)
+#
+#     # Remove hostname
+#     os.remove(MONGODB_HOSTNAME)
+#     print('Script complete.')
+#
+# onerror:
+#     # Stop mongodb
+#     with open(MONGODB_PID, 'r') as fh:
+#         pid = int(fh.read())
+#     os.kill(pid, signal.SIGTERM)
+#     os.remove(MONGODB_PID)
+#
+#     # Remove hostname
+#     os.remove(MONGODB_HOSTNAME)
+#     print('There was an error.')
+#
+# # connect to mongo engine
+# with open(MONGODB_HOSTNAME, 'r') as fh:
+#     mongo_client = connect(db='sra', host=fh.read())
 
-if not os.path.exists(MONGODB_HOSTNAME):
-    # Record host
-    with open(MONGODB_HOSTNAME, 'w') as fh:
-        fh.write(os.getenv('SLURMD_NODENAME'))
-
-    # Start mongo and save PID
-    pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
-    with open(MONGODB_PID, 'w') as fh:
-        fh.write(str(pid.pid))
-
-onsuccess:
-    # Stop mongodb
-    with open(MONGODB_PID, 'r') as fh:
-        pid = int(fh.read())
-    os.kill(pid, signal.SIGTERM)
-    os.remove(MONGODB_PID)
-
-    # Remove hostname
-    os.remove(MONGODB_HOSTNAME)
-    print('Script complete.')
-
-onerror:
-    # Stop mongodb
-    with open(MONGODB_PID, 'r') as fh:
-        pid = int(fh.read())
-    os.kill(pid, signal.SIGTERM)
-    os.remove(MONGODB_PID)
-
-    # Remove hostname
-    os.remove(MONGODB_HOSTNAME)
-    print('There was an error.')
-
-# connect to mongo engine
-with open(MONGODB_HOSTNAME, 'r') as fh:
-    mongo_client = connect(db='sra', host=fh.read())
+mongo_client = connect(db='sra', host='localhost', port=27022)
 
 ################################################################################
 # Set up file naming patterns
 ################################################################################
 patterns = {
     'gtf': '../references/dm6/r6-11/gtf/dm6_r6-11.gtf',
-    'hisat2_index': ['../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.1.ht2',
-                     '../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.2.ht2'],
-    'splice_sites':     '../output/known_splice_sites_r6-11.txt',
     'bed12': '../output/dm6_r6-11.bed12',
-    'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam',
+    'hisat2': {
+        'splice_sites':     '../output/known_splice_sites_r6-11.txt',
+        'bam_fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        'bam_acc': '../output/prealignment/raw/{experiment}/{sample}/{sample}.acc.bam',
+        'index': ['../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.1.ht2',
+                         '../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.2.ht2'],
+            },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam.bai',
     'fastqc': {
         'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
@@ -114,20 +120,21 @@ patterns = {
     },
 }
 
-FASTQ_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.fastq.gz'
-# FASTQ_TRIM_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.fastq.gz'
+FASTQ_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz'
+FASTQ_TRIM_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.clean.fastq.gz'
 
 # Import run_id and experiment_id and dump into a dataframe
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({}, {'_id': 1, 'experiment_id': 1})))
-sample_table.columns = ['sample', 'experiment']
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'_id': 'SRR2069724'}, {'_id': 1, 'experiment_id': 1, 'db_flags': 1})))
+sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-sample_table['num'] = 1
+# Add a column with info about PE or SE
+sample_table['num'] = sample_table.db_flags.apply(lambda x: [1, 2] if 'PE' in x else 1)
 
-#targets = helpers.fill_patterns(patterns, sample_table.iloc[0:10000,:])
-targets = helpers.fill_patterns(patterns, sample_table.iloc[0:5000,:])
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
-    input: utils.flatten(targets)
+    input: utils.flatten(targets['hisat2'])
 
 def wrapper_for(path):
     URI = '../lcdb-wrapper-tests'
@@ -136,53 +143,37 @@ def wrapper_for(path):
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-def check_fastq(fn):
-    """Checks if a gzip file actually has data in it."""
-    try:
-        assert os.stat(fn).st_size > 10000
-        return True
-    except (FileNotFoundError, AssertionError) as err:
-        return False
-    except:
-        raise
+def _fastq_files(wildcards):
+    """Return the correct number of files depending on PE or SE.
 
-"""Downloads fastq and checks if there is one or two sets of reads."""
-rule fastq_dump:
-    output:
-        fastq = dynamic(FASTQ_pattern),
-    run:
-        srr = ms.Run.objects(pk=wildcards.sample).first()
-        shell("fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample}")
+    For SE samples return *_1.fastq.gz. For PE samples return *_1.fastq.gz
+    and *_2.fastq.gz
+    """
+    metadata = sample_table[sample_table['sample'] == wildcards.sample]
+    return expand(
+        FASTQ_pattern, sample=wildcards.sample,
+        experiment=wildcards.experiment, num=metadata.num[0])
 
-        # Check read 1
-        fn1 = wildcards.sample + '_1.fastq.gz'
-        if check_fastq(os.path.join(TMPDIR, fn1)):
-            sh.move(os.path.join(TMPDIR, fn1), FASTQ_pattern.format(sample=wildcards.sample, experiment=wildcards.experiment, num=1))
+def _trim_fastq_files(wildcards):
+    """Return the correct number of files depending on PE or SE.
 
-        # Check read 2
-        fn2 = wildcards.sample + '_2.fastq.gz'
-        if check_fastq(os.path.join(TMPDIR, fn2)):
-            sh.move(os.path.join(TMPDIR, fn2), FASTQ_pattern.format(sample=wildcards.sample, experiment=wildcards.experiment, num=2))
-            srr.modify(add_to_set__pipeline_flags='PE')
-        else:
-            srr.modify(add_to_set__pipeline_flags='SE')
+    For SE samples return *_1.trim.fastq.gz. For PE samples return *_1.trim.fastq.gz
+    and *_2.fastq.gz
+    """
+    metadata = sample_table[sample_table['sample'] == wildcards.sample]
+    return expand(
+        FASTQ_TRIM_pattern, sample=wildcards.sample,
+        experiment=wildcards.experiment, num=metadata.num[0])
+
 
 rule fastqc:
-    input: dynamic(FASTQ_pattern)
+    input: _fastq_files
     output:
         html=patterns['fastqc']['html'],
         zip=patterns['fastqc']['zip']
     params: extra="--format fastq"
     wrapper:
         wrapper_for('fastqc')
-
-#TODO: fix wrapper to accept a list and use length to determine how it handles output.
-# rule cutadapt:
-#     input: dynamic(FASTQ_pattern)
-#     output: dynamic(FASTQ_TRIM_pattern)
-#     params: extra="-a file:../data/adapters.fa"
-#     wrapper:
-#         wrapper_for('cutadapt')
 
 ################################################################################
 # Alignment
@@ -191,95 +182,111 @@ rule hisat2_splice_site:
     input:
         gtf = patterns['gtf']
     output:
-        patterns['splice_sites']
+        patterns['hisat2']['splice_sites']
     shell:
         "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
-rule hisat2:
+rule hisat2_fastq:
     input:
-        index=patterns['hisat2_index'],
-        splice_sites=patterns['splice_sites'],
-        fastq=dynamic(FASTQ_pattern)
+        index=patterns['hisat2']['index'],
+        splice_sites=patterns['hisat2']['splice_sites'],
+        fastq=_fastq_files
     output:
-        bam = patterns['bam']
+        bam = patterns['hisat2']['bam_fastq']
     threads: 8
     params:
         hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
         samtools_view_extra = '-q 20',
         samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log:
-        patterns['bam'] + '.log'
+        patterns['hisat2']['bam_fastq'] + '.log'
+    wrapper:
+        wrapper_for('hisat2/align')
+
+rule hisat2_acc:
+    input:
+        index=patterns['hisat2']['index'],
+        splice_sites=patterns['hisat2']['splice_sites']
+    output:
+        bam = patterns['hisat2']['bam_acc']
+    threads: 8
+    params:
+        hisat2_extra = '--sra-acc SRR2069724 --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        samtools_view_extra = '-q 20',
+        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log:
+        patterns['hisat2']['bam_acc'] + '.log'
     wrapper:
         wrapper_for('hisat2/align')
 
 rule bai:
     input:
-        bam = patterns['bam']
+        bam = '{prefix}.bam'
     output:
-        bai = patterns['bai']
+        bai = '{prefix}.bam.bai'
     shell:
         "samtools index {input.bam}"
 
 ################################################################################
 # RSEQC
 ################################################################################
-rule gtf2bed12:
-    input:
-        gtf = patterns['gtf']
-    output:
-        bed12 = patterns['bed12']
-    run:
-        import gffutils
-        if not os.path.exists(input.gtf + '.db'):
-            db = gffutils.create_db(data=input.gtf, dbfn=input.gtf + '.db', merge_strategy='merge',
-                    id_spec={'transcript': ['transcript_id', 'transcript_symbol'],
-                             'gene': ['gene_id', 'gene_symbol']},
-                    gtf_transcript_key='transcript_id', gtf_gene_key='gene_id')
-        else:
-            db = gffutils.FeatureDB(input.gtf + '.db')
-
-        with open(output.bed12, 'w') as fo:
-            for t in db.features_of_type('transcript'):
-                fo.write(db.bed12(t, name_field='transcript_id') + '\n')
-
-rule infer_experiment:
-    input:
-        bam = patterns['bam'],
-        bed = patterns['bed12']
-    output:
-        txt = patterns['rseqc']['infer_experiment']
-    wrapper:
-        wrapper_for('rseqc/infer_experiment')
-
-rule geneBody_coverage:
-    input:
-        bam = patterns['bam'],
-        bai = patterns['bai'],
-        bed = patterns['bed12']
-    output:
-        txt = patterns['rseqc']['geneBodyCoverage']['txt'],
-        r = patterns['rseqc']['geneBodyCoverage']['r'],
-        img = patterns['rseqc']['geneBodyCoverage']['img']
-    log:
-        patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-    wrapper:
-        wrapper_for('rseqc/geneBody_coverage')
-
-rule tin:
-    input:
-        bam = patterns['bam'],
-        bai = patterns['bai'],
-        bed = patterns['bed12']
-    output:
-        table = patterns['rseqc']['tin']['table'],
-        summary = patterns['rseqc']['tin']['summary']
-    wrapper:
-        wrapper_for('rseqc/tin')
-
-rule bam_stat:
-    input:
-        bam = patterns['bam']
-    output:
-        txt = patterns['rseqc']['bam_stat']
-    wrapper:
-        wrapper_for('rseqc/bam_stat')
+# rule gtf2bed12:
+#     input:
+#         gtf = patterns['gtf']
+#     output:
+#         bed12 = patterns['bed12']
+#     run:
+#         import gffutils
+#         if not os.path.exists(input.gtf + '.db'):
+#             db = gffutils.create_db(data=input.gtf, dbfn=input.gtf + '.db', merge_strategy='merge',
+#                     id_spec={'transcript': ['transcript_id', 'transcript_symbol'],
+#                              'gene': ['gene_id', 'gene_symbol']},
+#                     gtf_transcript_key='transcript_id', gtf_gene_key='gene_id')
+#         else:
+#             db = gffutils.FeatureDB(input.gtf + '.db')
+#
+#         with open(output.bed12, 'w') as fo:
+#             for t in db.features_of_type('transcript'):
+#                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
+#
+# rule infer_experiment:
+#     input:
+#         bam = patterns['bam'],
+#         bed = patterns['bed12']
+#     output:
+#         txt = patterns['rseqc']['infer_experiment']
+#     wrapper:
+#         wrapper_for('rseqc/infer_experiment')
+#
+# rule geneBody_coverage:
+#     input:
+#         bam = patterns['bam'],
+#         bai = patterns['bai'],
+#         bed = patterns['bed12']
+#     output:
+#         txt = patterns['rseqc']['geneBodyCoverage']['txt'],
+#         r = patterns['rseqc']['geneBodyCoverage']['r'],
+#         img = patterns['rseqc']['geneBodyCoverage']['img']
+#     log:
+#         patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
+#     wrapper:
+#         wrapper_for('rseqc/geneBody_coverage')
+#
+# rule tin:
+#     input:
+#         bam = patterns['bam'],
+#         bai = patterns['bai'],
+#         bed = patterns['bed12']
+#     output:
+#         table = patterns['rseqc']['tin']['table'],
+#         summary = patterns['rseqc']['tin']['summary']
+#     wrapper:
+#         wrapper_for('rseqc/tin')
+#
+# rule bam_stat:
+#     input:
+#         bam = patterns['bam']
+#     output:
+#         txt = patterns['rseqc']['bam_stat']
+#     wrapper:
+#         wrapper_for('rseqc/bam_stat')
