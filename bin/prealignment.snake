@@ -13,6 +13,7 @@ import re
 from textwrap import dedent
 import shutil as sh
 from gzip import open as gopen
+from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -46,9 +47,9 @@ workdir: '.'
 # Start/Stop MongoDB
 ################################################################################
 # Store mongodb hostname
-# MONGODB_HOSTNAME = '.mongodb_host'
-# MONGODB_PID = '.mongodb_pid'
-#
+MONGODB_HOSTNAME = '.mongodb_host'
+MONGODB_PID = '.mongodb_pid'
+
 # if not os.path.exists(MONGODB_HOSTNAME):
 #     # Record host
 #     with open(MONGODB_HOSTNAME, 'w') as fh:
@@ -82,23 +83,59 @@ workdir: '.'
 #     print('There was an error.')
 #
 # # connect to mongo engine
-# with open(MONGODB_HOSTNAME, 'r') as fh:
-#     mongo_client = connect(db='sra', host=fh.read())
-
-mongo_client = connect(db='sra', host='localhost', port=27022)
+with open(MONGODB_HOSTNAME, 'r') as fh:
+    mongo_client = connect(db='sra', host=fh.read().strip(), port=27022)
 
 ################################################################################
 # Set up file naming patterns
 ################################################################################
+references = {
+        'dmel': {
+            'fasta': '/data/LCDB/lcdb-references/dm6/r6-11/fasta/dm6_r6-11.fasta',
+            'gtf':  '/data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf',
+            'db':  '/data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf.db',
+            'bowtie2': '/data/LCDB/lcdb-references/dm6/r6-11/bowtie2/dm6_r6-11.1.bt2',
+            'hisat2': '/data/LCDB/lcdb-references/dm6/r6-11/hisat2/dm6_r6-11.1.ht2',
+            },
+        'rRNA': {
+            'bowtie2': '/data/LCDB/lcdb-references/dm6/rRNA/bowtie2/dm6_rRNA.1.bt2',
+            },
+        'wolbachia': {
+            'bowtie2': '/data/LCDB/lcdb-references/wolbachia/default/bowtie2/wolbachia_default.1.bt2',
+            },
+        'human': {
+            'bowtie2': '/data/LCDB/lcdb-references/hg19/gencode-v19/bowtie2/hg19_gencode-v19.1.bt2',
+            },
+        'ecoli': {
+            'bowtie2': '/data/LCDB/lcdb-references/ecoli/default/bowtie2/ecoli_default.1.bt2',
+            },
+        'yeast': {
+            'bowtie2': '/data/LCDB/lcdb-references/sacCer3/default/bowtie2/sacCer3_default.1.bt2',
+            },
+        'phix': {
+            'bowtie2': '/data/LCDB/lcdb-references/phix/default/bowtie2/phix_default.1.bt2',
+            },
+        'ercc': {
+            'bowtie2': '/data/LCDB/lcdb-references/ercc/srm2374/bowtie2/ercc_srm2374.1.bt2',
+            },
+        'adapters': {
+            'bowtie2': '/data/LCDB/lcdb-references/adapters/default/bowtie2/adapters_default.1.bt2',
+            },
+        }
+
 patterns = {
-    'gtf': '../references/dm6/r6-11/gtf/dm6_r6-11.gtf',
+    'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz',
+    'fastq_count': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz.libsize',
+    'cutadapt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.clean.fastq.gz',
+    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz.screen',
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites':     '../output/known_splice_sites_r6-11.txt',
         'bam_fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        'bam_fastq_bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
         'bam_acc': '../output/prealignment/raw/{experiment}/{sample}/{sample}.acc.bam',
-        'index': ['../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.1.ht2',
-                         '../references/dm6/r6-11/hisat2/dm6_r6-11_chr2L.2.ht2'],
+        'index': ['../references/dm6/r6-11/hisat2/dm6_r6-11.1.ht2',
+                         '../references/dm6/r6-11/hisat2/dm6_r6-11.2.ht2'],
             },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam.bai',
     'fastqc': {
@@ -120,21 +157,22 @@ patterns = {
     },
 }
 
-FASTQ_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz'
-FASTQ_TRIM_pattern = '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.clean.fastq.gz'
-
 # Import run_id and experiment_id and dump into a dataframe
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'_id': 'SRR2069724'}, {'_id': 1, 'experiment_id': 1, 'db_flags': 1})))
+with open('../data/test_samples', 'r') as fh:
+    test_samples = [x.strip() for x in fh.readlines()]
+
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': {'$exists': 1}, '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1, 'pipeline_flags': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-# Add a column with info about PE or SE
-sample_table['num'] = sample_table.db_flags.apply(lambda x: [1, 2] if 'PE' in x else 1)
+sample_table['num'] = 1
 
 # Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
-    input: utils.flatten(targets['hisat2'])
+    input:
+        utils.flatten(targets['hisat2']['bam_fastq'])
+        + targets['fastq_screen']
 
 def wrapper_for(path):
     URI = '../lcdb-wrapper-tests'
@@ -143,28 +181,37 @@ def wrapper_for(path):
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
+def _check_pe(df):
+    if 'SE' in df.pipeline_flags:
+        return 1
+    elif 'PE' in df.pipeline_flags:
+        return [1, 2]
+    else:
+        raise KeyError('pipeline_flags should have PE or SE in it: {}'.format(df))
+
 def _fastq_files(wildcards):
     """Return the correct number of files depending on PE or SE.
 
     For SE samples return *_1.fastq.gz. For PE samples return *_1.fastq.gz
     and *_2.fastq.gz
     """
-    metadata = sample_table[sample_table['sample'] == wildcards.sample]
+    metadata = sample_table[sample_table['sample'] == wildcards.sample].iloc[0, :]
+    num = _check_pe(metadata)
     return expand(
-        FASTQ_pattern, sample=wildcards.sample,
-        experiment=wildcards.experiment, num=metadata.num[0])
+        patterns['fastq'], sample=wildcards.sample,
+        experiment=wildcards.experiment, num=num)
 
 def _trim_fastq_files(wildcards):
     """Return the correct number of files depending on PE or SE.
 
-    For SE samples return *_1.trim.fastq.gz. For PE samples return *_1.trim.fastq.gz
+    For SE samples return *_1.fastq.gz. For PE samples return *_1.fastq.gz
     and *_2.fastq.gz
     """
-    metadata = sample_table[sample_table['sample'] == wildcards.sample]
+    metadata = sample_table[sample_table['sample'] == wildcards.sample].iloc[0, :]
+    num = _check_pe(metadata)
     return expand(
-        FASTQ_TRIM_pattern, sample=wildcards.sample,
-        experiment=wildcards.experiment, num=metadata.num[0])
-
+        patterns['cutadapt'], sample=wildcards.sample,
+        experiment=wildcards.experiment, num=num)
 
 rule fastqc:
     input: _fastq_files
@@ -175,12 +222,37 @@ rule fastqc:
     wrapper:
         wrapper_for('fastqc')
 
+rule fastq_count:
+    input:
+        fastq=patterns['fastq']
+    output:
+        count=patterns['fastq_count']
+    shell:
+        'zcat {input} | echo $((`wc -l`/4)) > {output}'
+
+rule fastq_screen:
+    input:
+        fastq=patterns['fastq'],
+        hg19=references['human']['bowtie2'],
+        wolbachia=references['wolbachia']['bowtie2'],
+        ecoli=references['ecoli']['bowtie2'],
+        yeast=references['yeast']['bowtie2'],
+        rRNA=references['rRNA']['bowtie2'],
+        phix=references['phix']['bowtie2'],
+        ercc=references['ercc']['bowtie2'],
+        adapters=references['adapters']['bowtie2']
+    output:
+        txt=patterns['fastq_screen']
+    log: patterns['fastq_screen'] + '.log'
+    wrapper:
+        wrapper_for('fastq_screen')
+
 ################################################################################
 # Alignment
 ################################################################################
 rule hisat2_splice_site:
     input:
-        gtf = patterns['gtf']
+        gtf = references['dmel']['gtf']
     output:
         patterns['hisat2']['splice_sites']
     shell:
@@ -203,21 +275,21 @@ rule hisat2_fastq:
     wrapper:
         wrapper_for('hisat2/align')
 
-rule hisat2_acc:
-    input:
-        index=patterns['hisat2']['index'],
-        splice_sites=patterns['hisat2']['splice_sites']
-    output:
-        bam = patterns['hisat2']['bam_acc']
-    threads: 8
-    params:
-        hisat2_extra = '--sra-acc SRR2069724 --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
-        samtools_view_extra = '-q 20',
-        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log:
-        patterns['hisat2']['bam_acc'] + '.log'
-    wrapper:
-        wrapper_for('hisat2/align')
+# rule hisat2_acc:
+#     input:
+#         index=patterns['hisat2']['index'],
+#         splice_sites=patterns['hisat2']['splice_sites']
+#     output:
+#         bam = patterns['hisat2']['bam_acc']
+#     threads: 8
+#     params:
+#         hisat2_extra = '--sra-acc SRR2069724 --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+#         samtools_view_extra = '-q 20',
+#         samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+#     log:
+#         patterns['hisat2']['bam_acc'] + '.log'
+#     wrapper:
+#         wrapper_for('hisat2/align')
 
 rule bai:
     input:
@@ -230,63 +302,57 @@ rule bai:
 ################################################################################
 # RSEQC
 ################################################################################
-# rule gtf2bed12:
-#     input:
-#         gtf = patterns['gtf']
-#     output:
-#         bed12 = patterns['bed12']
-#     run:
-#         import gffutils
-#         if not os.path.exists(input.gtf + '.db'):
-#             db = gffutils.create_db(data=input.gtf, dbfn=input.gtf + '.db', merge_strategy='merge',
-#                     id_spec={'transcript': ['transcript_id', 'transcript_symbol'],
-#                              'gene': ['gene_id', 'gene_symbol']},
-#                     gtf_transcript_key='transcript_id', gtf_gene_key='gene_id')
-#         else:
-#             db = gffutils.FeatureDB(input.gtf + '.db')
-#
-#         with open(output.bed12, 'w') as fo:
-#             for t in db.features_of_type('transcript'):
-#                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
-#
-# rule infer_experiment:
-#     input:
-#         bam = patterns['bam'],
-#         bed = patterns['bed12']
-#     output:
-#         txt = patterns['rseqc']['infer_experiment']
-#     wrapper:
-#         wrapper_for('rseqc/infer_experiment')
-#
-# rule geneBody_coverage:
-#     input:
-#         bam = patterns['bam'],
-#         bai = patterns['bai'],
-#         bed = patterns['bed12']
-#     output:
-#         txt = patterns['rseqc']['geneBodyCoverage']['txt'],
-#         r = patterns['rseqc']['geneBodyCoverage']['r'],
-#         img = patterns['rseqc']['geneBodyCoverage']['img']
-#     log:
-#         patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-#     wrapper:
-#         wrapper_for('rseqc/geneBody_coverage')
-#
-# rule tin:
-#     input:
-#         bam = patterns['bam'],
-#         bai = patterns['bai'],
-#         bed = patterns['bed12']
-#     output:
-#         table = patterns['rseqc']['tin']['table'],
-#         summary = patterns['rseqc']['tin']['summary']
-#     wrapper:
-#         wrapper_for('rseqc/tin')
-#
-# rule bam_stat:
-#     input:
-#         bam = patterns['bam']
-#     output:
-#         txt = patterns['rseqc']['bam_stat']
-#     wrapper:
-#         wrapper_for('rseqc/bam_stat')
+rule gtf2bed12:
+    input:
+        db = references['dmel']['db']
+    output:
+        bed12 = patterns['bed12']
+    run:
+        import gffutils
+        db = gffutils.FeatureDB(input.db)
+
+        with open(output.bed12, 'w') as fo:
+            for t in db.features_of_type('transcript'):
+                fo.write(db.bed12(t, name_field='transcript_id') + '\n')
+
+rule infer_experiment:
+    input:
+        bam = patterns['hisat2']['bam_fastq'],
+        bed = patterns['bed12']
+    output:
+        txt = patterns['rseqc']['infer_experiment']
+    wrapper:
+        wrapper_for('rseqc/infer_experiment')
+
+rule geneBody_coverage:
+    input:
+        bam = patterns['hisat2']['bam_fastq'],
+        bai = patterns['hisat2']['bam_fastq_bai'],
+        bed = patterns['bed12']
+    output:
+        txt = patterns['rseqc']['geneBodyCoverage']['txt'],
+        r = patterns['rseqc']['geneBodyCoverage']['r'],
+        img = patterns['rseqc']['geneBodyCoverage']['img']
+    log:
+        patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
+    wrapper:
+        wrapper_for('rseqc/geneBody_coverage')
+
+rule tin:
+    input:
+        bam = patterns['hisat2']['bam_fastq'],
+        bai = patterns['hisat2']['bam_fastq_bai'],
+        bed = patterns['bed12']
+    output:
+        table = patterns['rseqc']['tin']['table'],
+        summary = patterns['rseqc']['tin']['summary']
+    wrapper:
+        wrapper_for('rseqc/tin')
+
+rule bam_stat:
+    input:
+        bam = patterns['hisat2']['bam_fastq'],
+    output:
+        txt = patterns['rseqc']['bam_stat']
+    wrapper:
+        wrapper_for('rseqc/bam_stat')
