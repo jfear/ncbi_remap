@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Inputs
-FNAME1='../output/prealignment/raw/SRX1065034/SRR2069724/SRR2069724_1.fastq.gz'
-FNAME2='../output/prealignment/raw/SRX1065034/SRR2069724/SRR2069724_2.fastq.gz'
+FNAME1=$1
+FNAME2=$2
 
 # Outputs
-ONAME1=${FNAME1/fastq.gz/clean.fastq.gz}
-ONAME2=${FNAME2/fastq.gz/clean.fastq.gz}
+ONAME1=$3
+ONAME2=$4
 
 # Decompress gz files
 DECOMP1=$(mktemp -p /lscratch/$SLURM_JOBID)
