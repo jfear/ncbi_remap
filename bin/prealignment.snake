@@ -8,136 +8,56 @@ determine if the sample is really RNA-seq and strandedness.
 """
 import os
 import sys
-import signal
-import re
-from textwrap import dedent
-import shutil as sh
-from gzip import open as gopen
-from itertools import product
 
-import numpy as np
 import pandas as pd
 
-from lcdblib.snakemake import helpers, aligners
+from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
-from sramongo.mongo import start_mongo
-from mongoengine import connect
-
-sys.path.insert(0, '../lib/python')
+# import common header element
+include: 'header.snake'
 from ncbi_remap import mongo_schema as ms
 
-try:
-    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-    assert os.path.exists(TMPDIR)
-except:
-    try:
-        TMPDIR = os.getenv('TMPDIR')
-        assert os.path.exists(TMPDIR)
-    except:
-        from tempfile import mkdtemp
-        TMPDIR = mkdtemp(dir='.snakemake/')
-        print('Temporary storage is at: {}'.format(TMPDIR))
-
-shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
-
-workdir: '.'
+# import config
+configfile: '../config/prealignment_config.yaml'
 
 ################################################################################
-# Start/Stop MongoDB
+# Build Sample Table
 ################################################################################
-# Store mongodb hostname
-MONGODB_HOSTNAME = '.mongodb_host'
-MONGODB_PID = '.mongodb_pid'
+with open('../data/test_samples', 'r') as fh:
+    test_samples = [x.strip() for x in fh.readlines()]
 
-# if not os.path.exists(MONGODB_HOSTNAME):
-#     # Record host
-#     with open(MONGODB_HOSTNAME, 'w') as fh:
-#         fh.write(os.getenv('SLURMD_NODENAME'))
-#
-#     # Start mongo and save PID
-#     pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
-#     with open(MONGODB_PID, 'w') as fh:
-#         fh.write(str(pid.pid))
-#
-# onsuccess:
-#     # Stop mongodb
-#     with open(MONGODB_PID, 'r') as fh:
-#         pid = int(fh.read())
-#     os.kill(pid, signal.SIGTERM)
-#     os.remove(MONGODB_PID)
-#
-#     # Remove hostname
-#     os.remove(MONGODB_HOSTNAME)
-#     print('Script complete.')
-#
-# onerror:
-#     # Stop mongodb
-#     with open(MONGODB_PID, 'r') as fh:
-#         pid = int(fh.read())
-#     os.kill(pid, signal.SIGTERM)
-#     os.remove(MONGODB_PID)
-#
-#     # Remove hostname
-#     os.remove(MONGODB_HOSTNAME)
-#     print('There was an error.')
-#
-# # connect to mongo engine
-with open(MONGODB_HOSTNAME, 'r') as fh:
-    mongo_client = connect(db='sra', host=fh.read().strip(), port=27022)
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'PE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
+sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
+sample_table.sort_values(by='sample', inplace=True)
 
 ################################################################################
-# Set up file naming patterns
+# Set up file naming patterns and targets
 ################################################################################
-references = {
-        'dmel': {
-            'fasta': '/data/LCDB/lcdb-references/dm6/r6-11/fasta/dm6_r6-11.fasta',
-            'gtf':  '/data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf',
-            'db':  '/data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf.db',
-            'bowtie2': '/data/LCDB/lcdb-references/dm6/r6-11/bowtie2/dm6_r6-11.1.bt2',
-            'hisat2': '/data/LCDB/lcdb-references/dm6/r6-11/hisat2/dm6_r6-11.1.ht2',
-            },
-        'rRNA': {
-            'bowtie2': '/data/LCDB/lcdb-references/dm6/rRNA/bowtie2/dm6_rRNA.1.bt2',
-            },
-        'wolbachia': {
-            'bowtie2': '/data/LCDB/lcdb-references/wolbachia/default/bowtie2/wolbachia_default.1.bt2',
-            },
-        'human': {
-            'bowtie2': '/data/LCDB/lcdb-references/hg19/gencode-v19/bowtie2/hg19_gencode-v19.1.bt2',
-            },
-        'ecoli': {
-            'bowtie2': '/data/LCDB/lcdb-references/ecoli/default/bowtie2/ecoli_default.1.bt2',
-            },
-        'yeast': {
-            'bowtie2': '/data/LCDB/lcdb-references/sacCer3/default/bowtie2/sacCer3_default.1.bt2',
-            },
-        'phix': {
-            'bowtie2': '/data/LCDB/lcdb-references/phix/default/bowtie2/phix_default.1.bt2',
-            },
-        'ercc': {
-            'bowtie2': '/data/LCDB/lcdb-references/ercc/srm2374/bowtie2/ercc_srm2374.1.bt2',
-            },
-        'adapters': {
-            'bowtie2': '/data/LCDB/lcdb-references/adapters/default/bowtie2/adapters_default.1.bt2',
-            },
-        }
-
 patterns = {
-    'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz',
-    'fastq_count': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz.libsize',
-    'cutadapt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.trim.clean.fastq.gz',
-    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.clean.fastq.gz.screen',
+    'fastq': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz',
+        },
+    'fastq_clean': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
+        },
+    'fastq_clean_count': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
+        },
+    'cutadapt': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
+        },
+    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.screen',
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites':     '../output/known_splice_sites_r6-11.txt',
-        'bam_fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
-        'bam_fastq_bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
-        'bam_acc': '../output/prealignment/raw/{experiment}/{sample}/{sample}.acc.bam',
-        'index': ['../references/dm6/r6-11/hisat2/dm6_r6-11.1.ht2',
-                         '../references/dm6/r6-11/hisat2/dm6_r6-11.2.ht2'],
-            },
-    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam.bai',
+        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        },
+    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'fastqc': {
         'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
         'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.zip',
@@ -157,64 +77,57 @@ patterns = {
     },
 }
 
-# Import run_id and experiment_id and dump into a dataframe
-with open('../data/test_samples', 'r') as fh:
-    test_samples = [x.strip() for x in fh.readlines()]
-
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': {'$exists': 1}, '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1, 'pipeline_flags': 1})))
-sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
-sample_table.sort_values(by='sample', inplace=True)
-sample_table['num'] = 1
-
 # Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
-    input:
-        utils.flatten(targets['hisat2']['bam_fastq'])
-        + targets['fastq_screen']
-
-def wrapper_for(path):
-    URI = '../lcdb-wrapper-tests'
-    return 'file:' + os.path.join(URI, 'wrappers', path)
+    input: utils.flatten(targets)
 
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-def _check_pe(df):
-    if 'SE' in df.pipeline_flags:
-        return 1
-    elif 'PE' in df.pipeline_flags:
-        return [1, 2]
-    else:
-        raise KeyError('pipeline_flags should have PE or SE in it: {}'.format(df))
-
-def _fastq_files(wildcards):
-    """Return the correct number of files depending on PE or SE.
-
-    For SE samples return *_1.fastq.gz. For PE samples return *_1.fastq.gz
-    and *_2.fastq.gz
+rule fastq_touch:
+    output: r1=temp(patterns['fastq']['r1']),
+            r2=temp(patterns['fastq']['r2'])
+    shell: """
+    touch {output.r1}
+    touch {output.r2}
     """
-    metadata = sample_table[sample_table['sample'] == wildcards.sample].iloc[0, :]
-    num = _check_pe(metadata)
-    return expand(
-        patterns['fastq'], sample=wildcards.sample,
-        experiment=wildcards.experiment, num=num)
 
-def _trim_fastq_files(wildcards):
-    """Return the correct number of files depending on PE or SE.
+rule fastq_clean:
+    input:
+        r1=patterns['fastq']['r1'],
+        r2=patterns['fastq']['r2']
+    output:
+        r1=patterns['fastq_clean']['r1'],
+        r2=patterns['fastq_clean']['r2']
+    shell:
+        './get_proper_read_pairs.sh {input.r1} {input.r2} {output.r1} {output.r2}'
 
-    For SE samples return *_1.fastq.gz. For PE samples return *_1.fastq.gz
-    and *_2.fastq.gz
-    """
-    metadata = sample_table[sample_table['sample'] == wildcards.sample].iloc[0, :]
-    num = _check_pe(metadata)
-    return expand(
-        patterns['cutadapt'], sample=wildcards.sample,
-        experiment=wildcards.experiment, num=num)
+rule cutadapt:
+    input:
+        R1=patterns['fastq_clean']['r1'],
+        R2=patterns['fastq_clean']['r2']
+    output:
+        R1=patterns['cutadapt']['r1'],
+        R2=patterns['cutadapt']['r2']
+    params:
+        extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
+    wrapper:
+        wrapper_for('cutadapt')
 
+rule fastq_count:
+    input: '{prefix}.fastq.gz'
+    output: '{prefix}.fastq.gz.libsize'
+    shell:
+        'zcat {input} | echo $((`wc -l`/4)) > {output}'
+
+################################################################################
+# FASTQ QC
+################################################################################
 rule fastqc:
-    input: _fastq_files
+    input: patterns['fastq_clean']['r1'],
+           patterns['fastq_clean']['r2']
     output:
         html=patterns['fastqc']['html'],
         zip=patterns['fastqc']['zip']
@@ -222,25 +135,17 @@ rule fastqc:
     wrapper:
         wrapper_for('fastqc')
 
-rule fastq_count:
-    input:
-        fastq=patterns['fastq']
-    output:
-        count=patterns['fastq_count']
-    shell:
-        'zcat {input} | echo $((`wc -l`/4)) > {output}'
-
 rule fastq_screen:
     input:
-        fastq=patterns['fastq'],
-        hg19=references['human']['bowtie2'],
-        wolbachia=references['wolbachia']['bowtie2'],
-        ecoli=references['ecoli']['bowtie2'],
-        yeast=references['yeast']['bowtie2'],
-        rRNA=references['rRNA']['bowtie2'],
-        phix=references['phix']['bowtie2'],
-        ercc=references['ercc']['bowtie2'],
-        adapters=references['adapters']['bowtie2']
+        fastq=patterns['fastq_clean']['r1'],
+        hg19=config['references']['human']['bowtie2'],
+        wolbachia=config['references']['wolbachia']['bowtie2'],
+        ecoli=config['references']['ecoli']['bowtie2'],
+        yeast=config['references']['yeast']['bowtie2'],
+        rRNA=config['references']['rRNA']['bowtie2'],
+        phix=config['references']['phix']['bowtie2'],
+        ercc=config['references']['ercc']['bowtie2'],
+        adapters=config['references']['adapters']['bowtie2']
     output:
         txt=patterns['fastq_screen']
     log: patterns['fastq_screen'] + '.log'
@@ -252,7 +157,7 @@ rule fastq_screen:
 ################################################################################
 rule hisat2_splice_site:
     input:
-        gtf = references['dmel']['gtf']
+        gtf = config['references']['dmel']['gtf']
     output:
         patterns['hisat2']['splice_sites']
     shell:
@@ -260,18 +165,18 @@ rule hisat2_splice_site:
 
 rule hisat2_fastq:
     input:
-        index=patterns['hisat2']['index'],
+        index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=_fastq_files
+        fastq=[patterns['fastq_clean']['r1'], patterns['fastq_clean']['r2']],
     output:
-        bam = patterns['hisat2']['bam_fastq']
+        bam = patterns['hisat2']['bam']
     threads: 8
     params:
         hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
         samtools_view_extra = '-q 20',
         samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log:
-        patterns['hisat2']['bam_fastq'] + '.log'
+        patterns['hisat2']['bam'] + '.log'
     wrapper:
         wrapper_for('hisat2/align')
 
@@ -304,7 +209,7 @@ rule bai:
 ################################################################################
 rule gtf2bed12:
     input:
-        db = references['dmel']['db']
+        db = config['references']['dmel']['db']
     output:
         bed12 = patterns['bed12']
     run:
@@ -317,7 +222,7 @@ rule gtf2bed12:
 
 rule infer_experiment:
     input:
-        bam = patterns['hisat2']['bam_fastq'],
+        bam = patterns['hisat2']['bam'],
         bed = patterns['bed12']
     output:
         txt = patterns['rseqc']['infer_experiment']
@@ -326,8 +231,8 @@ rule infer_experiment:
 
 rule geneBody_coverage:
     input:
-        bam = patterns['hisat2']['bam_fastq'],
-        bai = patterns['hisat2']['bam_fastq_bai'],
+        bam = patterns['hisat2']['bam'],
+        bai = patterns['bai'],
         bed = patterns['bed12']
     output:
         txt = patterns['rseqc']['geneBodyCoverage']['txt'],
@@ -340,8 +245,8 @@ rule geneBody_coverage:
 
 rule tin:
     input:
-        bam = patterns['hisat2']['bam_fastq'],
-        bai = patterns['hisat2']['bam_fastq_bai'],
+        bam = patterns['hisat2']['bam'],
+        bai = patterns['bai'],
         bed = patterns['bed12']
     output:
         table = patterns['rseqc']['tin']['table'],
@@ -351,7 +256,7 @@ rule tin:
 
 rule bam_stat:
     input:
-        bam = patterns['hisat2']['bam_fastq'],
+        bam = patterns['hisat2']['bam'],
     output:
         txt = patterns['rseqc']['bam_stat']
     wrapper:

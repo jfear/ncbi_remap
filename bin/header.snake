@@ -1,0 +1,37 @@
+"""This is a common header shared among snakemake files."""
+import os
+import sys
+
+from mongoengine import connect
+
+# Append local path to PYTHONPATH
+sys.path.insert(0, '../lib/python')
+
+# Setup tempdir
+try:
+    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+    assert os.path.exists(TMPDIR)
+except:
+    try:
+        TMPDIR = os.getenv('TMPDIR')
+        assert os.path.exists(TMPDIR)
+    except:
+        from tempfile import mkdtemp
+        TMPDIR = mkdtemp(dir='.snakemake/')
+        print('Temporary storage is at: {}'.format(TMPDIR))
+
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
+
+# Connect to mongodb, check .mongodb_host to find current node running
+# database.
+MONGODB_HOSTNAME = '.mongodb_host'
+with open(MONGODB_HOSTNAME, 'r') as fh:
+    mongo_client = connect(db='sra', host=fh.read().strip(), port=27022)
+
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
