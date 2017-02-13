@@ -39,6 +39,10 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz',
         },
+    'fastq_count': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz.libsize',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz.libsize',
+        },
     'fastq_clean': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
@@ -51,17 +55,21 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
         },
+    'fastq_cutadapt_count': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
+        },
     'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.screen',
+    'fastqc': {
+        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
+        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.zip',
+        },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites':     '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
         },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
-    'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.zip',
-        },
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
@@ -113,6 +121,7 @@ rule cutadapt:
         R2=patterns['cutadapt']['r2']
     params:
         extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
+    log: patterns['fastq_clean']['r1'] + '.log'
     wrapper:
         wrapper_for('cutadapt')
 
@@ -126,18 +135,19 @@ rule fastq_count:
 # FASTQ QC
 ################################################################################
 rule fastqc:
-    input: patterns['fastq_clean']['r1'],
-           patterns['fastq_clean']['r2']
+    input: patterns['fastq_clean']['r1']
     output:
         html=patterns['fastqc']['html'],
         zip=patterns['fastqc']['zip']
     params: extra="--format fastq"
+    log: patterns['fastqc']['html'] + '.log'
     wrapper:
         wrapper_for('fastqc')
 
 rule fastq_screen:
     input:
         fastq=patterns['fastq_clean']['r1'],
+        dm6=config['references']['dmel']['bowtie2'],
         hg19=config['references']['human']['bowtie2'],
         wolbachia=config['references']['wolbachia']['bowtie2'],
         ecoli=config['references']['ecoli']['bowtie2'],
@@ -226,6 +236,7 @@ rule infer_experiment:
         bed = patterns['bed12']
     output:
         txt = patterns['rseqc']['infer_experiment']
+    log: patterns['rseqc']['infer_experiment'] + '.log'
     wrapper:
         wrapper_for('rseqc/infer_experiment')
 
@@ -238,8 +249,7 @@ rule geneBody_coverage:
         txt = patterns['rseqc']['geneBodyCoverage']['txt'],
         r = patterns['rseqc']['geneBodyCoverage']['r'],
         img = patterns['rseqc']['geneBodyCoverage']['img']
-    log:
-        patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
+    log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
     wrapper:
         wrapper_for('rseqc/geneBody_coverage')
 
@@ -251,6 +261,7 @@ rule tin:
     output:
         table = patterns['rseqc']['tin']['table'],
         summary = patterns['rseqc']['tin']['summary']
+    log: patterns['rseqc']['tin']['table'] + '.log'
     wrapper:
         wrapper_for('rseqc/tin')
 
@@ -259,5 +270,6 @@ rule bam_stat:
         bam = patterns['hisat2']['bam'],
     output:
         txt = patterns['rseqc']['bam_stat']
+    log: patterns['rseqc']['bam_stat'] + '.log'
     wrapper:
         wrapper_for('rseqc/bam_stat')
