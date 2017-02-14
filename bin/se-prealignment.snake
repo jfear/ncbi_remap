@@ -34,6 +34,8 @@ sample_table.sort_values(by='sample', inplace=True)
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
+sample_table.loc[sample_table['featurecount_strand'] == 1, 'picard_collectrnaseqmetrics'] = 'FIRST_READ_TRANSCRIPTION_STRAND'
+sample_table.loc[sample_table['featurecount_strand'] == 2, 'picard_collectrnaseqmetrics'] = 'SECOND_READ_TRANSCRIPTION_STRAND'
 
 ################################################################################
 # Set up file naming patterns and targets
@@ -83,6 +85,9 @@ patterns = {
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts',
         'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts.summary',
+    },
+    'picard_collectrnaseqmetrics': {
+        'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.metrics',
     },
 }
 
@@ -283,3 +288,18 @@ rule featurecounts:
         extra='-s {featurecount_strand}'
     wrapper:
         wrapper_for('featurecounts')
+
+################################################################################
+# PICARD RNA Seq Metrics
+################################################################################
+rule collectrnaseqmetrics:
+    input:
+        bam=patterns['hisat2']['bam'],
+        refflat=config['references']['dmel']['refflat']
+    output:
+        metrics=patterns['picard_collectrnaseqmetrics']['metrics']
+    params:
+        extra='STRAND={picard_collectrnaseqmetrics}'
+    log: patterns['picard_collectrnaseqmetrics']['metrics'] + '.log'
+    wrapper:
+        wrapper_for('picard/collectrnaseqmetrics')
