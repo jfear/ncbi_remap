@@ -10,11 +10,16 @@ SNAKEFILE=$1
 EXTRA=$2
 CLUSTER=$3
 
+# Make required folders
 LOGS=../output/logs
 if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
-
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 
+# Start mongo
+mongod --dbpath ../output/db --logpath ../output/logs/mongoDB.log --port 27022 --fork
+echo $SLURMD_NODENAME > .mongodb_host
+
+# run pipeline
 (time snakemake \
     -p \
     --rerun-incomplete \
@@ -29,3 +34,5 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
     -s $SNAKEFILE \
     $EXTRA \
     ) > "$LOGS/${SNAKEFILE}_${EXTRA}.log" 2>&1
+
+mongod --dbpath ../output/db --shutdown

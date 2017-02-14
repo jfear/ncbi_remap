@@ -96,7 +96,7 @@ rule targets:
 # FASTQ Pre-process
 ################################################################################
 rule fastq_touch:
-    output: r1=fq['r1']
+    output: r1=temp(fq['r1'])
     shell: """
     touch {output.r1}
     """
@@ -107,8 +107,7 @@ rule fastq_clean:
     output:
         r1=patterns['fastq_clean']['r1']
     shell:
-        'FILE=$(readlink -f {input.r1}) '
-        '&& ln -s $FILE {output.r1}'
+        'cp {input.r1} {output.r1}'
 
 rule cutadapt:
     input:
