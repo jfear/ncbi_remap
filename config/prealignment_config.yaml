@@ -1,16 +1,16 @@
 references:
   dmel:
-    fasta: /data/LCDB/lcdb-references/dmel/r6-11/fasta/dm6_r6-11.fasta
-    gtf:  /data/LCDB/lcdb-references/dmel/r6-11/gtf/dm6_r6-11.gtf
-    db:  /data/LCDB/lcdb-references/dmel/r6-11/gtf/dm6_r6-11.gtf.db
-    bowtie2: /data/LCDB/lcdb-references/dmel/r6-11/bowtie2/dm6_r6-11.1.bt2
-    hisat2: /data/LCDB/lcdb-references/dmel/r6-11/hisat2/dm6_r6-11.1.ht2
+    fasta: /data/LCDB/lcdb-references/dm6/r6-11/fasta/dm6_r6-11.fasta
+    gtf:  /data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf
+    db:  /data/LCDB/lcdb-references/dm6/r6-11/gtf/dm6_r6-11.gtf.db
+    bowtie2: /data/LCDB/lcdb-references/dm6/r6-11/bowtie2/dm6_r6-11.1.bt2
+    hisat2: /data/LCDB/lcdb-references/dm6/r6-11/hisat2/dm6_r6-11.1.ht2
   rRNA:
-    bowtie2: /data/LCDB/lcdb-references/dmel/rRNA/bowtie2/dm6_rRNA.1.bt2
+    bowtie2: /data/LCDB/lcdb-references/dm6/rRNA/bowtie2/dm6_rRNA.1.bt2
   wolbachia:
     bowtie2: /data/LCDB/lcdb-references/wolbachia/default/bowtie2/wolbachia_default.1.bt2
   human:
-    bowtie2: /data/LCDB/lcdb-references/human/gencode-v19/bowtie2/hg19_gencode-v19.1.bt2
+    bowtie2: /data/LCDB/lcdb-references/hg19/gencode-v19/bowtie2/hg19_gencode-v19.1.bt2
   ecoli:
     bowtie2: /data/LCDB/lcdb-references/ecoli/default/bowtie2/ecoli_default.1.bt2
   yeast:
