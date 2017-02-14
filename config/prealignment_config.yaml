@@ -5,6 +5,7 @@ references:
     db:  /data/LCDB/lcdb-references/dmel/r6-11/gtf/dm6_r6-11.gtf.db
     bowtie2: /data/LCDB/lcdb-references/dmel/r6-11/bowtie2/dm6_r6-11.1.bt2
     hisat2: /data/LCDB/lcdb-references/dmel/r6-11/hisat2/dm6_r6-11.1.ht2
+    refflat: /data/LCDB/lcdb-references/dmel/r6-11/gtf/dm6_r6-11.refflat
   rRNA:
     bowtie2: /data/LCDB/lcdb-references/dmel/rRNA/bowtie2/dm6_rRNA.1.bt2
   wolbachia:
