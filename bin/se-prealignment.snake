@@ -28,7 +28,7 @@ configfile: '../config/prealignment_config.yaml'
 with open('../data/test_samples', 'r') as fh:
     test_samples = [x.strip() for x in fh.readlines()]
 
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'PE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
+sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
 
@@ -38,31 +38,23 @@ sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
-fq = {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz',
-}
+fq = {'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'}
 
 patterns = {
     'fastq_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz.libsize',
         },
     'fastq_clean': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
         },
     'fastq_clean_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
         },
     'cutadapt': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
         },
     'fastq_cutadapt_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
         },
     'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.screen',
     'fastqc': {
@@ -104,32 +96,27 @@ rule targets:
 # FASTQ Pre-process
 ################################################################################
 rule fastq_touch:
-    output: r1=temp(fq['r1']),
-            r2=temp(fq['r2'])
+    output: r1=fq['r1']
     shell: """
     touch {output.r1}
-    touch {output.r2}
     """
 
 rule fastq_clean:
     input:
-        r1=fq['r1'],
-        r2=fq['r2']
+        r1=fq['r1']
     output:
-        r1=patterns['fastq_clean']['r1'],
-        r2=patterns['fastq_clean']['r2']
+        r1=patterns['fastq_clean']['r1']
     shell:
-        './get_proper_read_pairs.sh {input.r1} {input.r2} {output.r1} {output.r2}'
+        'FILE=$(readlink -f {input.r1}) '
+        '&& ln -s $FILE {output.r1}'
 
 rule cutadapt:
     input:
         R1=patterns['fastq_clean']['r1'],
-        R2=patterns['fastq_clean']['r2']
     output:
         R1=patterns['cutadapt']['r1'],
-        R2=patterns['cutadapt']['r2']
     params:
-        extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
+        extra='-a file:../data/adapters.fa -q 20'
     log: patterns['cutadapt']['r1'] + '.log'
     wrapper:
         wrapper_for('cutadapt')
@@ -186,7 +173,7 @@ rule hisat2_fastq:
     input:
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=[patterns['fastq_clean']['r1'], patterns['fastq_clean']['r2']],
+        fastq=patterns['fastq_clean']['r1']
     output:
         bam = patterns['hisat2']['bam']
     threads: 8
@@ -270,7 +257,7 @@ rule tin:
     output:
         table = patterns['rseqc']['tin']['table'],
         summary = patterns['rseqc']['tin']['summary']
-    log: patterns['rseqc']['tin']['table'] + '.log'
+    log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
     wrapper:
         wrapper_for('rseqc/tin')
 
@@ -294,6 +281,6 @@ rule featurecounts:
         counts=patterns['feature_counts']['counts'],
         summary=patterns['feature_counts']['summary']
     params:
-        extra='-p -s {featurecount_strand}'
+        extra='-s {featurecount_strand}'
     wrapper:
         wrapper_for('featurecounts')
