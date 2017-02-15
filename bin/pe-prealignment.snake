@@ -131,8 +131,8 @@ rule cutadapt:
         R1=patterns['fastq_clean']['r1'],
         R2=patterns['fastq_clean']['r2']
     output:
-        R1=patterns['cutadapt']['r1'],
-        R2=patterns['cutadapt']['r2']
+        R1=temp(patterns['cutadapt']['r1']),
+        R2=temp(patterns['cutadapt']['r2'])
     params:
         extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
     log: patterns['cutadapt']['r1'] + '.log'
@@ -193,11 +193,10 @@ rule hisat2_fastq:
         splice_sites=patterns['hisat2']['splice_sites'],
         fastq=[patterns['fastq_clean']['r1'], patterns['fastq_clean']['r2']],
     output:
-        bam = patterns['hisat2']['bam']
+        bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
         hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
-        samtools_view_extra = '-q 20',
         samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log:
         patterns['hisat2']['bam'] + '.log'
@@ -222,9 +221,9 @@ rule hisat2_fastq:
 
 rule bai:
     input:
-        bam = '{prefix}.bam'
+        bam='{prefix}.bam'
     output:
-        bai = '{prefix}.bam.bai'
+        bai=temp('{prefix}.bam.bai')
     shell:
         "samtools index {input.bam}"
 
