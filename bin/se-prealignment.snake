@@ -58,10 +58,10 @@ patterns = {
     'fastq_cutadapt_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
         },
-    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.screen',
+    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
     'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fastqc.zip',
+        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.html',
+        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.zip',
         },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
@@ -73,9 +73,9 @@ patterns = {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
         'geneBodyCoverage': {
-            'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.txt',
-            'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.r',
-            'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBody_coverage.pdf',
+            'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.txt',
+            'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.r',
+            'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.pdf',
         },
         'tin': {
             'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
