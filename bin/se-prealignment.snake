@@ -95,7 +95,15 @@ patterns = {
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
-    input: utils.flatten(targets)
+    input:
+        utils.flatten(targets['fastq_count']) +
+        utils.flatten(targets['fastq_clean_count']) +
+        utils.flatten(targets['fastq_cutadapt_count']) +
+        utils.flatten(targets['fastq_screen']) +
+        utils.flatten(targets['fastqc']) +
+        utils.flatten(targets['rseqc']) +
+        utils.flatten(targets['feature_counts']) +
+        utils.flatten(targets['picard_collectrnaseqmetrics'])
 
 ################################################################################
 # FASTQ Pre-process
