@@ -24,7 +24,7 @@ echo $SLURMD_NODENAME > .mongodb_host
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 200 \
+    -j 500 \
     -k \
     --verbose \
     --use-conda \
@@ -36,3 +36,4 @@ echo $SLURMD_NODENAME > .mongodb_host
     ) > "$LOGS/${SNAKEFILE}_${EXTRA}.log" 2>&1
 
 mongod --dbpath ../output/db --shutdown
+rm .mongodb_host
