@@ -1,9 +1,12 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
     mem: "4g"
-    time: "12:00:00"
+    time: "11:00:00"
     gres: "lscratch:20"
     partition: 'niddk,norm'
+
+fastq_clean:
+  mem: "32g"
 
 hisat2:
     mem: "80g"
