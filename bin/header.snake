@@ -29,7 +29,8 @@ workdir: '.'
 # database.
 MONGODB_HOSTNAME = '.mongodb_host'
 with open(MONGODB_HOSTNAME, 'r') as fh:
-    mongo_client = connect(db='sra', host=fh.read().strip(), port=27022)
+    #mongo_client = connect(db='sra', host=fh.read().strip(), port=27022)
+    mongo_client = connect(db='sra', host=fh.read().strip())
 
 # Find snakemake wrappers:
 def wrapper_for(path):
