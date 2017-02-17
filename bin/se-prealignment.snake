@@ -31,6 +31,7 @@ with open('../data/test_samples', 'r') as fh:
 sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
+sample_table = sample_table.head(1).copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
@@ -40,12 +41,7 @@ sample_table.loc[sample_table['featurecount_strand'] == 2, 'picard_collectrnaseq
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
-fq = {'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'}
-
 patterns = {
-    'fastq_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz.libsize',
-        },
     'fastq_clean': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
         },
@@ -108,19 +104,12 @@ rule targets:
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-rule fastq_touch:
-    output: r1=temp(fq['r1'])
-    shell: """
-    touch {output.r1}
-    """
-
 rule fastq_clean:
-    input:
-        r1=fq['r1']
     output:
         r1=patterns['fastq_clean']['r1']
     shell:
-        'cp {input.r1} {output.r1}'
+        'fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
+        '&& cp $TMPDIR/*_1.fastq.gz {output.r1}'
 
 rule cutadapt:
     input:
