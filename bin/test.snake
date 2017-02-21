@@ -1,11 +1,4 @@
 #/usr/bin/env python
-# vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import sys
 
@@ -22,23 +15,6 @@ from ncbi_remap import mongo_schema as ms
 
 # import config
 configfile: '../config/prealignment_config.yaml'
-
-################################################################################
-# Build Sample Table
-################################################################################
-with open('../data/test_samples', 'r') as fh:
-    test_samples = [x.strip() for x in fh.readlines()]
-
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
-sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
-sample_table.sort_values(by='sample', inplace=True)
-sample_table = sample_table.head(1).copy()
-
-# Add strand info 1=forward, 2=reverse
-sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
-sample_table.loc[sample_table['featurecount_strand'] == 1, 'picard_collectrnaseqmetrics'] = 'FIRST_READ_TRANSCRIPTION_STRAND'
-sample_table.loc[sample_table['featurecount_strand'] == 2, 'picard_collectrnaseqmetrics'] = 'SECOND_READ_TRANSCRIPTION_STRAND'
-
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
@@ -99,8 +75,6 @@ rule targets:
         utils.flatten(targets['picard_collectrnaseqmetrics']) +
         utils.flatten(targets['rseqc'])
 
-#         utils.flatten(targets['fastq_clean_count']) +
-#         utils.flatten(targets['fastq_cutadapt_count']) +
 
 ################################################################################
 # FASTQ Pre-process
