@@ -32,7 +32,7 @@ with open('../data/test_samples', 'r') as fh:
 sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-sample_table = sample_table.head(1).copy()
+sample_table = sample_table.head(10).copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
@@ -89,18 +89,17 @@ patterns = {
 }
 
 # Build target files
-#targets = helpers.fill_patterns(patterns, sample_table)
-targets = helpers.fill_patterns(patterns, {'sample': 'ERR489286', 'experiment': 'ERX455041', 'featurecount_strand': 1, 'picard_collectrnaseqmetrics': 'FIRST_READ_TRANSCRIPTION_STRAND'})
+targets = helpers.fill_patterns(patterns, sample_table)
 rule targets:
     input:
         utils.flatten(targets['fastqc']) +
+        utils.flatten(targets['fastq_clean_count']) +
+        utils.flatten(targets['fastq_cutadapt_count']) +
         utils.flatten(targets['fastq_screen']) +
         utils.flatten(targets['feature_counts']) +
         utils.flatten(targets['picard_collectrnaseqmetrics']) +
         utils.flatten(targets['rseqc'])
 
-#         utils.flatten(targets['fastq_clean_count']) +
-#         utils.flatten(targets['fastq_cutadapt_count']) +
 
 ################################################################################
 # FASTQ Pre-process
