@@ -10,18 +10,32 @@ import os
 import sys
 
 import pandas as pd
+from pymongo import MongoClient
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
-sys.path.insert(0, '../lib/python')
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+#TMPDIR = '/mnt/threeTB/centos_scratch'
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-include: 'header.snake'
-from ncbi_remap import mongo_schema as ms
+# Set working dir
+workdir: '.'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
+
+# Connect to mongodb
+with open('.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra']
+
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
 
 ################################################################################
 # Build Sample Table
@@ -29,10 +43,10 @@ configfile: '../config/prealignment_config.yaml'
 with open('../data/test_samples', 'r') as fh:
     test_samples = [x.strip() for x in fh.readlines()]
 
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
+sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-sample_table = sample_table.head(10).copy()
+sample_table = sample_table.head(4).copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
@@ -79,13 +93,30 @@ patterns = {
             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
         },
     },
+    'dupradar': {
+        'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.density_scatter.png',
+        'expression_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_histogram.png',
+        'expression_boxplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_boxplot.png',
+        'expression_barplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_barplot.png',
+        'multimapping_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.multimapping_histogram.png',
+        'dataframe': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.tsv',
+    },
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts',
         'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts.summary',
     },
-    'picard_collectrnaseqmetrics': {
-        'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.metrics',
+    'picard': {
+        'collectrnaseqmetrics': {
+            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.collectrnaseqmetrics',
+        },
+        'markduplicates': {
+            'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
+            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics',
+        },
     },
+    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
+    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
 # Build target files
@@ -97,8 +128,12 @@ rule targets:
         utils.flatten(targets['fastq_cutadapt_count']) +
         utils.flatten(targets['fastq_screen']) +
         utils.flatten(targets['feature_counts']) +
-        utils.flatten(targets['picard_collectrnaseqmetrics']) +
-        utils.flatten(targets['rseqc'])
+        utils.flatten(targets['picard']['collectrnaseqmetrics']['metrics']) +
+        utils.flatten(targets['picard']['markduplicates']['metrics']) +
+        utils.flatten(targets['rseqc']) +
+        utils.flatten(targets['dupradar']) +
+        utils.flatten(targets['samtools_stats']) +
+        utils.flatten(targets['bamtools_stats'])
 
 
 ################################################################################
@@ -187,9 +222,9 @@ rule bai:
 ################################################################################
 rule gtf2bed12:
     input:
-        db = config['references']['dmel']['db']
+        db=config['references']['dmel']['db']
     output:
-        bed12 = patterns['bed12']
+        bed12=patterns['bed12']
     run:
         import gffutils
         db = gffutils.FeatureDB(input.db)
@@ -235,6 +270,23 @@ rule bam_stat:
     wrapper: wrapper_for('rseqc/bam_stat')
 
 ################################################################################
+# DupRadar
+################################################################################
+rule dupRadar:
+    input:
+       bam=patterns['hisat2']['bam'],
+       annotation=config['references']['dmel']['gtf'],
+    output:
+        density_scatter=patterns['dupradar']['density_scatter'],
+        expression_histogram=patterns['dupradar']['expression_histogram'],
+        expression_boxplot=patterns['dupradar']['expression_boxplot'],
+        expression_barplot=patterns['dupradar']['expression_barplot'],
+        multimapping_histogram=patterns['dupradar']['multimapping_histogram'],
+        dataframe=patterns['dupradar']['dataframe']
+    wrapper:
+        wrapper_for('dupradar')
+
+################################################################################
 # Feature Counts
 ################################################################################
 rule featurecounts:
@@ -248,13 +300,40 @@ rule featurecounts:
     wrapper: wrapper_for('featurecounts')
 
 ################################################################################
+# Stats
+################################################################################
+rule run_stats:
+    input: bam=patterns['hisat2']['bam']
+    output:
+        samtools_stats=patterns['samtools_stats'],
+        samtools_idxstats=patterns['samtools_idxstats'],
+        bamtools_stats=patterns['bamtools_stats']
+    conda: '../environment.yaml'
+    shell:
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
+
+################################################################################
 # PICARD RNA Seq Metrics
 ################################################################################
 rule collectrnaseqmetrics:
     input:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
-    output: metrics=patterns['picard_collectrnaseqmetrics']['metrics']
+    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']
     params: extra='STRAND={picard_collectrnaseqmetrics}'
-    log: patterns['picard_collectrnaseqmetrics']['metrics'] + '.log'
+    log: patterns['picard']['collectrnaseqmetrics']['metrics'] + '.log'
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
+
+rule markduplicates:
+    input: bam=patterns['hisat2']['bam']
+    output:
+        bam=temp(patterns['picard']['markduplicates']['bam']),
+        metrics=patterns['picard']['markduplicates']['metrics']
+    log: patterns['picard']['markduplicates']['metrics'] + '.log'
+    wrapper: wrapper_for('picard/markduplicates')

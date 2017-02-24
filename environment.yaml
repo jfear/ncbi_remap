@@ -13,6 +13,7 @@ dependencies:
 - bioconda::ucsc-bigwigmerge=332
 - bioconda::argh=0.26.2
 - bioconda::bcftools=1.3.1
+- bioconda::bamtools=2.4.0
 - bioconda::bedtools=2.26.0
 - bioconda::biopython=1.68
 - bioconda::curl=7.45.0
