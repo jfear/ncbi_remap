@@ -194,7 +194,6 @@ rule fastq_screen:
 rule hisat2_splice_site:
     input: gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
-    conda: "../environment.yaml"
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 rule hisat2_fastq:
