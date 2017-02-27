@@ -158,7 +158,6 @@ rule cutadapt:
 rule fastq_count:
     input: '{prefix}.fastq.gz'
     output: '{prefix}.fastq.gz.libsize'
-    conda: "../environment.yaml"
     shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
 
 ################################################################################
