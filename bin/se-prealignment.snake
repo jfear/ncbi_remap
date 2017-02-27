@@ -46,7 +46,7 @@ with open('../data/test_samples', 'r') as fh:
 sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-sample_table = sample_table.head(4).copy()
+#sample_table = sample_table.head(10).copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
@@ -303,7 +303,9 @@ rule featurecounts:
 # Stats
 ################################################################################
 rule run_stats:
-    input: bam=patterns['hisat2']['bam']
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
     output:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
