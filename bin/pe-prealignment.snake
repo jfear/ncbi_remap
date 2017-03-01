@@ -1,4 +1,5 @@
 #/usr/bin/env python
+
 # vim: set ft=python.snakemake
 """ The prealignment workflow to identify basic characteristics about SRA runs.
 
@@ -10,17 +11,32 @@ import os
 import sys
 
 import pandas as pd
+from pymongo import MongoClient
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
-# import common header element
-include: 'header.snake'
-from ncbi_remap import mongo_schema as ms
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+#TMPDIR = '/mnt/threeTB/centos_scratch'
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
+
+# Connect to mongodb
+with open('.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra']
+
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
 
 ################################################################################
 # Build Sample Table
@@ -28,9 +44,10 @@ configfile: '../config/prealignment_config.yaml'
 with open('../data/test_samples', 'r') as fh:
     test_samples = [x.strip() for x in fh.readlines()]
 
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({'pipeline_flags': 'PE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
+sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'PE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
+#sample_table = sample_table.head(2).copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
@@ -40,16 +57,7 @@ sample_table.loc[sample_table['featurecount_strand'] == 2, 'picard_collectrnaseq
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
-fq = {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz',
-}
-
 patterns = {
-    'fastq_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz.libsize',
-        },
     'fastq_clean': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
@@ -73,7 +81,7 @@ patterns = {
         },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
-        'splice_sites':     '../output/known_splice_sites_r6-11.txt',
+        'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
         },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
@@ -90,49 +98,64 @@ patterns = {
             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
         },
     },
+    'dupradar': {
+        'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.density_scatter.png',
+        'expression_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_histogram.png',
+        'expression_boxplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_boxplot.png',
+        'expression_barplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_barplot.png',
+        'multimapping_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.multimapping_histogram.png',
+        'dataframe': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.tsv',
+    },
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts',
         'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts.summary',
     },
-    'picard_collectrnaseqmetrics': {
-        'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.metrics',
+    'picard': {
+        'collectrnaseqmetrics': {
+            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.collectrnaseqmetrics',
+        },
+        'markduplicates': {
+            'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
+            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics',
+        },
     },
+    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
+    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
 # Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
-
 rule targets:
     input:
-        utils.flatten(targets['fastq_count']) +
+        utils.flatten(targets['fastqc']) +
         utils.flatten(targets['fastq_clean_count']) +
         utils.flatten(targets['fastq_cutadapt_count']) +
         utils.flatten(targets['fastq_screen']) +
-        utils.flatten(targets['fastqc']) +
-        utils.flatten(targets['rseqc']) +
         utils.flatten(targets['feature_counts']) +
-        utils.flatten(targets['picard_collectrnaseqmetrics'])
+        utils.flatten(targets['picard']['collectrnaseqmetrics']['metrics']) +
+        utils.flatten(targets['picard']['markduplicates']['metrics']) +
+        utils.flatten(targets['rseqc']) +
+        utils.flatten(targets['dupradar']) +
+        utils.flatten(targets['samtools_stats']) +
+        utils.flatten(targets['bamtools_stats'])
+
 
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-rule fastq_touch:
-    output: r1=temp(fq['r1']),
-            r2=temp(fq['r2'])
-    shell: """
-    touch {output.r1}
-    touch {output.r2}
-    """
-
 rule fastq_clean:
-    input:
-        r1=fq['r1'],
-        r2=fq['r2']
     output:
-        r1=patterns['fastq_clean']['r1'],
-        r2=patterns['fastq_clean']['r2']
+        r1=temp(patterns['fastq_clean']['r1']),
+        r2=temp(patterns['fastq_clean']['r2'])
     shell:
-        './get_proper_read_pairs.sh {input.r1} {input.r2} {output.r1} {output.r2}'
+        'fastq-dump -O $TMPDIR -X 1000000 --split-files --gzip {wildcards.sample} '
+        '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+        '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
+        '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
+        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz '
+        '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+
 
 rule cutadapt:
     input:
@@ -144,14 +167,13 @@ rule cutadapt:
     params:
         extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
     log: patterns['cutadapt']['r1'] + '.log'
-    wrapper:
-        wrapper_for('cutadapt')
+    wrapper: wrapper_for('cutadapt')
+
 
 rule fastq_count:
     input: '{prefix}.fastq.gz'
     output: '{prefix}.fastq.gz.libsize'
-    shell:
-        'zcat {input} | echo $((`wc -l`/4)) > {output}'
+    shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
 
 ################################################################################
 # FASTQ QC
@@ -163,8 +185,7 @@ rule fastqc:
         zip=patterns['fastqc']['zip']
     params: extra="--format fastq"
     log: patterns['fastqc']['html'] + '.log'
-    wrapper:
-        wrapper_for('fastqc')
+    wrapper: wrapper_for('fastqc')
 
 rule fastq_screen:
     input:
@@ -178,122 +199,103 @@ rule fastq_screen:
         phix=config['references']['phix']['bowtie2'],
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
-    output:
-        txt=patterns['fastq_screen']
+    output: txt=patterns['fastq_screen']
     log: patterns['fastq_screen'] + '.log'
-    wrapper:
-        wrapper_for('fastq_screen')
+    wrapper: wrapper_for('fastq_screen')
 
 ################################################################################
 # Alignment
 ################################################################################
 rule hisat2_splice_site:
-    input:
-        gtf = config['references']['dmel']['gtf']
-    output:
-        patterns['hisat2']['splice_sites']
-    shell:
-        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+    input: gtf=config['references']['dmel']['gtf']
+    output: patterns['hisat2']['splice_sites']
+    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 rule hisat2_fastq:
     input:
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=[patterns['fastq_clean']['r1'], patterns['fastq_clean']['r2']],
-    output:
-        bam=temp(patterns['hisat2']['bam'])
+        fastq=[rules.fastq_clean.output.r1, rules.fastq_clean.output.r2],
+    output: bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
-        hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
-        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log:
-        patterns['hisat2']['bam'] + '.log'
-    wrapper:
-        wrapper_for('hisat2/align')
-
-# rule hisat2_acc:
-#     input:
-#         index=patterns['hisat2']['index'],
-#         splice_sites=patterns['hisat2']['splice_sites']
-#     output:
-#         bam = patterns['hisat2']['bam_acc']
-#     threads: 8
-#     params:
-#         hisat2_extra = '--sra-acc SRR2069724 --max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
-#         samtools_view_extra = '-q 20',
-#         samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-#     log:
-#         patterns['hisat2']['bam_acc'] + '.log'
-#     wrapper:
-#         wrapper_for('hisat2/align')
+        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log: patterns['hisat2']['bam'] + '.log'
+    wrapper: wrapper_for('hisat2/align')
 
 rule bai:
-    input:
-        bam='{prefix}.bam'
-    output:
-        bai=temp('{prefix}.bam.bai')
-    shell:
-        "samtools index {input.bam}"
+    input: bam='{prefix}.bam'
+    output: bai=temp('{prefix}.bam.bai')
+    conda: "../environment.yaml"
+    shell: "samtools index {input.bam}"
 
 ################################################################################
 # RSEQC
 ################################################################################
 rule gtf2bed12:
-    input:
-        db = config['references']['dmel']['db']
-    output:
-        bed12 = patterns['bed12']
+    input: db=config['references']['dmel']['db']
+    output: bed12=patterns['bed12']
     run:
         import gffutils
         db = gffutils.FeatureDB(input.db)
-
         with open(output.bed12, 'w') as fo:
             for t in db.features_of_type('transcript'):
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
 rule infer_experiment:
     input:
-        bam = patterns['hisat2']['bam'],
-        bed = patterns['bed12']
-    output:
-        txt = patterns['rseqc']['infer_experiment']
+        bam=patterns['hisat2']['bam'],
+        bed=patterns['bed12']
+    output: txt=patterns['rseqc']['infer_experiment']
     log: patterns['rseqc']['infer_experiment'] + '.log'
-    wrapper:
-        wrapper_for('rseqc/infer_experiment')
+    wrapper: wrapper_for('rseqc/infer_experiment')
 
 rule geneBody_coverage:
     input:
-        bam = patterns['hisat2']['bam'],
-        bai = patterns['bai'],
-        bed = patterns['bed12']
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+        bed=patterns['bed12']
     output:
-        txt = patterns['rseqc']['geneBodyCoverage']['txt'],
-        r = patterns['rseqc']['geneBodyCoverage']['r'],
-        img = patterns['rseqc']['geneBodyCoverage']['img']
+        txt=patterns['rseqc']['geneBodyCoverage']['txt'],
+        r=patterns['rseqc']['geneBodyCoverage']['r'],
+        img=patterns['rseqc']['geneBodyCoverage']['img']
     log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-    wrapper:
-        wrapper_for('rseqc/geneBody_coverage')
+    wrapper: wrapper_for('rseqc/geneBody_coverage')
 
 rule tin:
     input:
-        bam = patterns['hisat2']['bam'],
-        bai = patterns['bai'],
-        bed = patterns['bed12']
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+        bed=patterns['bed12']
     output:
-        table = patterns['rseqc']['tin']['table'],
-        summary = patterns['rseqc']['tin']['summary']
-    log: patterns['rseqc']['tin']['table'] + '.log'
-    wrapper:
-        wrapper_for('rseqc/tin')
+        table=patterns['rseqc']['tin']['table'],
+        summary=patterns['rseqc']['tin']['summary']
+    log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
+    wrapper: wrapper_for('rseqc/tin')
 
 rule bam_stat:
-    input:
-        bam = patterns['hisat2']['bam'],
-    output:
-        txt = patterns['rseqc']['bam_stat']
+    input: bam=patterns['hisat2']['bam'],
+    output: txt=patterns['rseqc']['bam_stat']
     log: patterns['rseqc']['bam_stat'] + '.log'
+    wrapper: wrapper_for('rseqc/bam_stat')
+
+################################################################################
+# DupRadar
+################################################################################
+rule dupRadar:
+    input:
+       bam=patterns['hisat2']['bam'],
+       annotation=config['references']['dmel']['gtf'],
+    output:
+        density_scatter=patterns['dupradar']['density_scatter'],
+        expression_histogram=patterns['dupradar']['expression_histogram'],
+        expression_boxplot=patterns['dupradar']['expression_boxplot'],
+        expression_barplot=patterns['dupradar']['expression_barplot'],
+        multimapping_histogram=patterns['dupradar']['multimapping_histogram'],
+        dataframe=patterns['dupradar']['dataframe']
     wrapper:
-        wrapper_for('rseqc/bam_stat')
+        wrapper_for('dupradar')
 
 ################################################################################
 # Feature Counts
@@ -305,10 +307,29 @@ rule featurecounts:
     output:
         counts=patterns['feature_counts']['counts'],
         summary=patterns['feature_counts']['summary']
-    params:
-        extra='-p -s {featurecount_strand}'
-    wrapper:
-        wrapper_for('featurecounts')
+    params: extra='-p -s {featurecount_strand}'
+    wrapper: wrapper_for('featurecounts')
+
+################################################################################
+# Stats
+################################################################################
+rule run_stats:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output:
+        samtools_stats=patterns['samtools_stats'],
+        samtools_idxstats=patterns['samtools_idxstats'],
+        bamtools_stats=patterns['bamtools_stats']
+    conda: '../environment.yaml'
+    shell:
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
 
 ################################################################################
 # PICARD RNA Seq Metrics
@@ -317,10 +338,15 @@ rule collectrnaseqmetrics:
     input:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
+    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']
+    params: extra='STRAND={picard_collectrnaseqmetrics}'
+    log: patterns['picard']['collectrnaseqmetrics']['metrics'] + '.log'
+    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+
+rule markduplicates:
+    input: bam=patterns['hisat2']['bam']
     output:
-        metrics=patterns['picard_collectrnaseqmetrics']['metrics']
-    params:
-        extra='STRAND={picard_collectrnaseqmetrics}'
-    log: patterns['picard_collectrnaseqmetrics']['metrics'] + '.log'
-    wrapper:
-        wrapper_for('picard/collectrnaseqmetrics')
+        bam=temp(patterns['picard']['markduplicates']['bam']),
+        metrics=patterns['picard']['markduplicates']['metrics']
+    log: patterns['picard']['markduplicates']['metrics'] + '.log'
+    wrapper: wrapper_for('picard/markduplicates')
