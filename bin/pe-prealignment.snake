@@ -62,15 +62,16 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
         },
+    'fastq_md5': '../output/prealignment/raw/{experiment}/{sample}/{sample}.md5',
     'fastq_clean_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
         },
-    'cutadapt': {
+    'atropos': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
         },
-    'fastq_cutadapt_count': {
+    'fastq_atropos_count': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
         },
@@ -127,18 +128,19 @@ patterns = {
 # Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
 rule targets:
-    input:
-        utils.flatten(targets['fastqc']) +
-        utils.flatten(targets['fastq_clean_count']) +
-        utils.flatten(targets['fastq_cutadapt_count']) +
-        utils.flatten(targets['fastq_screen']) +
-        utils.flatten(targets['feature_counts']) +
-        utils.flatten(targets['picard']['collectrnaseqmetrics']['metrics']) +
-        utils.flatten(targets['picard']['markduplicates']['metrics']) +
-        utils.flatten(targets['rseqc']) +
-        utils.flatten(targets['dupradar']) +
-        utils.flatten(targets['samtools_stats']) +
-        utils.flatten(targets['bamtools_stats'])
+    input: utils.flatten(targets['fastq_atropos_count'])
+
+#         utils.flatten(targets['fastqc']) +
+#         utils.flatten(targets['fastq_clean_count']) +
+#         utils.flatten(targets['fastq_atropos_count']) +
+#         utils.flatten(targets['fastq_screen']) +
+#         utils.flatten(targets['feature_counts']) +
+#         utils.flatten(targets['picard']['collectrnaseqmetrics']['metrics']) +
+#         utils.flatten(targets['picard']['markduplicates']['metrics']) +
+#         utils.flatten(targets['rseqc']) +
+#         utils.flatten(targets['dupradar']) +
+#         utils.flatten(targets['samtools_stats']) +
+#         utils.flatten(targets['bamtools_stats'])
 
 
 ################################################################################
@@ -147,9 +149,11 @@ rule targets:
 rule fastq_clean:
     output:
         r1=temp(patterns['fastq_clean']['r1']),
-        r2=temp(patterns['fastq_clean']['r2'])
+        r2=temp(patterns['fastq_clean']['r2']),
+        md5=patterns['fastq_md5'],
     shell:
         'fastq-dump -O $TMPDIR -X 1000000 --split-files --gzip {wildcards.sample} '
+        '&& gunzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz | md5sum > {output.md5}'
         '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
         '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
         '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
@@ -157,17 +161,18 @@ rule fastq_clean:
         '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
 
 
-rule cutadapt:
+rule atropos:
     input:
         R1=patterns['fastq_clean']['r1'],
         R2=patterns['fastq_clean']['r2']
     output:
-        R1=temp(patterns['cutadapt']['r1']),
-        R2=temp(patterns['cutadapt']['r2'])
+        R1=temp(patterns['atropos']['r1']),
+        R2=temp(patterns['atropos']['r2'])
     params:
         extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
-    log: patterns['cutadapt']['r1'] + '.log'
-    wrapper: wrapper_for('cutadapt')
+    log: patterns['atropos']['r1'] + '.log'
+    threads: 8
+    wrapper: wrapper_for('atropos')
 
 
 rule fastq_count:
