@@ -24,7 +24,7 @@ hostname > .mongodb_host
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 500 \
+    -j 800 \
     -k \
     --verbose \
     --use-conda \
