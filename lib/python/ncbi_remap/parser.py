@@ -243,3 +243,99 @@ def parse_featureCounts_summary(sample, file):
             return None
         else:
             return pd.DataFrame(parsed, index=[sample])
+
+
+def parse_bamtools_stats(sample, file):
+    """Parse bamtools stats."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        for l in fh:
+            fqs = re.search(r"^(.+?):\s+(\d+).*$", l)
+            if fqs:
+                parsed[fqs.group(1)] = int(fqs.group(2))
+        if len(parsed) == 0:
+            return None
+        else:
+            df = pd.DataFrame(parsed, index=[sample])
+            df['Percent Mapped'] = df['Mapped reads'] / df['Total reads'] * 100
+            df['Percent Forward'] = df['Forward strand'] / df['Total reads'] * 100
+            df['Percent Reverse'] = df['Reverse strand'] / df['Total reads'] * 100
+            df['Percent Failed QC'] = df['Failed QC'] / df['Total reads'] * 100
+            df['Percent Duplicates'] = df['Duplicates'] / df['Total reads'] * 100
+            df['Percent Paired-end'] = df['Paired-end reads'] / df['Total reads'] * 100
+            return df
+
+
+def parse_picard_markduplicate_metrics(sample, file):
+    """Parser for picard markduplicates."""
+    df = pd.read_csv(file, sep='\t', comment='#')
+    df['sample'] = sample
+    return df.set_index('sample')
+
+
+def parse_samtools_idxstats(sample, file):
+    """Parser for samtools idxstats."""
+    df = pd.read_csv(file, sep='\t', header=None)
+    df.columns = ['chrom', 'length', '# mapped reads', '# unmapped reads']
+    df['sample'] = sample
+    return df.set_index('sample')
+
+
+def parse_samtools_stats(sample, file):
+    """Parse rseqc samtools stats."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        for l in fh:
+            if l.startswith('SN'):
+                fqs = re.search(r"^SN\s+(.+?):\s+([\d\.]+)\s.*$", l)
+                if fqs:
+                    if '.' in fqs.group(2):
+                        parsed[fqs.group(1)] = float(fqs.group(2))
+                    else:
+                        parsed[fqs.group(1)] = int(fqs.group(2))
+
+        if len(parsed) == 0:
+            return None
+        else:
+            return pd.DataFrame(parsed, index=[sample])
+
+
+def parse_md5(sample, file):
+    """Parser for md5sum."""
+    df = pd.read_csv(file, sep='\s+', header=None)
+    df.columns = ['md5', 'file']
+    df['sample'] = sample
+    df.drop('file', axis=1, inplace=True)
+    return df.set_index('sample')
+
+
+def parse_libsize(sample, file):
+    """Parser for md5sum."""
+    with open(file, 'r') as fh:
+        lsize = int(fh.read().strip())
+        return pd.DataFrame({'libsize': lsize}, index=[sample])
+
+
+def parse_atropos(sample, file):
+    """Parse atropos."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        block = None
+        for l in fh:
+            if l.startswith('==='):
+                block = re.search(r"^=== (.+) ===$", l).group(1)
+            else:
+                if block == 'Summary':
+                    l = l.replace(',', '')
+                    fqs = re.search(r"^(.+?):\s+([\d\.]+)\s.*$", l)
+                    if fqs:
+                        parsed[fqs.group(1)] = int(fqs.group(2))
+                else:
+                    fqs = re.search(r"^.*Trimmed:\s+(\d+)\s.*$", l)
+                    if fqs:
+                        key = 'Number {} trimmed'.format(block)
+                        parsed[key] = int(fqs.group(1))
+        if len(parsed) == 0:
+            return None
+        else:
+            return pd.DataFrame(parsed, index=[sample])
