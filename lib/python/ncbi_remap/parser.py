@@ -213,3 +213,33 @@ def parse_picardCollect_hist(sample, file):
             return df
 
 
+def parse_dupradar(sample, file):
+    """Parser for picard collectRNAMetrics summary."""
+    df = pd.read_csv(file, sep='\t', index_col=0)
+    df.columns = ['FBgn', 'geneLength', 'allCountsMulti', 'filteredCountsMulti', 'dupRateMulti',
+                  'dupsPerIdMulti', 'RPKMulti', 'RPKMMulti', 'allCounts', 'filteredCounts',
+                  'dupRate', 'dupsPerId', 'RPK', 'RPKM', 'mhRate']
+    df['sample'] = sample
+    return df.set_index(['sample', 'FBgn'])
+
+
+def parse_featureCounts_counts(sample, file):
+    """Parser for picard collectRNAMetrics summary."""
+    df = pd.read_csv(file, sep='\t', comment='#')
+    df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
+    df['sample'] = sample
+    return df.set_index(['sample', 'FBgn'])
+
+
+def parse_featureCounts_summary(sample, file):
+    """Parse rseqc bam stat."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        for l in fh:
+            fqs = re.search(r"^(.+?)\s+(\d+)$", l)
+            if fqs:
+                parsed[fqs.group(1)] = int(fqs.group(2))
+        if len(parsed) == 0:
+            return None
+        else:
+            return pd.DataFrame(parsed, index=[sample])
