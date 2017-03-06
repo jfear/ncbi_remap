@@ -4,6 +4,8 @@ from io import StringIO
 import pandas as pd
 from collections import OrderedDict
 
+from lcdblib.parse.fastqc import FastQC
+
 
 def get_file_regex(filepattern):
     """Given a file name pattern, build a python regex.
@@ -63,7 +65,7 @@ def get_files(files, pattern):
             yield (d['sample'], file)
 
 
-def parse_files(files, pattern, parser):
+def parse_files(files, pattern, parser, **kwargs):
     """Parses a set of files form some output.
 
     Given a list of files and file naming pattern, builds a list of files to
@@ -72,7 +74,7 @@ def parse_files(files, pattern, parser):
     """
     dfs = []
     for file in get_files(files, pattern):
-        dfs.append(parser(*file))
+        dfs.append(parser(*file, **kwargs))
     return pd.concat(dfs)
 
 
@@ -192,6 +194,7 @@ def parse_picardCollect_summary(sample, file):
 
 def parse_picardCollect_hist(sample, file):
     """Parser for picard collectRNAMetrics summary."""
+    parsed = ''
     with open(file, 'r') as fh:
         for l in fh:
             if l.startswith('#'):
@@ -339,3 +342,16 @@ def parse_atropos(sample, file):
             return None
         else:
             return pd.DataFrame(parsed, index=[sample])
+
+
+def parse_fastqc(sample, file, field=''):
+    """Parse fastqc."""
+    if field:
+        return FastQC.parse_from_zip(sample, file)[field]
+    else:
+        return FastQC.parse_from_zip(sample, file)
+
+def parse_fastqc_seq_quality(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Per sequence quality scores')
+    return fqc.df
