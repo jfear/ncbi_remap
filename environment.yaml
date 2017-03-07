@@ -39,6 +39,7 @@ dependencies:
 - clyent=1.2.2
 - cycler=0.10.0
 - jfear::sratoolkit=2.8.1
+- jfear::ipycache=0.1.6dev
 - decorator=4.0.10
 - entrypoints=0.2.2
 - greenlet=0.4.10

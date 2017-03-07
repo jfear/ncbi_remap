@@ -1,11 +1,12 @@
 # python
-__pycache__
+*__pycache__
 *.ipynb_checkpoints
 *.pyc
 
 # R
 
 # osx
+*DS_Store*
 
 # Snakemake and Slurm
 *.snakemake
@@ -20,9 +21,9 @@ figs
 *cachedir
 wip
 references
+_build
 
 # Files
 notebook/*/*.html
 lib/python/test_xml.xml
-*DS_Store*
 *.mongodb*

@@ -345,13 +345,69 @@ def parse_atropos(sample, file):
 
 
 def parse_fastqc(sample, file, field=''):
-    """Parse fastqc."""
+    """Parse fastqc zip file.
+
+    Takes a zip file and makes a FastQC object.
+
+    Parameters
+    ----------
+    sample: str
+        Sample name which will be added as row index.
+    file: str
+        Path to the fastqc zip file.
+    field: str
+        Name of specific Fastqc section to return. Look at
+        lcdblib.parse.fastqc.FastQC.keys() for a list of possible names.
+
+    Returns
+    -------
+    lcdblib.parse.fastqc.FastQC or lcdblib.parse.fastqc.FastQCBlock if `field`
+    is provided.
+
+    """
     if field:
         return FastQC.parse_from_zip(sample, file)[field]
     else:
         return FastQC.parse_from_zip(sample, file)
 
+
 def parse_fastqc_seq_quality(sample, file):
     """Parse fastqc."""
     fqc = parse_fastqc(sample, file, field='Per sequence quality scores')
     return fqc.df
+
+
+def parse_fastqc_base_quality(sample, file):
+    """Parse fastqc base quality
+
+    Returns
+    -------
+
+    A dataframe where rows are samples and columns are bases.
+
+    """
+    fqc = parse_fastqc(sample, file, field='Per base sequence quality')
+    df = fqc.df
+    df.reset_index(inplace=True)
+
+    def split_ranges(x):
+        """Split ranges into bases.
+
+        Fastqc sometimes collapses bases into ranges, this splits them back out.
+        """
+        try:
+            bases = x.Base.split('-')
+        except AttributeError:
+            bases = [x.Base, ]
+
+        if len(bases) == 1:
+            return pd.Series(data=x.Mean, name=x.name, index=[int(x.Base),])
+        elif len(bases) == 2:
+            return pd.Series(data=x.Mean, name=x.name, index=range(int(bases[0]), int(bases[1]) + 1))
+
+    splitRanges = df.apply(split_ranges, axis=1)
+
+    # Make df with row is sample and columns is bases
+    stacked = splitRanges.stack().to_frame(name=sample).T
+    stacked.columns = stacked.columns.droplevel(0)
+    return stacked

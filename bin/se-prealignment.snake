@@ -18,7 +18,7 @@ from lcdblib.pandas.utils import cartesian_product
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
+TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
@@ -43,11 +43,11 @@ def wrapper_for(path):
 with open('../data/test_samples', 'r') as fh:
     test_samples = [x.strip() for x in fh.readlines()]
 
-#sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
-sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE'}, {'_id': 1, 'experiment_id': 1})))
+sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE', '_id': 'ERR650219'}, {'_id': 1, 'experiment_id': 1})))
+#sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'SE'}, {'_id': 1, 'experiment_id': 1})))
 sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
 sample_table.sort_values(by='sample', inplace=True)
-sample_table = sample_table.iloc[0:10000,:].copy()
+#sample_table = sample_table.iloc[0:10000,:].copy()
 
 # Add strand info 1=forward, 2=reverse
 sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
