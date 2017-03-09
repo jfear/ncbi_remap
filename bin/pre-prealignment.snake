@@ -19,81 +19,45 @@ import pandas as pd
 from lcdblib.snakemake import helpers, aligners
 from lcdblib.utils import utils
 
-from sramongo.mongo import start_mongo
-from mongoengine import connect
+from pymongo import MongoClient
 
 sys.path.insert(0, '../lib/python')
 from ncbi_remap import mongo_schema as ms
 
-try:
-    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-    assert os.path.exists(TMPDIR)
-except:
-    try:
-        TMPDIR = os.getenv('TMPDIR')
-        assert os.path.exists(TMPDIR)
-    except:
-        from tempfile import mkdtemp
-        TMPDIR = mkdtemp(dir='.snakemake/')
-        print('Temporary storage is at: {}'.format(TMPDIR))
-
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 workdir: '.'
 
-################################################################################
-# Start/Stop MongoDB
-################################################################################
-# Store mongodb hostname
-MONGODB_HOSTNAME = '.mongodb_host'
-MONGODB_PID = '.mongodb_pid'
-
-if not os.path.exists(MONGODB_HOSTNAME):
-    # Record host
-    with open(MONGODB_HOSTNAME, 'w') as fh:
-        fh.write(os.getenv('SLURMD_NODENAME'))
-
-    # Start mongo and save PID
-    pid = start_mongo(dbDir='../output/db', logDir='../output/logs')
-    with open(MONGODB_PID, 'w') as fh:
-        fh.write(str(pid.pid))
-
-onsuccess:
-    # Stop mongodb
-    with open(MONGODB_PID, 'r') as fh:
-        pid = int(fh.read())
-    os.kill(pid, signal.SIGTERM)
-    os.remove(MONGODB_PID)
-
-    # Remove hostname
-    os.remove(MONGODB_HOSTNAME)
-    print('Script complete.')
-
-onerror:
-    # Stop mongodb
-    with open(MONGODB_PID, 'r') as fh:
-        pid = int(fh.read())
-    os.kill(pid, signal.SIGTERM)
-    os.remove(MONGODB_PID)
-
-    # Remove hostname
-    os.remove(MONGODB_HOSTNAME)
-    print('There was an error.')
-
-# connect to mongo engine
-with open(MONGODB_HOSTNAME, 'r') as fh:
-    mongo_client = connect(db='sra', host=fh.read())
+# Connect to mongodb
+with open('.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra2']
+    remap = db['remap']
 
 ################################################################################
 # Set up file naming patterns
 ################################################################################
-patterns = {'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{num}.fastq.gz'}
+patterns = {'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.precheck.done'}
 
 # Import run_id and experiment_id and dump into a dataframe
-sample_table = pd.DataFrame(list(ms.Run._get_collection().find({}, {'_id': 1, 'experiment_id': 1})))
-sample_table.columns = ['sample', 'experiment']
+samples = remap.aggregate([
+    {'$match': {
+        'srp': 'SRP072244',
+        'runs.srr': {'$exists': 1},
+        '$or': [
+            {'runs.pre_aln_flags': {'$exists': 0}},
+            {'runs.pre_aln_flags': {'$eq': []}},
+            ]
+        }
+    },
+    {'$unwind': '$runs'},
+    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}}
+])
+sample_table = pd.DataFrame(list(samples))
 sample_table.sort_values(by='sample', inplace=True)
-sample_table['num'] = 1
 
 #targets = helpers.fill_patterns(patterns, sample_table.iloc[0:10000,:])
 targets = helpers.fill_patterns(patterns, sample_table)
@@ -117,20 +81,20 @@ def check_fastq(fn):
 """Downloads fastq and checks if there is one or two sets of reads."""
 rule fastq_dump:
     output:
-        fastq = patterns['fastq']
+        fastq=temp(patterns['fastq'])
     run:
-        srr = ms.Run.objects(pk=wildcards.sample).first()
         shell("fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample}")
 
-        # Check read 1
         fn1 = wildcards.sample + '_1.fastq.gz'
-        if check_fastq(os.path.join(TMPDIR, fn1)):
-            sh.move(os.path.join(TMPDIR, fn1), patterns['fastq'].format(sample=wildcards.sample, experiment=wildcards.experiment, num=1))
-
-        # Check read 2
         fn2 = wildcards.sample + '_2.fastq.gz'
         if check_fastq(os.path.join(TMPDIR, fn2)):
-            sh.move(os.path.join(TMPDIR, fn2), patterns['fastq'].format(sample=wildcards.sample, experiment=wildcards.experiment, num=2))
-            srr.modify(add_to_set__pipeline_flags='PE')
+            # Check read 2
+            remap.find_one_and_update({'runs.srr': wildcards.sample}, {'$addToSet': {'runs.$.pre_aln_flags': 'PE'}})
+        elif check_fastq(os.path.join(TMPDIR, fn1)):
+            # Check read 1
+            remap.find_one_and_update({'runs.srr': wildcards.sample}, {'$addToSet': {'runs.$.pre_aln_flags': 'SE'}})
         else:
-            srr.modify(add_to_set__pipeline_flags='SE')
+            raise ValueError
+
+        with open(output.fastq, 'w') as fh:
+            fh.write()
