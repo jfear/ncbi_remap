@@ -36,6 +36,7 @@ dependencies:
 - bioconda::simplejson=3.8.1
 - bioconda::snakemake=3.10.1
 - bioconda::ucsc-bedgraphtobigwig=332
+- conda-forge::nbsphinx=0.2.13
 - clyent=1.2.2
 - cycler=0.10.0
 - jfear::sratoolkit=2.8.1

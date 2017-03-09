@@ -324,15 +324,24 @@ def parse_atropos(sample, file):
     with open(file, 'r') as fh:
         parsed = OrderedDict()
         block = None
+        subBlock = None
         for l in fh:
+            l = l.replace(',', '')
+
             if l.startswith('==='):
                 block = re.search(r"^=== (.+) ===$", l).group(1)
             else:
+                # The summary block is a little different between SE and PE reads
                 if block == 'Summary':
-                    l = l.replace(',', '')
-                    fqs = re.search(r"^(.+?):\s+([\d\.]+)\s.*$", l)
+                    fqs = re.search(r"^(\w+[\s\w\(\)]+?):\s+([\d\.]+)\s.*$", l)
+                    fqs2 = re.search(r"^\s+([\w\s]+?):\s+([\d\.]+)\s.*$", l)
+
                     if fqs:
-                        parsed[fqs.group(1)] = int(fqs.group(2))
+                        subBlock = fqs.group(1)
+                        parsed[subBlock] = int(fqs.group(2))
+                    elif fqs2:
+                        read = '_'.join([subBlock, fqs2.group(1)])
+                        parsed[read] = int(fqs2.group(2))
                 else:
                     fqs = re.search(r"^.*Trimmed:\s+(\d+)\s.*$", l)
                     if fqs:
@@ -341,7 +350,19 @@ def parse_atropos(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[sample])
+
+            if [x for x in df.columns if 'Read 1' in x]:
+                # PE
+                df['pct_read1_adapters'] = df['Total read pairs processed_Read 1 with adapter'] / df['Total read pairs processed'] * 100
+
+                df['pct_read2_adapters'] = df['Total read pairs processed_Read 2 with adapter'] / df['Total read pairs processed'] * 100
+            else:
+                # SE
+                df['pct_read1_adapters'] = df['Reads with adapters'] / df['Total reads processed'] * 100
+
+            return df
+
 
 
 def parse_fastqc(sample, file, field=''):
