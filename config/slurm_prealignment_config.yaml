@@ -7,6 +7,7 @@ __default__:
 
 fastq_clean:
   mem: "32g"
+  gres: "lscratch:80"
 
 hisat2:
     mem: "80g"

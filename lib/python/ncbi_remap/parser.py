@@ -1,6 +1,7 @@
 import os
 import re
 from io import StringIO
+import numpy as np
 import pandas as pd
 from collections import OrderedDict
 
@@ -74,7 +75,8 @@ def parse_files(files, pattern, parser, **kwargs):
     """
     dfs = []
     for file in get_files(files, pattern):
-        dfs.append(parser(*file, **kwargs))
+        if os.path.exists(file[1]):
+            dfs.append(parser(*file, **kwargs))
     return pd.concat(dfs)
 
 
@@ -217,7 +219,7 @@ def parse_picardCollect_hist(sample, file):
 
 
 def parse_dupradar(sample, file):
-    """Parser for picard collectRNAMetrics summary."""
+    """Parser for dupradar."""
     df = pd.read_csv(file, sep='\t', index_col=0)
     df.columns = ['FBgn', 'geneLength', 'allCountsMulti', 'filteredCountsMulti', 'dupRateMulti',
                   'dupsPerIdMulti', 'RPKMulti', 'RPKMMulti', 'allCounts', 'filteredCounts',
@@ -333,8 +335,8 @@ def parse_atropos(sample, file):
             else:
                 # The summary block is a little different between SE and PE reads
                 if block == 'Summary':
-                    fqs = re.search(r"^(\w+[\s\w\(\)]+?):\s+([\d\.]+)\s.*$", l)
-                    fqs2 = re.search(r"^\s+([\w\s]+?):\s+([\d\.]+)\s.*$", l)
+                    fqs = re.search(r"^(\w+[\s\w\(\)-]+?):\s+([\d\.]+)\s.*$", l)
+                    fqs2 = re.search(r"^\s+([\w\s-]+?):\s+([\d\.]+)\s.*$", l)
 
                     if fqs:
                         subBlock = fqs.group(1)
@@ -364,6 +366,49 @@ def parse_atropos(sample, file):
             return df
 
 
+def parse_hisat2(sample, file):
+    """Parse hisat2."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        header = ['# Reads', '# Unpaired', '# Unaligned', '# Uniquely Aligned', '# Multimappers', 'Pct Alignment']
+        for i, l in enumerate(fh):
+            fqs = re.search(r"^\s*([\d\.]+?)[%\s].*$", l)
+            if fqs:
+                if i == 5:
+                    parsed[header[i]] = float(fqs.group(1))
+                else:
+                    parsed[header[i]] = int(fqs.group(1))
+
+        if len(parsed) == 0:
+            return None
+        else:
+            return pd.DataFrame(parsed, index=[sample])
+
+
+def split_ranges(df):
+    """Split ranges into bases.
+
+    Fastqc sometimes collapses bases into ranges, this splits them back out.
+    """
+    rows = []
+    for i, row in df.iterrows():
+        try:
+            if '-' in i:
+                start, end = [int(x) for x in i.split('-')]
+                for j in range(start, end + 1):
+                    curr_row = row.copy()
+                    curr_row.name = j
+                    rows.append(curr_row)
+            else:
+                row.name = int(i)
+                rows.append(row)
+        except TypeError:
+            rows.append(row)
+
+    df = pd.concat(rows, axis=1).T
+    df.index.name = 'base'
+    return df
+
 
 def parse_fastqc(sample, file, field=''):
     """Parse fastqc zip file.
@@ -392,43 +437,99 @@ def parse_fastqc(sample, file, field=''):
         return FastQC.parse_from_zip(sample, file)
 
 
-def parse_fastqc_seq_quality(sample, file):
+def parse_fastqc_per_seq_quality(sample, file):
     """Parse fastqc."""
     fqc = parse_fastqc(sample, file, field='Per sequence quality scores')
-    return fqc.df
+    df = fqc.df
+    wide = df.T
+    wide['sample'] = sample
+    return wide.set_index('sample')
 
 
-def parse_fastqc_base_quality(sample, file):
-    """Parse fastqc base quality
-
-    Returns
-    -------
-
-    A dataframe where rows are samples and columns are bases.
-
-    """
+def parse_fastqc_per_base_seq_quality(sample, file):
+    """Parse fastqc base quality"""
     fqc = parse_fastqc(sample, file, field='Per base sequence quality')
+    df = fqc.df['Mean'].copy().to_frame()
+    splitRanges = split_ranges(df)
+    splitRanges['sample'] = sample
+    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+
+
+def parse_fastqc_adapter_content(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Adapter Content')
+    df = fqc.df
+    splitRanges = split_ranges(df)
+    splitRanges['sample'] = sample
+    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+
+
+def parse_fastqc_per_base_seq_content(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Per base sequence content')
+    df = fqc.df
+    splitRanges = split_ranges(df)
+    splitRanges['sample'] = sample
+    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+
+
+def parse_fastqc_sequence_length(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Sequence Length Distribution')
+    df = fqc.df
+    df['sample'] = sample
+    return df.set_index(append=True, keys='sample').swaplevel()
+
+
+def parse_fastqc_overrepresented_seq(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Overrepresented sequences')
+    df = fqc.df
+    df['sample'] = sample
+    return df.set_index(append=True, keys='sample').swaplevel()
+
+
+def parse_fastqc_basic_stats(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Basic Statistics')
+    df = fqc.df.T
+    df['sample'] = sample
+    return df.set_index('sample')
+
+
+def parse_fastqc_kmer_content(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Kmer Content')
     df = fqc.df
     df.reset_index(inplace=True)
+    df.set_index('Max Obs/Exp Position', inplace=True)
+    splitRanges = split_ranges(df)
+    splitRanges.index.name = 'Max Obs/Exp Position'
+    splitRanges.reset_index(inplace=True)
+    splitRanges['sample'] = sample
+    return splitRanges.sort_values(['Sequence', 'Max Obs/Exp Position']).set_index(['sample', 'Sequence'])
 
-    def split_ranges(x):
-        """Split ranges into bases.
 
-        Fastqc sometimes collapses bases into ranges, this splits them back out.
-        """
-        try:
-            bases = x.Base.split('-')
-        except AttributeError:
-            bases = [x.Base, ]
+def parse_fastqc_per_base_n_content(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Per base N content')
+    df = fqc.df
+    splitRanges = split_ranges(df)
+    splitRanges['sample'] = sample
+    return splitRanges.set_index(append=True, keys='sample').swaplevel()
 
-        if len(bases) == 1:
-            return pd.Series(data=x.Mean, name=x.name, index=[int(x.Base),])
-        elif len(bases) == 2:
-            return pd.Series(data=x.Mean, name=x.name, index=range(int(bases[0]), int(bases[1]) + 1))
 
-    splitRanges = df.apply(split_ranges, axis=1)
+def parse_fastqc_per_seq_gc_content(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Per sequence GC content')
+    df = fqc.df
+    df['sample'] = sample
+    return df.set_index(append=True, keys='sample').swaplevel()
 
-    # Make df with row is sample and columns is bases
-    stacked = splitRanges.stack().to_frame(name=sample).T
-    stacked.columns = stacked.columns.droplevel(0)
-    return stacked
+
+def parse_fastqc_seq_dup_level(sample, file):
+    """Parse fastqc."""
+    fqc = parse_fastqc(sample, file, field='Sequence Duplication Levels')
+    df = fqc.df
+    df['sample'] = sample
+    return df.set_index(append=True, keys='sample').swaplevel()

@@ -1,3 +1,6 @@
+title: "SRA Project Pre-Alignment Pipeline"
+subtitle: "Summary for Hina's Files from SRP072244."
+
 fn_clean_exts:
   - '_1'
   - '_2'
