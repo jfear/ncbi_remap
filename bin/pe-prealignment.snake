@@ -1,5 +1,4 @@
 #/usr/bin/env python
-
 # vim: set ft=python.snakemake
 """ The prealignment workflow to identify basic characteristics about SRA runs.
 
@@ -12,10 +11,16 @@ import sys
 
 import pandas as pd
 from pymongo import MongoClient
+from snakemake.logging import logger
+from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
+
+sys.path.insert(0, '../lib/python')
+import ncbi_remap
+from ncbi_remap.parser import parse_files
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
@@ -31,7 +36,8 @@ configfile: '../config/prealignment_config.yaml'
 # Connect to mongodb
 with open('.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
-    db = mongo_client['sra']
+    db = mongo_client['sra2']
+    remap = db['remap']
 
 # Find snakemake wrappers:
 def wrapper_for(path):
@@ -41,22 +47,33 @@ def wrapper_for(path):
 ################################################################################
 # Build Sample Table
 ################################################################################
-with open('../data/test_samples', 'r') as fh:
-    test_samples = [x.strip() for x in fh.readlines()]
+samples = remap.aggregate([
+    {'$unwind': '$runs'},
+    {
+        '$match': {
+            '$and': [
+                {'runs.srr': {'$exists': 1}},
+                {'runs.pre_aln_flags': {'$ne': 'complete'}},
+                {'runs.pre_aln_flags': 'PE'}
+            ]
+        }
+    },
+    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
+    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
+    {'$sort': {'sample': 1}},
+    {'$limit': 2000},
+])
 
-sample_table = pd.DataFrame(list(db.run.find({'pipeline_flags': 'PE', '_id': {'$in': test_samples}}, {'_id': 1, 'experiment_id': 1})))
-sample_table.rename(columns={'_id': 'sample', 'experiment_id': 'experiment'}, inplace=True)
-sample_table.sort_values(by='sample', inplace=True)
-#sample_table = sample_table.head(2).copy()
-
-# Add strand info 1=forward, 2=reverse
-sample_table = cartesian_product(sample_table, {'featurecount_strand': [1, 2]})
-sample_table.loc[sample_table['featurecount_strand'] == 1, 'picard_collectrnaseqmetrics'] = 'FIRST_READ_TRANSCRIPTION_STRAND'
-sample_table.loc[sample_table['featurecount_strand'] == 2, 'picard_collectrnaseqmetrics'] = 'SECOND_READ_TRANSCRIPTION_STRAND'
+sample_table = pd.DataFrame(list(samples))
 
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
+# Build target files
+all_complete = {'files': '../output/prealignment/raw/{experiment}/{sample}/{sample}.done'}
+targets = helpers.fill_patterns(all_complete, sample_table)
+
+# Patterns
 patterns = {
     'fastq_clean': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
@@ -75,11 +92,20 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
         },
-    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
+    'fastq_screen': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
+        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean_screen.txt',
+    },
     'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.zip',
+        'r1': {
+            'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.html',
+            'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.zip',
         },
+        'r2': {
+            'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2_fastqc.html',
+            'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2_fastqc.zip',
+        },
+    },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
@@ -89,15 +115,6 @@ patterns = {
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
-        'geneBodyCoverage': {
-            'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.txt',
-            'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.r',
-            'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.pdf',
-        },
-        'tin': {
-            'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
-            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
-        },
     },
     'dupradar': {
         'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.density_scatter.png',
@@ -108,12 +125,22 @@ patterns = {
         'dataframe': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.tsv',
     },
     'feature_counts': {
-        'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts',
-        'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{featurecount_strand}.fq.bam.counts.summary',
+        'first': {
+            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
+            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
+            },
+        'second': {
+            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts',
+            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts.summary',
+            },
     },
     'picard': {
         'collectrnaseqmetrics': {
-            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}_{picard_collectrnaseqmetrics}.fq.bam.picard.collectrnaseqmetrics',
+            'metrics': {
+                'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}_FIRST_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
+                'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}_SECOND_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
+                },
+
         },
         'markduplicates': {
             'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
@@ -124,23 +151,31 @@ patterns = {
     'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
+#         'geneBodyCoverage': {
+#             'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.txt',
+#             'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.r',
+#             'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.pdf',
+#         },
+#         'tin': {
+#             'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
+#             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
+#         },
 
-# Build target files
-targets = helpers.fill_patterns(patterns, sample_table)
 rule targets:
-    input: utils.flatten(targets['fastq_atropos_count'])
+    input:
+        utils.flatten(targets)
 
-#         utils.flatten(targets['fastqc']) +
-#         utils.flatten(targets['fastq_clean_count']) +
-#         utils.flatten(targets['fastq_atropos_count']) +
-#         utils.flatten(targets['fastq_screen']) +
-#         utils.flatten(targets['feature_counts']) +
-#         utils.flatten(targets['picard']['collectrnaseqmetrics']['metrics']) +
-#         utils.flatten(targets['picard']['markduplicates']['metrics']) +
-#         utils.flatten(targets['rseqc']) +
-#         utils.flatten(targets['dupradar']) +
-#         utils.flatten(targets['samtools_stats']) +
-#         utils.flatten(targets['bamtools_stats'])
+localrules: check_results
+
+rule check_results:
+    input: utils.flatten(patterns)
+    output: all_complete['files']
+    run:
+        remap.find_one_and_update(
+                {'runs.srr': wildcards.sample},
+                {'$addToSet': {'runs.$.pre_aln_flags': 'complete'}}
+                )
+        Path(output[0]).touch()
 
 
 ################################################################################
@@ -183,16 +218,27 @@ rule fastq_count:
 ################################################################################
 # FASTQ QC
 ################################################################################
-rule fastqc:
+rule fastqc_r1:
     input: patterns['fastq_clean']['r1']
     output:
-        html=patterns['fastqc']['html'],
-        zip=patterns['fastqc']['zip']
+        html=patterns['fastqc']['r1']['html'],
+        zip=patterns['fastqc']['r1']['zip']
     params: extra="--format fastq"
-    log: patterns['fastqc']['html'] + '.log'
+    log: patterns['fastqc']['r1']['html'] + '.log'
     wrapper: wrapper_for('fastqc')
 
-rule fastq_screen:
+
+rule fastqc_r2:
+    input: patterns['fastq_clean']['r2']
+    output:
+        html=patterns['fastqc']['r2']['html'],
+        zip=patterns['fastqc']['r2']['zip']
+    params: extra="--format fastq"
+    log: patterns['fastqc']['r2']['html'] + '.log'
+    wrapper: wrapper_for('fastqc')
+
+
+rule fastq_screen_r1:
     input:
         fastq=patterns['fastq_clean']['r1'],
         dm6=config['references']['dmel']['bowtie2'],
@@ -204,8 +250,25 @@ rule fastq_screen:
         phix=config['references']['phix']['bowtie2'],
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
-    output: txt=patterns['fastq_screen']
-    log: patterns['fastq_screen'] + '.log'
+    output: txt=patterns['fastq_screen']['r1']
+    log: patterns['fastq_screen']['r1'] + '.log'
+    wrapper: wrapper_for('fastq_screen')
+
+
+rule fastq_screen_r2:
+    input:
+        fastq=patterns['fastq_clean']['r2'],
+        dm6=config['references']['dmel']['bowtie2'],
+        hg19=config['references']['human']['bowtie2'],
+        wolbachia=config['references']['wolbachia']['bowtie2'],
+        ecoli=config['references']['ecoli']['bowtie2'],
+        yeast=config['references']['yeast']['bowtie2'],
+        rRNA=config['references']['rRNA']['bowtie2'],
+        phix=config['references']['phix']['bowtie2'],
+        ercc=config['references']['ercc']['bowtie2'],
+        adapters=config['references']['adapters']['bowtie2']
+    output: txt=patterns['fastq_screen']['r2']
+    log: patterns['fastq_screen']['r2'] + '.log'
     wrapper: wrapper_for('fastq_screen')
 
 ################################################################################
@@ -215,6 +278,7 @@ rule hisat2_splice_site:
     input: gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+
 
 rule hisat2_fastq:
     input:
@@ -228,6 +292,7 @@ rule hisat2_fastq:
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
+
 
 rule bai:
     input: bam='{prefix}.bam'
@@ -248,6 +313,7 @@ rule gtf2bed12:
             for t in db.features_of_type('transcript'):
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
+
 rule infer_experiment:
     input:
         bam=patterns['hisat2']['bam'],
@@ -256,28 +322,31 @@ rule infer_experiment:
     log: patterns['rseqc']['infer_experiment'] + '.log'
     wrapper: wrapper_for('rseqc/infer_experiment')
 
-rule geneBody_coverage:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
-        bed=patterns['bed12']
-    output:
-        txt=patterns['rseqc']['geneBodyCoverage']['txt'],
-        r=patterns['rseqc']['geneBodyCoverage']['r'],
-        img=patterns['rseqc']['geneBodyCoverage']['img']
-    log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-    wrapper: wrapper_for('rseqc/geneBody_coverage')
 
-rule tin:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
-        bed=patterns['bed12']
-    output:
-        table=patterns['rseqc']['tin']['table'],
-        summary=patterns['rseqc']['tin']['summary']
-    log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
-    wrapper: wrapper_for('rseqc/tin')
+# rule geneBody_coverage:
+#     input:
+#         bam=patterns['hisat2']['bam'],
+#         bai=patterns['bai'],
+#         bed=patterns['bed12']
+#     output:
+#         txt=patterns['rseqc']['geneBodyCoverage']['txt'],
+#         r=patterns['rseqc']['geneBodyCoverage']['r'],
+#         img=patterns['rseqc']['geneBodyCoverage']['img']
+#     log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
+#     wrapper: wrapper_for('rseqc/geneBody_coverage')
+#
+#
+# rule tin:
+#     input:
+#         bam=patterns['hisat2']['bam'],
+#         bai=patterns['bai'],
+#         bed=patterns['bed12']
+#     output:
+#         table=patterns['rseqc']['tin']['table'],
+#         summary=patterns['rseqc']['tin']['summary']
+#     log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
+#     wrapper: wrapper_for('rseqc/tin')
+
 
 rule bam_stat:
     input: bam=patterns['hisat2']['bam'],
@@ -305,14 +374,25 @@ rule dupRadar:
 ################################################################################
 # Feature Counts
 ################################################################################
-rule featurecounts:
+rule featurecounts_first:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=patterns['hisat2']['bam']
     output:
-        counts=patterns['feature_counts']['counts'],
-        summary=patterns['feature_counts']['summary']
-    params: extra='-p -s {featurecount_strand}'
+        counts=patterns['feature_counts']['first']['counts'],
+        summary=patterns['feature_counts']['first']['summary']
+    params: extra='-s 1'
+    wrapper: wrapper_for('featurecounts')
+
+
+rule featurecounts_second:
+    input:
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam']
+    output:
+        counts=patterns['feature_counts']['second']['counts'],
+        summary=patterns['feature_counts']['second']['summary']
+    params: extra='-s 2'
     wrapper: wrapper_for('featurecounts')
 
 ################################################################################
@@ -339,14 +419,25 @@ rule run_stats:
 ################################################################################
 # PICARD RNA Seq Metrics
 ################################################################################
-rule collectrnaseqmetrics:
+rule collectrnaseqmetrics_first:
     input:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
-    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']
-    params: extra='STRAND={picard_collectrnaseqmetrics}'
-    log: patterns['picard']['collectrnaseqmetrics']['metrics'] + '.log'
+    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
+    params: extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND'
+    log: patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
+
+
+rule collectrnaseqmetrics_second:
+    input:
+        bam=patterns['hisat2']['bam'],
+        refflat=config['references']['dmel']['refflat']
+    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
+    params: extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND'
+    log: patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
+    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+
 
 rule markduplicates:
     input: bam=patterns['hisat2']['bam']
