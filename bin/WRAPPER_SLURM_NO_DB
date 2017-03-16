@@ -16,16 +16,17 @@ if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 
 # run pipeline
-snakemake \
+(time snakemake \
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 500 \
+    -j 1000 \
     -k \
     --verbose \
     --use-conda \
     --cluster-config $CLUSTER \
     --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_${EXTRA}.o.%j --error=slurm_logs/${SNAKEFILE}_${EXTRA}.e.%j" \
-    --latency-wait=90 \
+    --latency-wait=60 \
     -s $SNAKEFILE \
     $EXTRA \
+    ) > "$LOGS/${SNAKEFILE}_${EXTRA}.log" 2>&1
