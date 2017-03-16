@@ -9,6 +9,7 @@ determine if the sample is really RNA-seq and strandedness.
 import os
 import signal
 import re
+from pathlib import Path
 from textwrap import dedent
 import shutil as sh
 from gzip import open as gopen
@@ -22,11 +23,10 @@ from lcdblib.utils import utils
 from pymongo import MongoClient
 
 sys.path.insert(0, '../lib/python')
-from ncbi_remap import mongo_schema as ms
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-TMPDIR = '/mnt/threeTB/centos_scratch'
+#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 workdir: '.'
@@ -45,7 +45,6 @@ patterns = {'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$match': {
-        'srp': 'SRP072244',
         'runs.srr': {'$exists': 1},
         '$or': [
             {'runs.pre_aln_flags': {'$exists': 0}},
@@ -56,6 +55,7 @@ samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}}
 ])
+
 sample_table = pd.DataFrame(list(samples))
 sample_table.sort_values(by='sample', inplace=True)
 
@@ -96,5 +96,4 @@ rule fastq_dump:
         else:
             raise ValueError
 
-        with open(output.fastq, 'w') as fh:
-            fh.write()
+        Path(output.fastq).touch()
