@@ -1,11 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name="seq_pipeline"
-#SBATCH --partition="niddk,norm"
-#SBATCH --cpus-per-task=4
-#SBATCH --time=120:00:00
-#SBATCH --mem=12G
-source activate ncbi_remap
-
 SNAKEFILE=$1
 EXTRA=$2
 CLUSTER=$3
@@ -20,7 +13,7 @@ snakemake \
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 500 \
+    -j 100 \
     -k \
     --verbose \
     --use-conda \
