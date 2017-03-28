@@ -36,6 +36,8 @@ dependencies:
 - bioconda::simplejson=3.8.1
 - bioconda::snakemake=3.10.1
 - bioconda::ucsc-bedgraphtobigwig=332
+- bioconda::intermine=1.09.05
+- beautifulsoup4=4.5.3
 - conda-forge::nbsphinx=0.2.13
 - clyent=1.2.2
 - cycler=0.10.0
@@ -44,6 +46,7 @@ dependencies:
 - decorator=4.0.10
 - entrypoints=0.2.2
 - greenlet=0.4.10
+- html5lib=0.999
 - ipykernel=4.5.2
 - ipython=5.1.0
 - ipython_genutils=0.1.0
@@ -61,6 +64,7 @@ dependencies:
 - libgcc=5.2.0
 - libgfortran=3.0.0
 - libsodium=1.0.10
+- lxml=3.7.3
 - markupsafe=0.23
 - matplotlib=1.5.3
 - mistune=0.7.3
