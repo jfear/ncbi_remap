@@ -67,7 +67,6 @@ samples = remap.aggregate([
 ])
 
 sample_table = pd.DataFrame(list(samples))
-print(sample_table)
 
 ################################################################################
 # Set up file naming patterns and targets
@@ -76,36 +75,40 @@ print(sample_table)
 # Patterns
 patterns = {
     'fastq_clean': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
     },
-    'fastq_md5': '../output/prealignment/raw/{experiment}/{sample}/{sample}.md5',
+    'fastq_md5': '../output/alignment/raw/{experiment}/{sample}/{sample}.md5',
     'fastq_clean_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
     },
     'atropos': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
     },
     'fastq_atropos_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
     },
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
-        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
     },
-    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
+    'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'feature_counts': {
         'first': {
-            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
-            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
+            'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.first.counts',
+            'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.first.summary',
         },
         'second': {
-            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts',
-            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts.summary',
+            'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.second.counts',
+            'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.second.summary',
         },
     },
-    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
-    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
-    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
+    'bamCoverage': {
+            'forward': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.first.bw',
+            'reverse': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.second.bw',
+    },
+    'samtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
+    'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
 # Build target files
@@ -114,7 +117,7 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
     input:
-        utils.flatten(targets['bai'])
+        utils.flatten(targets)
 
 
 def wrapper_for(path):
@@ -167,11 +170,11 @@ rule hisat2_fastq:
     input:
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=rules.fastq_clean.output.r1
+        fastq=rules.atropos.output.R1
     output: bam=patterns['hisat2']['bam']
     threads: 8
     params:
-        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        hisat2_extra='--max-intronlen 300000 --rna-strandness R --known-splicesite-infile {input.splice_sites}',
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
@@ -229,3 +232,31 @@ rule run_stats:
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
+
+
+################################################################################
+# Make BigWigs
+################################################################################
+rule bamCoverage_forward:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output: patterns['bamCoverage']['forward']
+    params:
+        extra='--filterRNAstrand forward --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+    threads: 8
+    log: patterns['bamCoverage']['forward'] + '.log'
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
+
+rule bamCoverage_reverse:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output: patterns['bamCoverage']['reverse']
+    params:
+        extra='--filterRNAstrand reverse --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+    threads: 8
+    log: patterns['bamCoverage']['reverse'] + '.log'
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
