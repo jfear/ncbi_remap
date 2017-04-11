@@ -1,0 +1,271 @@
+#!/usr/bin/env python
+# vim: set ft=python.snakemake
+""" The prealignment workflow to identify basic characteristics about SRA runs.
+
+Zhenxia originally developed this workflow. The goal here is to use the data to
+determine if the sample is really RNA-seq and strandedness.
+
+"""
+import os
+import sys
+
+import pandas as pd
+from pymongo import MongoClient
+from snakemake.logging import logger
+from pathlib import Path
+
+from lcdblib.snakemake import helpers
+from lcdblib.utils import utils
+from lcdblib.pandas.utils import cartesian_product
+
+sys.path.insert(0, '../lib/python')
+import ncbi_remap
+
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+#TMPDIR = '/mnt/threeTB/centos_scratch'
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
+
+# import config
+configfile: '../config/prealignment_config.yaml'
+
+# Connect to mongodb
+with open('.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra2']
+    remap = db['remap']
+
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
+
+################################################################################
+# Build Sample Table
+################################################################################
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    golden = [x.strip() for x in fh.readlines()]
+
+samples = remap.aggregate([
+    {'$unwind': '$runs'},
+    {
+        '$match': {
+            '$and': [
+                {'runs.srr': {'$exists': 1}},
+                {'runs.srr': {'$in': golden}},
+                {'runs.pre_aln_flags': 'PE'}
+            ]
+        }
+    },
+    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
+    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
+    {'$sort': {'sample': 1}},
+])
+
+sample_table = pd.DataFrame(list(samples))
+
+################################################################################
+# Set up file naming patterns and targets
+################################################################################
+
+# Patterns
+patterns = {
+    'fastq_clean': {
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
+        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
+    },
+    'fastq_md5': '../output/alignment/raw/{experiment}/{sample}/{sample}.md5',
+    'fastq_clean_count': {
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
+        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
+    },
+    'atropos': {
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
+        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
+    },
+    'fastq_atropos_count': {
+        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
+        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
+    },
+    'hisat2': {
+        'splice_sites': '../output/known_splice_sites_r6-11.txt',
+        'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+    },
+    'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
+    'feature_counts': {
+        'first': {
+            'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.first.counts',
+            'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.first.counts.summary',
+        },
+        'second': {
+            'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.second.counts',
+            'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.second.summary',
+        },
+    },
+    'bamCoverage': {
+            'forward': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.first.bw',
+            'reverse': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.second.bw',
+    },
+    'samtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
+    'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
+}
+
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
+
+
+rule targets:
+    input:
+        utils.flatten(targets)
+
+
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
+
+
+################################################################################
+# FASTQ Pre-process
+################################################################################
+rule fastq_clean:
+    output:
+        r1=patterns['fastq_clean']['r1'],
+        r2=patterns['fastq_clean']['r2'],
+        md5=patterns['fastq_md5'],
+    shell:
+        'fastq-dump -O $TMPDIR -X 1000000 --split-files --gzip {wildcards.sample} '
+        '&& gunzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz | md5sum > {output.md5}'
+        '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+        '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
+        '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
+        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz '
+        '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+
+
+rule atropos:
+    input:
+        R1=patterns['fastq_clean']['r1'],
+        R2=patterns['fastq_clean']['r2']
+    output:
+        R1=temp(patterns['atropos']['r1']),
+        R2=temp(patterns['atropos']['r2'])
+    params:
+        extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
+    log: patterns['atropos']['r1'] + '.log'
+    threads: 8
+    wrapper: wrapper_for('atropos')
+
+
+rule fastq_count:
+    input: '{prefix}.fastq.gz'
+    output: '{prefix}.fastq.gz.libsize'
+    shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
+
+
+################################################################################
+# Alignment
+################################################################################
+rule hisat2_splice_site:
+    input: gtf=config['references']['dmel']['gtf']
+    output: patterns['hisat2']['splice_sites']
+    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+
+
+rule hisat2_fastq:
+    input:
+        index=config['references']['dmel']['hisat2'],
+        splice_sites=patterns['hisat2']['splice_sites'],
+        fastq=[rules.atropos.output.R1, rules.atropos.output.R2],
+    output: bam=patterns['hisat2']['bam']
+    threads: 8
+    params:
+        hisat2_extra='--max-intronlen 300000 --rna-strandness R --known-splicesite-infile {input.splice_sites}',
+        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log: patterns['hisat2']['bam'] + '.log'
+    wrapper: wrapper_for('hisat2/align')
+
+
+rule bai:
+    input: bam='{prefix}.bam'
+    output: bai='{prefix}.bam.bai'
+    conda: "../environment.yaml"
+    shell: "samtools index {input.bam}"
+
+
+################################################################################
+# Feature Counts
+################################################################################
+rule featurecounts_first:
+    input:
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam']
+    output:
+        counts=patterns['feature_counts']['first']['counts'],
+        summary=patterns['feature_counts']['first']['summary']
+    params: extra='-s 1'
+    wrapper: wrapper_for('featurecounts')
+
+
+rule featurecounts_second:
+    input:
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam']
+    output:
+        counts=patterns['feature_counts']['second']['counts'],
+        summary=patterns['feature_counts']['second']['summary']
+    params: extra='-s 2'
+    wrapper: wrapper_for('featurecounts')
+
+
+################################################################################
+# Stats
+################################################################################
+rule run_stats:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output:
+        samtools_stats=patterns['samtools_stats'],
+        samtools_idxstats=patterns['samtools_idxstats'],
+        bamtools_stats=patterns['bamtools_stats']
+    conda: '../environment.yaml'
+    shell:
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
+
+
+################################################################################
+# Make BigWigs
+################################################################################
+rule bamCoverage_forward:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output: patterns['bamCoverage']['forward']
+    params:
+        extra='--filterRNAstrand forward --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+    threads: 8
+    log: patterns['bamCoverage']['forward'] + '.log'
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
+
+rule bamCoverage_reverse:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output: patterns['bamCoverage']['reverse']
+    params:
+        extra='--filterRNAstrand reverse --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+    threads: 8
+    log: patterns['bamCoverage']['reverse'] + '.log'
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
