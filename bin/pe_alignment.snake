@@ -56,7 +56,7 @@ samples = remap.aggregate([
             '$and': [
                 {'runs.srr': {'$exists': 1}},
                 {'runs.srr': {'$in': golden}},
-                {'runs.pre_aln_flags': 'PE'}
+                {'runs.pre_aln_flags': 'PE'},
                 {'runs.pre_aln_flags': 'complete'}
             ]
         }
