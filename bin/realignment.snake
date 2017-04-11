@@ -7,92 +7,225 @@ determine if the sample is really RNA-seq and strandedness.
 
 """
 import os
-import re
-from textwrap import dedent
+import sys
+
 import pandas as pd
-from lcdblib.snakemake import helpers, aligners
+from pymongo import MongoClient
+from snakemake.logging import logger
+from pathlib import Path
+
+from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
+from lcdblib.pandas.utils import cartesian_product
 
-shell.prefix("""set -euo pipefail;
-             if [ ! -z ${{SLURM_JOBID+x}} ]; then
-                 if [ -e /lscratch/$SLURM_JOBID ]; then
-                     export TMPDIR=/lscratch/$SLURM_JOBID
-                 else
-                     export TMPDIR=/tmp
-                 fi;
-             else
-                 export TMPDIR=/tmp
-             fi;
-             source activate ncbi_remap;
-             """)
+sys.path.insert(0, '../lib/python')
+import ncbi_remap
 
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+#TMPDIR = '/mnt/threeTB/centos_scratch'
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
 workdir: '.'
 
+# import config
+configfile: '../config/prealignment_config.yaml'
+
+# Connect to mongodb
+with open('.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra2']
+    remap = db['remap']
+
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wrapper-tests'
+    return 'file:' + os.path.join(URI, 'wrappers', path)
+
+################################################################################
+# Build Sample Table
+################################################################################
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    golden = [x.strip() for x in fh.readlines()]
+
+samples = remap.aggregate([
+    {'$unwind': '$runs'},
+    {
+        '$match': {
+            '$and': [
+                {'runs.srr': {'$exists': 1}},
+                {'runs.srr': {'$in': golden}},
+                {'runs.pre_aln_flags': {'$eq': 'complete'}},
+                {'runs.pre_aln_flags': 'SE'}
+            ]
+        }
+    },
+    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
+    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
+    {'$sort': {'sample': 1}},
+])
+
+sample_table = pd.DataFrame(list(samples))
+print(sample_table)
+
+################################################################################
+# Set up file naming patterns and targets
+################################################################################
+
+# Patterns
 patterns = {
-    'gtf': '/data/LCDB/lcdb-references/dm6/gtf/dm6_r6-11.gtf',
-    'hisat2_index': ['/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.1.ht2',
-                     '/data/LCDB/lcdb-references/dm6/hisat2/dm6_default.2.ht2'],
-    'splice_sites':     '../output/known_splice_sites_r6-11.txt',
-    'bed12': '../output/dm6_r6-11.bed12',
-    'bam': '../output/realignment/samples/{sample}/{sample}.sort.bam',
-    'bai': '../output/realignment/samples/{sample}/{sample}.sort.bam.bai',
+    'fastq_clean': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
+    },
+    'fastq_md5': '../output/prealignment/raw/{experiment}/{sample}/{sample}.md5',
+    'fastq_clean_count': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
+    },
+    'atropos': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
+    },
+    'fastq_atropos_count': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
+    },
+    'hisat2': {
+        'splice_sites': '../output/known_splice_sites_r6-11.txt',
+        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+    },
+    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
+    'feature_counts': {
+        'first': {
+            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
+            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
+        },
+        'second': {
+            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts',
+            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts.summary',
+        },
+    },
+    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
+    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
-with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
-    samples = [x.strip() for x in fh.readlines()]
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
 
-fill = dict(sample=samples)
-targets = helpers.fill_patterns(patterns, fill)
 
 rule targets:
     input:
         utils.flatten(targets['bai'])
 
+
 def wrapper_for(path):
     URI = '../lcdb-wrapper-tests'
-    return 'file://' + os.path.join(URI, 'wrappers', path)
+    return 'file:' + os.path.join(URI, 'wrappers', path)
 
 
-# Alignment ##############################################################################
-# Import infered information from prealignments
-expDes = pd.read_csv('../output/prealignment/rseqc_infer_experiment.txt', sep='\t', index_col=0)
-
-rule hisat2_splice_site:
-    input:
-        gtf = patterns['gtf']
+################################################################################
+# FASTQ Pre-process
+################################################################################
+rule fastq_clean:
     output:
-        patterns['splice_sites']
+        r1=patterns['fastq_clean']['r1'],
+        md5=patterns['fastq_md5']
     shell:
-        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+        'fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
+        '&& gzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz | md5sum > {output.md5} '
+        '&& cp $TMPDIR/{wildcards.sample}_1.fastq.gz {output.r1} '
+        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz '
 
-def _hisat2_extra(wildcards):
-    s = expDes.loc[wildcards.sample, 'stranded']
-    extra_str = '--sra-acc {sample} --max-intronlen 300000 --known-splicesite-infile ' + patterns['splice_sites']
-    if s == 'NonStranded':
-        return extra_str
-    else:
-        return extra_str + ' --rna-strandness {} '.format(s)
 
-rule hisat2:
+rule atropos:
     input:
-        index=patterns['hisat2_index'],
-        splice_sites = patterns['splice_sites']
+        R1=patterns['fastq_clean']['r1']
     output:
-        bam = patterns['bam']
+        R1=patterns['atropos']['r1']
+    params:
+        extra='-a file:../data/adapters.fa -q 20'
+    log: patterns['atropos']['r1'] + '.log'
+    threads: 8
+    wrapper: wrapper_for('atropos')
+
+
+rule fastq_count:
+    input: '{prefix}.fastq.gz'
+    output: '{prefix}.fastq.gz.libsize'
+    shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
+
+
+################################################################################
+# Alignment
+################################################################################
+rule hisat2_splice_site:
+    input: gtf=config['references']['dmel']['gtf']
+    output: patterns['hisat2']['splice_sites']
+    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+
+
+rule hisat2_fastq:
+    input:
+        index=config['references']['dmel']['hisat2'],
+        splice_sites=patterns['hisat2']['splice_sites'],
+        fastq=rules.fastq_clean.output.r1
+    output: bam=patterns['hisat2']['bam']
     threads: 8
     params:
-        hisat2_extra = _hisat2_extra,
-        samtools_view_extra = '-q 20',
-        samtools_sort_extra = '--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log:
-        patterns['bam'] + '.log'
-    wrapper:
-        wrapper_for('hisat2/align')
+        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log: patterns['hisat2']['bam'] + '.log'
+    wrapper: wrapper_for('hisat2/align')
+
 
 rule bai:
+    input: bam='{prefix}.bam'
+    output: bai='{prefix}.bam.bai'
+    conda: "../environment.yaml"
+    shell: "samtools index {input.bam}"
+
+
+################################################################################
+# Feature Counts
+################################################################################
+rule featurecounts_first:
     input:
-        bam = patterns['bam']
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam']
     output:
-        bai = patterns['bai']
+        counts=patterns['feature_counts']['first']['counts'],
+        summary=patterns['feature_counts']['first']['summary']
+    params: extra='-s 1'
+    wrapper: wrapper_for('featurecounts')
+
+
+rule featurecounts_second:
+    input:
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam']
+    output:
+        counts=patterns['feature_counts']['second']['counts'],
+        summary=patterns['feature_counts']['second']['summary']
+    params: extra='-s 2'
+    wrapper: wrapper_for('featurecounts')
+
+
+################################################################################
+# Stats
+################################################################################
+rule run_stats:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output:
+        samtools_stats=patterns['samtools_stats'],
+        samtools_idxstats=patterns['samtools_idxstats'],
+        bamtools_stats=patterns['bamtools_stats']
+    conda: '../environment.yaml'
     shell:
-        "samtools index {input.bam}"
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
