@@ -41,8 +41,8 @@ with open('.mongodb_host', 'r') as fh:
 
 # Find snakemake wrappers:
 def wrapper_for(path):
-    URI = '../lcdb-wrapper-tests'
-    return 'file:' + os.path.join(URI, 'wrappers', path)
+    URI = '../lcdb-wf/wrappers/wrappers'
+    return 'file:' + os.path.join(URI, path)
 
 ################################################################################
 # Build Sample Table
