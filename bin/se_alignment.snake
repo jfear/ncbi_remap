@@ -120,11 +120,6 @@ rule targets:
         utils.flatten(targets)
 
 
-def wrapper_for(path):
-    URI = '../lcdb-wrapper-tests'
-    return 'file:' + os.path.join(URI, 'wrappers', path)
-
-
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
@@ -183,7 +178,7 @@ rule hisat2_fastq:
 rule bai:
     input: bam='{prefix}.bam'
     output: bai='{prefix}.bam.bai'
-    conda: "../environment.yaml"
+    conda: "../config/samtools_environment.yaml"
     shell: "samtools index {input.bam}"
 
 
@@ -223,7 +218,7 @@ rule run_stats:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
-    conda: '../environment.yaml'
+    conda: '../config/samtools_environment.yaml'
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
