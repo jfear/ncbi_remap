@@ -76,7 +76,14 @@ def parse_files(files, pattern, parser, **kwargs):
     dfs = []
     for file in get_files(files, pattern):
         if os.path.exists(file[1]):
-            dfs.append(parser(*file, **kwargs))
+            try:
+                dfs.append(parser(*file, **kwargs))
+            except KeyError:
+                pass
+            except Exception as e:
+                print(file[1])
+                raise e
+
     return pd.concat(dfs)
 
 
@@ -371,13 +378,52 @@ def parse_hisat2(sample, file):
     with open(file, 'r') as fh:
         parsed = OrderedDict()
         header = ['# Reads', '# Unpaired', '# Unaligned', '# Uniquely Aligned', '# Multimappers', 'Pct Alignment']
-        for i, l in enumerate(fh):
-            fqs = re.search(r"^\s*([\d\.]+?)[%\s].*$", l)
+        cnt = 0
+        for l in fh:
+            row = l.strip()
+
+            if row.startswith('Warning'):
+                continue
+
+            fqs = re.search(r"^([\d\.]+?)[%\s].*$", row)
             if fqs:
-                if i == 5:
-                    parsed[header[i]] = float(fqs.group(1))
+                if cnt == 5:
+                    parsed[header[cnt]] = float(fqs.group(1))
                 else:
-                    parsed[header[i]] = int(fqs.group(1))
+                    parsed[header[cnt]] = int(fqs.group(1))
+                cnt+=1
+
+        if len(parsed) == 0:
+            return None
+        else:
+            return pd.DataFrame(parsed, index=[sample])
+
+
+def parse_hisat2_pe(sample, file):
+    """Parse hisat2."""
+    with open(file, 'r') as fh:
+        parsed = OrderedDict()
+        header = ['# Reads', '# Reads Paired', '# Unaligned', '# Uniquely Aligned',
+                  '# Multimappers', 'skip', '# Uniquely Aligned Discordantly', 'skip',
+                  'skip', '# Unaligned mates', '# Uniquely Aligned Mates',
+                  '# Multimappers Mates', 'Pct Alignment']
+        cnt = 0
+        for l in fh:
+            row = l.strip()
+
+            if row.startswith('Warning') or row.startswith('---'):
+                continue
+
+            fqs = re.search(r"^([\d\.]+?)[%\s].*$", row)
+            if fqs:
+                head = header[cnt]
+                if head == 'skip':
+                    continue
+                elif head == 'Pct Alignment':
+                    parsed[head] = float(fqs.group(1))
+                else:
+                    parsed[head] = int(fqs.group(1))
+                cnt+=1
 
         if len(parsed) == 0:
             return None
