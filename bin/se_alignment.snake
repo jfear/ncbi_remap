@@ -238,7 +238,7 @@ rule bamCoverage_forward:
         bai=patterns['bai'],
     output: patterns['bamCoverage']['forward']
     params:
-        extra='--filterRNAstrand forward --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+        extra='--filterRNAstrand forward --minMappingQuality 20 --ignoreDuplicates --smoothLength 10'
     threads: 8
     log: patterns['bamCoverage']['forward'] + '.log'
     wrapper: wrapper_for('deeptools/bamCoverage')
@@ -250,7 +250,7 @@ rule bamCoverage_reverse:
         bai=patterns['bai'],
     output: patterns['bamCoverage']['reverse']
     params:
-        extra='--filterRNAstrand reverse --minMappingQuality 20 --ignoreDuplicates --smothLength 10'
+        extra='--filterRNAstrand reverse --minMappingQuality 20 --ignoreDuplicates --smoothLength 10'
     threads: 8
     log: patterns['bamCoverage']['reverse'] + '.log'
     wrapper: wrapper_for('deeptools/bamCoverage')
