@@ -9,7 +9,7 @@ fastq_clean:
   mem: "32g"
   gres: "lscratch:80"
 
-hisat2:
+hisat2_fastq:
     mem: "30g"
     time: "24:00:00"
     gres: "lscratch:80"
