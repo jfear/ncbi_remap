@@ -29,7 +29,7 @@ hostname > .mongodb_host
     --verbose \
     --use-conda \
     --cluster-config $CLUSTER \
-    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_${EXTRA}.o.%j --error=slurm_logs/${SNAKEFILE}_${EXTRA}.e.%j" \
+    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_{rule}_{wildcards}.o.%j --error=slurm_logs/${SNAKEFILE}_{rule}_{wildcards}.e.%j" \
     --latency-wait=60 \
     -s $SNAKEFILE \
     $EXTRA \
