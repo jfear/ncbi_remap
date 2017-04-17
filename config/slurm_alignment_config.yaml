@@ -1,15 +1,40 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-    mem: "4g"
+    mem: "8g"
     time: "11:00:00"
-    gres: "lscratch:20"
+    gres: "lscratch:80"
     partition: 'niddk,norm'
 
 fastq_clean:
   mem: "32g"
   gres: "lscratch:80"
 
+atropos:
+  mem: "32g"
+  gres: "lscratch:80"
+
 hisat2_fastq:
     mem: "30g"
     time: "24:00:00"
+    gres: "lscratch:120"
+
+featurecounts_first:
+    mem: "30g"
+    time: "24:00:00"
+    gres: "lscratch:81"
+
+featurecounts_second:
+    mem: "30g"
+    time: "24:00:00"
     gres: "lscratch:80"
+
+bamCoverage_forward:
+    mem: "30g"
+    time: "24:00:00"
+    gres: "lscratch:80"
+
+bamCoverage_reverse:
+    mem: "30g"
+    time: "24:00:00"
+    gres: "lscratch:80"
+
