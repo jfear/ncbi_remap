@@ -28,7 +28,7 @@ workdir: '../.bigwigs'
 configfile: '../config/prealignment_config.yaml'
 
 # Connect to mongodb
-with open('../bin/.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
