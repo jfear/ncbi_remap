@@ -1,0 +1,193 @@
+#!/usr/bin/env python
+# vim: set ft=python.snakemake
+import os
+import sys
+
+import pandas as pd
+from pymongo import MongoClient
+from snakemake.io import regex
+from snakemake.logging import logger
+from pathlib import Path
+
+from lcdblib.snakemake import helpers
+from lcdblib.utils import utils
+from lcdblib.pandas.utils import cartesian_product
+
+sys.path.insert(0, '../lib/python')
+import ncbi_remap
+
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+#TMPDIR = '/mnt/threeTB/centos_scratch'
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '../test'
+
+# import config
+configfile: '../config/prealignment_config.yaml'
+
+# Connect to mongodb
+with open('../bin/.mongodb_host', 'r') as fh:
+    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
+    db = mongo_client['sra2']
+    remap = db['remap']
+
+################################################################################
+# Build Sample Table
+################################################################################
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    golden = [x.strip() for x in fh.readlines()]
+
+samples = remap.aggregate([
+    {'$unwind': '$runs'},
+    {
+        '$match': {
+            '$and': [
+                {'runs.srr': {'$exists': 1}},
+                {'runs.srr': {'$in': golden}},
+                {'runs.pre_aln_flags': 'SE'},
+                {'runs.pre_aln_flags': 'complete'}
+            ]
+        }
+    },
+    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
+    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
+    {'$sort': {'sample': 1}},
+    {'$limit': 1}
+])
+
+sample_table = pd.DataFrame(list(samples))
+
+################################################################################
+# Set up file naming patterns and targets
+################################################################################
+
+# Patterns
+patterns = {
+    'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+    'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
+    'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
+
+    'bam_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam',
+    'bai_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam.bai',
+    'bamCoverage_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
+
+    'expBam': '../output/alignment/raw/{experiment}/{experiment}.bam',
+    'expBamBai': '../output/alignment/raw/{experiment}/{experiment}.bam.bai',
+    'expBamCoverage': '../output/alignment/raw/{experiment}/{experiment}.{strand}.bw',
+
+    'expBam_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.bam',
+    'expBamBai_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.bam.bai',
+    'expBamCoverage_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.{strand}.bw',
+
+    'allBam': '../output/alignment/golden_312.bam',
+    'allBamBai': '../output/alignment/golden_312.bam.bai',
+    'allBamCoverage': '../output/alignment/golden_312.{strand}.bw',
+
+    'allBam_fb': '../output/alignment/golden_312.flybase.bam',
+    'allBamBai_fb': '../output/alignment/golden_312.flybase.bam.bai',
+    'allBamCoverage_fb': '../output/alignment/golden_312.flybase.{strand}.bw',
+}
+
+# Build target files
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+targets = helpers.fill_patterns(patterns, sample_table)
+
+rule targets:
+    input: utils.flatten(targets['allBamCoverage']) +
+           utils.flatten(targets['bamCoverage'])
+
+
+################################################################################
+# Fuctions
+################################################################################
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wf/wrappers/wrappers'
+    return 'file:' + os.path.join(URI, path)
+
+
+def get_strand(srr):
+    """Check strandedsess."""
+    flags = remap.find_one({'runs.srr': srr}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
+
+    if 'first_strand' in flags:
+        return 'first_strand'
+    elif 'second_strand' in flags:
+        return 'second_strand'
+    else:
+        return 'unstranded'
+
+################################################################################
+# Messing with BAMs
+################################################################################
+"""Change chromosome from chr2L to 2L.
+
+Will use these files to give to FlyBase. They do not use the chr prefix, but it
+is needed for working with things like UCSC genome browser.
+"""
+rule remove_chr:
+    input: bam='{prefix}.bam'
+    output: bam='{prefix}.flybase.bam'
+    shell: """
+    source activate ncbi_remap
+    chrom_convert --from UCSC --to FlyBase --fileType BAM -i {input.bam} -o {output.bam}
+    """
+
+
+rule bai:
+    input: bam='{prefix}.bam'
+    output: bai='{prefix}.bam.bai'
+    shell: """
+    source activate ncbi_remap;
+    samtools index {input.bam}
+    """
+
+
+################################################################################
+# Make Individual BigWigs
+################################################################################
+def _param_bamCoverage(wildcards):
+    """Get strand information from wildcards."""
+    base = '--binSize 10 '
+
+    if wildcards.strand == 'first':
+        return base + '--filterRNAstrand forward'
+    elif wildcards.strand == 'second':
+        return base + '--filterRNAstrand reverse'
+
+
+rule bamCoverage:
+    input:
+        bam='{prefix}.bam',
+        bai='{prefix}.bam.bai',
+    output: '{prefix}.{strand,first|second}.bw'
+    params:
+        extra=_param_bamCoverage
+    threads: 8
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
+################################################################################
+# Merge Experiment BigWigs
+################################################################################
+def _input_expMerge(wildcards):
+    sTable = sample_table[sample_table['experiment'] == wildcards.experiment].copy()
+    return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bam']), sTable))
+
+
+rule expMerge:
+    input: bam=_input_expMerge
+    output: bam=patterns['expBam']
+    shell: """
+    source activate ncbi_remap
+    samtools merge {output.bam} {input.bam}
+    """
+
+rule allMerge:
+    input: bam=targets['bam']
+    output: bam=patterns['allBam']
+    shell: """
+    source activate ncbi_remap
+    samtools merge {output.bam} {input.bam}
+    """
