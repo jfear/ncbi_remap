@@ -1,18 +1,12 @@
 #/usr/bin/env python
 # vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import signal
 import re
 from pathlib import Path
 from textwrap import dedent
 import shutil as sh
-from gzip import open as gopen
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -26,40 +20,48 @@ sys.path.insert(0, '../lib/python')
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-workdir: '.'
+workdir: '../.pre-prealignment'
 
 # Connect to mongodb
-with open('.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
 
 ################################################################################
-# Set up file naming patterns
+# Build Sample Table
 ################################################################################
-patterns = {'fastq': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.precheck.done'}
+# Golden 312 test runs (312)
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    golden = [x.strip() for x in fh.readlines()]
 
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$match': {
         'runs.srr': {'$exists': 1},
+        'runs.srr': {'$in': golden},
         '$or': [
-            {'runs.pre_aln_flags': {'$exists': 0}},
-            {'runs.pre_aln_flags': {'$eq': []}},
-            ]
+                {'runs.pre_aln_flags': {'$exists': 0}},
+                {'runs.pre_aln_flags': {'$eq': []}},
+            ],
         }
     },
     {'$unwind': '$runs'},
-    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}}
+    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}},
+    {'$sort': {'sample': 1}},
 ])
 
 sample_table = pd.DataFrame(list(samples))
 sample_table.sort_values(by='sample', inplace=True)
 
-#targets = helpers.fill_patterns(patterns, sample_table.iloc[0:10000,:])
+################################################################################
+# Set up file naming patterns
+################################################################################
+patterns = {'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'}
+
+# Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
@@ -69,7 +71,7 @@ rule targets:
 # FASTQ dump and check for SE or PE
 ################################################################################
 def check_fastq(fn):
-    """Checks if a gzip file actually has data in it."""
+    """Checks if a bzip file actually has data in it."""
     try:
         assert os.stat(fn).st_size > 10000
         return True
@@ -78,22 +80,87 @@ def check_fastq(fn):
     except:
         raise
 
+def md5sum(fn):
+    md5 = hashlib.md5()
+    with open(fn, 'rb') as f:
+        for chunk in iter(lambda: f.read(128 * md5.block_size), b''):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+def fastq_stats(fn):
+    libsize, lens = 0, 0
+
+    with open(fn, 'r') as fh:
+        for i, row in enumerate(fh):
+            if (i % 4 == 1):
+                libsize += 1
+                lens += len(row.strip())
+
+    avgLen = lens / libsize
+
+    return libsize, avgLen
+
 """Downloads fastq and checks if there is one or two sets of reads."""
 rule fastq_dump:
     output:
-        fastq=temp(patterns['fastq'])
+        fastq=patterns['fastq'],
     run:
-        shell("fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample}")
+        odir = os.path.dirname(output.fastq)
+        fn1 = wildcards.sample + '_1.fastq'
+        fn2 = wildcards.sample + '_2.fastq'
 
-        fn1 = wildcards.sample + '_1.fastq.gz'
-        fn2 = wildcards.sample + '_2.fastq.gz'
+        # Dump FASTQ
+        shell("fastq-dump -O $TMPDIR -M 0 --split-files {wildcards.sample}")
+
+        # Pair-end
         if check_fastq(os.path.join(TMPDIR, fn2)):
-            # Check read 2
-            remap.find_one_and_update({'runs.srr': wildcards.sample}, {'$addToSet': {'runs.$.pre_aln_flags': 'PE'}})
+            # Get md5sum
+            fn1md5 = md5sum(os.path.join(TMPDIR, fn1))
+            fn2md5 = md5sum(os.path.join(TMPDIR, fn2))
+
+            # Calculate libsize and average read length
+            fn1Stat = fastq_stats(os.path.join(TMPDIR, fn1))
+            fn2Stat = fastq_stats(os.path.join(TMPDIR, fn2))
+
+            # Save results to Database
+            remap.find_one_and_update({'runs.srr': wildcards.sample},
+                    {
+                        '$addToSet': {'runs.$.pre_aln_flags': 'PE'},
+                        'runs.$.libsize': {'R1': fn1Stat[0], 'R2': fn2Stat[0]},
+                        'runs.$.avgReadLen': {'R1': fn1Stat[1], 'R2': fn2Stat[1]},
+                        'runs.$.md5': {'R1': fn1md5, 'R2': fn2md5},
+                    })
+
+            shell(
+                    "gzip --best $TMPDIR/{wildcards.sample}_1.fastq "
+                    "&& gzip --best $TMPDIR/{wildcards.sample}_2.fastq "
+                    "&& cp $TMPDIR/*.gz {odir}/ "
+                    "&& rm $TMPDIR/*.gz"
+                )
+
+        # Single-end
         elif check_fastq(os.path.join(TMPDIR, fn1)):
-            # Check read 1
-            remap.find_one_and_update({'runs.srr': wildcards.sample}, {'$addToSet': {'runs.$.pre_aln_flags': 'SE'}})
+            # Get md5sum
+            fn1md5 = md5sum(os.path.join(TMPDIR, fn1))
+
+            # Calculate libsize and average read length
+            fn1Stat = fastq_stats(os.path.join(TMPDIR, fn1))
+
+            # Save results to Database
+            remap.find_one_and_update({'runs.srr': wildcards.sample},
+                    {
+                        '$addToSet': {'runs.$.pre_aln_flags': 'SE'},
+                        '$set': {
+                            'runs.$.libsize': {'R1': fn1Stat[0]},
+                            'runs.$.avgReadLen': {'R1': fn1Stat[1]},
+                            'runs.$.md5': {'R1': fn1md5},
+                        }
+                    })
+
+            shell(
+                    "gzip --best $TMPDIR/{wildcards.sample}_1.fastq "
+                    "&& cp $TMPDIR/*.gz {odir}/ "
+                    "&& rm $TMPDIR/*.gz"
+                )
         else:
             raise ValueError
-
-        Path(output.fastq).touch()

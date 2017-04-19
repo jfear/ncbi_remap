@@ -6,6 +6,9 @@ from sramongo.mongo_schema import Pubmed
 class Run(EmbeddedDocument):
     srr = StringField()
     pre_aln_flags = ListField(StringField(), default=list)
+    libsize = DictField()
+    avgReadLen = DictField()
+    md5 = DictField()
 
 class Sample(EmbeddedDocument):
     srs = StringField()
@@ -53,6 +56,18 @@ class Remap(Document):
             pre_aln_flags: mongoengine.ListField
                 A list strings containing various flags generated during the
                 pre-alignment workflow.
+
+            libsize: mongoengine.DictField
+                A document containing 'R1' or ('R1 and 'R2) with the number of
+                reads in the fastq.
+
+            avgReadLen: mongoengine.DictField
+                A document containing 'R1' or ('R1 and 'R2) with the average
+                read length.
+
+            md5: mongoengine.DictField
+                A document containing 'R1' or ('R1 and 'R2) with the md5sum of
+                the fastq.
 
     papers: mongoengine.ListField
         A list papers containing the following information\:
