@@ -37,12 +37,25 @@ def wrapper_for(path):
 ################################################################################
 # Build Sample Table
 ################################################################################
+# Golden 312 test runs (312)
+with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
+    golden = [x.strip() for x in fh.readlines()]
+
+# All SRRs that the Miegs analyzed (13495)
+with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
+    mieg = [x.strip() for x in fh.readlines()]
+
+# modEncode SRRs (644)
+with open('../data/modEncode_srrs.txt', 'r') as fh:
+    modEncode = [x.strip() for x in fh.readlines()]
+
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
+                {'runs.srr': {'$in': golden}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': 'SE'}
             ]
@@ -51,6 +64,7 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
+    {'$limit': 1}
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -88,12 +102,14 @@ patterns = {
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
     },
     'dupradar': {
-        'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.density_scatter.png',
-        'expression_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_histogram.png',
-        'expression_boxplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_boxplot.png',
-        'expression_barplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.expression_barplot.png',
-        'multimapping_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.multimapping_histogram.png',
+        'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.density_scatter.png',
+        'expression_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_histogram.png',
+        'expression_boxplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_boxplot.png',
+        'expression_barplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_barplot.png',
+        'multimapping_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.multimapping_histogram.png',
         'dataframe': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.tsv',
+        'model': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.model.txt',
+        'curve': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.curve.txt',
     },
     'feature_counts': {
         'first': {
@@ -242,7 +258,9 @@ rule dupRadar:
         expression_boxplot=patterns['dupradar']['expression_boxplot'],
         expression_barplot=patterns['dupradar']['expression_barplot'],
         multimapping_histogram=patterns['dupradar']['multimapping_histogram'],
-        dataframe=patterns['dupradar']['dataframe']
+        dataframe=patterns['dupradar']['dataframe'],
+        model=patterns['dupradar']['model'],
+        curve=patterns['dupradar']['curve'],
     wrapper:
         wrapper_for('dupradar')
 
