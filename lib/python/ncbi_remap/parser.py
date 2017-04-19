@@ -240,7 +240,8 @@ def parse_featureCounts_counts(sample, file):
     df = pd.read_csv(file, sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
     df['sample'] = sample
-    return df.set_index(['sample', 'FBgn'])
+    df.set_index(['sample', 'FBgn'], inplace=True)
+    return df['count']
 
 
 def parse_featureCounts_summary(sample, file):
