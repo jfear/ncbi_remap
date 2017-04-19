@@ -126,9 +126,11 @@ rule fastq_dump:
             remap.find_one_and_update({'runs.srr': wildcards.sample},
                     {
                         '$addToSet': {'runs.$.pre_aln_flags': 'PE'},
-                        'runs.$.libsize': {'R1': fn1Stat[0], 'R2': fn2Stat[0]},
-                        'runs.$.avgReadLen': {'R1': fn1Stat[1], 'R2': fn2Stat[1]},
-                        'runs.$.md5': {'R1': fn1md5, 'R2': fn2md5},
+                        '$set': {
+                            'runs.$.libsize': {'R1': fn1Stat[0], 'R2': fn2Stat[0]},
+                            'runs.$.avgReadLen': {'R1': fn1Stat[1], 'R2': fn2Stat[1]},
+                            'runs.$.md5': {'R1': fn1md5, 'R2': fn2md5},
+                        }
                     })
 
             shell(
