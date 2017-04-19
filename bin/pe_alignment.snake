@@ -51,7 +51,6 @@ samples = remap.aggregate([
             '$and': [
                 {'runs.srr': {'$exists': 1}},
                 {'runs.srr': {'$in': golden}},
-                {'runs.srr': 'SRR2994000'},
                 {'runs.pre_aln_flags': 'PE'},
                 {'runs.pre_aln_flags': 'complete'}
             ]
@@ -90,14 +89,12 @@ patterns = {
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
-        'bam_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam',
     },
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'feature_counts': {
         'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts',
         'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.summary',
     },
-    'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.{strand}.bw',
     'samtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
     'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
@@ -144,7 +141,8 @@ rule fastq_clean:
         r2=patterns['fastq_clean']['r2'],
         md5=patterns['fastq_md5'],
     shell:
-        'fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
+        'source activate ncbi_remap '
+        '&& fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
         '&& gunzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz | md5sum > {output.md5}'
         '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
         '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
@@ -217,45 +215,32 @@ rule bai:
     """
 
 
-"""Change chromosome from chr2L to 2L.
-
-Will use these files to give to FlyBase. They do not use the chr prefix, but it
-is needed for working with things like UCSC genome browser.
-"""
-rule remove_chr:
-    input: bam=rules.hisat2_fastq.output.bam
-    output: bam=patterns['hisat2']['bam_fb']
-    shell: """
-    source activate ncbi_remap
-    chrom_convert --from UCSC --to FlyBase --fileType BAM -i {input.bam} -o {output.bam}
-    """
-
 ################################################################################
 # Feature Counts
 ################################################################################
-rule featurecounts_first:
+def _params_featurecounts(wildcards):
+    """Determine strandedness and pass correct settings."""
+    strand = get_strand(wildcards.sample)
+    base = '-Q 20 --ignoreDup -p -P -C -J '
+
+    if strand == 'first_strand':
+        return base + '-s 1'
+    elif strand == 'second_strand':
+        return base + '-s 2'
+    else:
+        return base + '-s 0'
+
+
+rule featurecounts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=patterns['hisat2']['bam']
     output:
-        counts=patterns['feature_counts']['first']['counts'],
-        summary=patterns['feature_counts']['first']['summary']
-    params: extra='-s 1 -Q 20 --ignoreDup -p -P -C -J'
+        counts=patterns['feature_counts']['counts'],
+        summary=patterns['feature_counts']['summary']
+    params: extra=_params_featurecounts
     threads: 4
-    log: patterns['feature_counts']['first']['counts'] + '.log'
-    wrapper: wrapper_for('featurecounts')
-
-
-rule featurecounts_second:
-    input:
-        annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam']
-    output:
-        counts=patterns['feature_counts']['second']['counts'],
-        summary=patterns['feature_counts']['second']['summary']
-    params: extra='-s 2 -Q 20 --ignoreDup -p -P -C -J'
-    threads: 4
-    log: patterns['feature_counts']['second']['counts'] + '.log'
+    log: patterns['feature_counts']['counts'] + '.log'
     wrapper: wrapper_for('featurecounts')
 
 
@@ -270,37 +255,12 @@ rule run_stats:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
-    conda: '../config/samtools_environment.yaml'
     shell:
-        'BAM=$(mktemp --suffix=".bam") '
+        'source activate ncbi_remap '
+        '&& BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
         '&& cp {input.bam}.bai $BAM.bai '
         '&& samtools stats $BAM > {output.samtools_stats} '
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
-
-
-################################################################################
-# Make BigWigs
-################################################################################
-def _param_bamCoverage(wildcards):
-    """Get strand information from wildcards."""
-    base = '--minMappingQuality 20 --ignoreDuplicates --binSize 1 --smoothLength 10 '
-
-    if wildcards.strand == 'first':
-        return base + '--filterRNAstrand forward'
-    elif wildcards.strand == 'second':
-        return base + '--filterRNAstrand reverse'
-
-
-rule bamCoverage:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
-    output: patterns['bamCoverage']
-    params:
-        extra=_param_bamCoverage
-    threads: 8
-    log: patterns['bamCoverage'] + '.log'
-    wrapper: wrapper_for('deeptools/bamCoverage')

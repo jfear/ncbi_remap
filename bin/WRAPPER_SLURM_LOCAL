@@ -18,7 +18,7 @@ snakemake \
     --verbose \
     --use-conda \
     --cluster-config $CLUSTER \
-    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_{rule}_{wildcards}.o.%j --error=slurm_logs/${SNAKEFILE}_{rule}_{wildcards}.e.%j" \
+    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem} --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/${SNAKEFILE}_{rule}.o.%j --error=slurm_logs/${SNAKEFILE}_{rule}.e.%j" \
     --latency-wait=90 \
     -s $SNAKEFILE \
     $EXTRA \

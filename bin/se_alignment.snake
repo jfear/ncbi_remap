@@ -1,11 +1,5 @@
 #!/usr/bin/env python
 # vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import sys
 
@@ -23,17 +17,16 @@ import ncbi_remap
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '.'
+workdir: '../.se_alignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
 
 # Connect to mongodb
-with open('.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
@@ -41,8 +34,17 @@ with open('.mongodb_host', 'r') as fh:
 ################################################################################
 # Build Sample Table
 ################################################################################
+# Golden 312 test runs (312)
 with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
     golden = [x.strip() for x in fh.readlines()]
+
+# All SRRs that the Miegs analyzed (13495)
+with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
+    mieg = [x.strip() for x in fh.readlines()]
+
+# modEncode SRRs (644)
+with open('../data/modEncode_srrs.txt', 'r') as fh:
+    modEncode = [x.strip() for x in fh.readlines()]
 
 samples = remap.aggregate([
     {'$unwind': '$runs'},
@@ -50,7 +52,7 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': golden}},
+                {'runs.srr': {'$in': modEncode}},
                 {'runs.pre_aln_flags': 'SE'},
                 {'runs.pre_aln_flags': 'complete'}
             ]
@@ -66,7 +68,6 @@ sample_table = pd.DataFrame(list(samples))
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
-
 # Patterns
 patterns = {
     'fastq_clean': {
@@ -85,14 +86,12 @@ patterns = {
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
-        'bam_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam',
     },
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'feature_counts': {
         'counts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts',
         'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.summary',
     },
-    'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.{strand}.bw',
     'samtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
     'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
@@ -111,7 +110,6 @@ rule targets:
 ################################################################################
 # Fuctions
 ################################################################################
-
 # Find snakemake wrappers:
 def wrapper_for(path):
     URI = '../lcdb-wf/wrappers/wrappers'
@@ -167,6 +165,7 @@ rule hisat2_splice_site:
     output: patterns['hisat2']['splice_sites']
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
+
 def _params_hisat2_fastq(wildcards):
     base = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
 
@@ -177,6 +176,7 @@ def _params_hisat2_fastq(wildcards):
         return base + '--rna-strandness R'
     else:
         return base
+
 
 rule hisat2_fastq:
     input:
@@ -201,19 +201,6 @@ rule bai:
     """
 
 
-"""Change chromosome from chr2L to 2L.
-
-Will use these files to give to FlyBase. They do not use the chr prefix, but it
-is needed for working with things like UCSC genome browser.
-"""
-rule remove_chr:
-    input: bam=rules.hisat2_fastq.output.bam
-    output: bam=patterns['hisat2']['bam_fb']
-    shell: """
-    source activate ncbi_remap
-    chrom_convert --from UCSC --to FlyBase --fileType BAM -i {input.bam} -o {output.bam}
-    """
-
 ################################################################################
 # Feature Counts
 ################################################################################
@@ -228,6 +215,7 @@ def _params_featurecounts(wildcards):
         return base + '-s 2'
     else:
         return base + '-s 0'
+
 
 rule featurecounts:
     input:
@@ -253,37 +241,12 @@ rule run_stats:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
-    conda: '../config/samtools_environment.yaml'
     shell:
-        'BAM=$(mktemp --suffix=".bam") '
+        'source activate ncbi_remap '
+        '&& BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
         '&& cp {input.bam}.bai $BAM.bai '
         '&& samtools stats $BAM > {output.samtools_stats} '
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
-
-
-################################################################################
-# Make BigWigs
-################################################################################
-def _param_bamCoverage(wildcards):
-    """Get strand information from wildcards."""
-    base = '--minMappingQuality 20 --ignoreDuplicates --binSize 1 --smoothLength 10 '
-
-    if wildcards.strand == 'first':
-        return base + '--filterRNAstrand forward'
-    elif wildcards.strand == 'second':
-        return base + '--filterRNAstrand reverse'
-
-
-rule bamCoverage:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
-    output: patterns['bamCoverage']
-    params:
-        extra=_param_bamCoverage
-    threads: 8
-    log: patterns['bamCoverage'] + '.log'
-    wrapper: wrapper_for('deeptools/bamCoverage')

@@ -14,14 +14,12 @@ if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 
 # Start mongo
-#mongod --dbpath ../output/db --logpath ../output/logs/mongoDB.log --port 27022 --fork
-mongod --dbpath ../output/db --logpath ../output/logs/mongoDB.log --fork
-hostname > .mongodb_host
+./start_db.sh
 
 # run pipeline
 snakemake \
     -s $SNAKEFILE \
     --unlock
 
-mongod --dbpath ../output/db --shutdown
-rm .mongodb_host
+# Stop mongo
+./stop_db.sh

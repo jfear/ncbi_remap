@@ -1,3 +1,3 @@
 #!/bin/bash
 mongod --dbpath ../output/db --shutdown
-rm .mongodb_host
+rm ../output/.mongodb_host
