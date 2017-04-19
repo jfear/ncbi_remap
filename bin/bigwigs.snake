@@ -5,9 +5,6 @@ import sys
 
 import pandas as pd
 from pymongo import MongoClient
-from snakemake.io import regex
-from snakemake.logging import logger
-from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
@@ -18,7 +15,6 @@ import ncbi_remap
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
@@ -54,7 +50,6 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 1}
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -68,25 +63,10 @@ patterns = {
     'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
-
-    'bam_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam',
-    'bai_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.bam.bai',
     'bamCoverage_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
-
-    'expBam': '../output/alignment/raw/{experiment}/{experiment}.bam',
-    'expBamBai': '../output/alignment/raw/{experiment}/{experiment}.bam.bai',
     'expBamCoverage': '../output/alignment/raw/{experiment}/{experiment}.{strand}.bw',
-
-    'expBam_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.bam',
-    'expBamBai_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.bam.bai',
     'expBamCoverage_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.{strand}.bw',
-
-    'allBam': '../output/alignment/golden_312.bam',
-    'allBamBai': '../output/alignment/golden_312.bam.bai',
     'allBamCoverage': '../output/alignment/golden_312.{strand}.bw',
-
-    'allBam_fb': '../output/alignment/golden_312.flybase.bam',
-    'allBamBai_fb': '../output/alignment/golden_312.flybase.bam.bai',
     'allBamCoverage_fb': '../output/alignment/golden_312.flybase.{strand}.bw',
 }
 
@@ -119,38 +99,13 @@ def get_strand(srr):
     else:
         return 'unstranded'
 
-################################################################################
-# Messing with BAMs
-################################################################################
-"""Change chromosome from chr2L to 2L.
-
-Will use these files to give to FlyBase. They do not use the chr prefix, but it
-is needed for working with things like UCSC genome browser.
-"""
-rule remove_chr:
-    input: bam='{prefix}.bam'
-    output: bam='{prefix}.flybase.bam'
-    shell: """
-    source activate ncbi_remap
-    chrom_convert --from UCSC --to FlyBase --fileType BAM -i {input.bam} -o {output.bam}
-    """
-
-
-rule bai:
-    input: bam='{prefix}.bam'
-    output: bai='{prefix}.bam.bai'
-    shell: """
-    source activate ncbi_remap;
-    samtools index {input.bam}
-    """
-
 
 ################################################################################
-# Make Individual BigWigs
+# Make Individual BedGraphs
 ################################################################################
 def _param_bamCoverage(wildcards):
     """Get strand information from wildcards."""
-    base = '--binSize 10 '
+    base = '--outFileFormat bedgraph --binSize 10 '
 
     if wildcards.strand == 'first':
         return base + '--filterRNAstrand forward'
@@ -162,32 +117,58 @@ rule bamCoverage:
     input:
         bam='{prefix}.bam',
         bai='{prefix}.bam.bai',
-    output: '{prefix}.{strand,first|second}.bw'
+    output: '{prefix}.{strand,first|second}.bedgraph'
     params:
         extra=_param_bamCoverage
     threads: 8
     wrapper: wrapper_for('deeptools/bamCoverage')
+
+
+rule convertBedGraphToBigWig:
+    input:
+        bedgraph='{prefix}.bedgraph',
+        chromSizes=config['references']['dmel']['chromSizes']
+    output:
+        bigwig='{prefix}.bw'
+    shell: """
+    source activate ncbi_remap
+    bedGraphToBigWig {input.bedgraph} {input.chromSizes} {output.bigwig}
+    """
+
 
 ################################################################################
 # Merge Experiment BigWigs
 ################################################################################
 def _input_expMerge(wildcards):
     sTable = sample_table[sample_table['experiment'] == wildcards.experiment].copy()
-    return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bam']), sTable))
+    return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bamCoverage']), sTable))
 
 
 rule expMerge:
-    input: bam=_input_expMerge
-    output: bam=patterns['expBam']
+    input: _input_expMerge
+    output: bedgraph=temp(patterns['expBamCoverage'].replace('.bw', '.bedgraph'))
     shell: """
     source activate ncbi_remap
-    samtools merge {output.bam} {input.bam}
+    bigWigMerge {input} {output.bedgraph}
     """
 
+
 rule allMerge:
-    input: bam=targets['bam']
-    output: bam=patterns['allBam']
+    input: targets['bamCoverage']
+    output: gedgraph=temp(patterns['allBamCoverage'].replace('.bw', '.bedgraph'))
     shell: """
     source activate ncbi_remap
-    samtools merge {output.bam} {input.bam}
+    bigWigMerge {input} {output.bedgraph}
+    """
+
+
+################################################################################
+# Convert to Flybase
+################################################################################
+rule convertFlybase:
+    input: bedgraph='{prefix}.{strand}.bedgraph'
+    output: bedgraph=temp('{prefix}.flybase.{strand,first|second}.bedgraph')
+    shell:"""
+    source activate ncbi_remap
+    chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
     """
