@@ -1,40 +1,30 @@
 #/usr/bin/env python
 # vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import sys
 
 import pandas as pd
 from pymongo import MongoClient
-from snakemake.logging import logger
 from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
-from lcdblib.pandas.utils import cartesian_product
 
 sys.path.insert(0, '../lib/python')
 import ncbi_remap
-from ncbi_remap.parser import parse_files
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '.'
+workdir: '../.pe-prealignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
 
 # Connect to mongodb
-with open('.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
@@ -61,7 +51,6 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 2000},
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -74,24 +63,12 @@ all_complete = {'files': '../output/prealignment/raw/{experiment}/{sample}/{samp
 targets = helpers.fill_patterns(all_complete, sample_table)
 
 # Patterns
+fastqs = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
+        'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz'
+    }
+
 patterns = {
-    'fastq_clean': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
-        },
-    'fastq_md5': '../output/prealignment/raw/{experiment}/{sample}/{sample}.md5',
-    'fastq_clean_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
-        },
-    'atropos': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
-        },
-    'fastq_atropos_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
-        },
     'fastq_screen': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean_screen.txt',
@@ -110,7 +87,7 @@ patterns = {
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
-        },
+    },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
@@ -128,19 +105,18 @@ patterns = {
         'first': {
             'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
-            },
+        },
         'second': {
             'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts',
             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts.summary',
-            },
+        },
     },
     'picard': {
         'collectrnaseqmetrics': {
             'metrics': {
                 'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}_FIRST_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
                 'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}_SECOND_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
-                },
-
+            },
         },
         'markduplicates': {
             'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
@@ -151,21 +127,13 @@ patterns = {
     'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
-#         'geneBodyCoverage': {
-#             'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.txt',
-#             'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.r',
-#             'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.pdf',
-#         },
-#         'tin': {
-#             'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
-#             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
-#         },
-
-rule targets:
-    input:
-        utils.flatten(targets)
 
 localrules: check_results
+
+
+rule targets:
+    input: utils.flatten(targets)
+
 
 rule check_results:
     input: utils.flatten(patterns)
@@ -182,38 +150,18 @@ rule check_results:
 # FASTQ Pre-process
 ################################################################################
 rule fastq_clean:
+    input:
+        r1=fastqs['r1'],
+        r2=fastqs['r2'],
     output:
         r1=temp(patterns['fastq_clean']['r1']),
         r2=temp(patterns['fastq_clean']['r2']),
-        md5=patterns['fastq_md5'],
     shell:
-        'fastq-dump -O $TMPDIR -X 1000000 --split-files --gzip {wildcards.sample} '
-        '&& gunzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz | md5sum > {output.md5}'
-        '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+        './get_proper_read_pairs.sh {input.r1} {input.r2} $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
         '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
         '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
-        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz '
         '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
 
-
-rule atropos:
-    input:
-        R1=patterns['fastq_clean']['r1'],
-        R2=patterns['fastq_clean']['r2']
-    output:
-        R1=temp(patterns['atropos']['r1']),
-        R2=temp(patterns['atropos']['r2'])
-    params:
-        extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
-    log: patterns['atropos']['r1'] + '.log'
-    threads: 8
-    wrapper: wrapper_for('atropos')
-
-
-rule fastq_count:
-    input: '{prefix}.fastq.gz'
-    output: '{prefix}.fastq.gz.libsize'
-    shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
 
 ################################################################################
 # FASTQ QC
@@ -300,6 +248,7 @@ rule bai:
     conda: "../config/samtools_environment.yaml"
     shell: "samtools index {input.bam}"
 
+
 ################################################################################
 # RSEQC
 ################################################################################
@@ -323,36 +272,12 @@ rule infer_experiment:
     wrapper: wrapper_for('rseqc/infer_experiment')
 
 
-# rule geneBody_coverage:
-#     input:
-#         bam=patterns['hisat2']['bam'],
-#         bai=patterns['bai'],
-#         bed=patterns['bed12']
-#     output:
-#         txt=patterns['rseqc']['geneBodyCoverage']['txt'],
-#         r=patterns['rseqc']['geneBodyCoverage']['r'],
-#         img=patterns['rseqc']['geneBodyCoverage']['img']
-#     log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-#     wrapper: wrapper_for('rseqc/geneBody_coverage')
-#
-#
-# rule tin:
-#     input:
-#         bam=patterns['hisat2']['bam'],
-#         bai=patterns['bai'],
-#         bed=patterns['bed12']
-#     output:
-#         table=patterns['rseqc']['tin']['table'],
-#         summary=patterns['rseqc']['tin']['summary']
-#     log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
-#     wrapper: wrapper_for('rseqc/tin')
-
-
 rule bam_stat:
     input: bam=patterns['hisat2']['bam'],
     output: txt=patterns['rseqc']['bam_stat']
     log: patterns['rseqc']['bam_stat'] + '.log'
     wrapper: wrapper_for('rseqc/bam_stat')
+
 
 ################################################################################
 # DupRadar
@@ -370,6 +295,7 @@ rule dupRadar:
         dataframe=patterns['dupradar']['dataframe']
     wrapper:
         wrapper_for('dupradar')
+
 
 ################################################################################
 # Feature Counts
@@ -395,6 +321,7 @@ rule featurecounts_second:
     params: extra='-s 2'
     wrapper: wrapper_for('featurecounts')
 
+
 ################################################################################
 # Stats
 ################################################################################
@@ -415,6 +342,7 @@ rule run_stats:
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
+
 
 ################################################################################
 # PICARD RNA Seq Metrics

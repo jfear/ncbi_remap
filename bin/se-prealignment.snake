@@ -1,39 +1,30 @@
 #/usr/bin/env python
 # vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import sys
 
 import pandas as pd
 from pymongo import MongoClient
-from snakemake.logging import logger
 from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
-from lcdblib.pandas.utils import cartesian_product
 
 sys.path.insert(0, '../lib/python')
 import ncbi_remap
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '.'
+workdir: '../.se-prealignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
 
 # Connect to mongodb
-with open('.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
@@ -72,24 +63,19 @@ all_complete = {'files': '../output/prealignment/raw/{experiment}/{sample}/{samp
 targets = helpers.fill_patterns(all_complete, sample_table)
 
 # Patterns
+fastqs = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'
+    }
+
 patterns = {
-    'fastq_clean': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
+    'fastq_screen': {
+        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
     },
-    'fastq_md5': '../output/prealignment/raw/{experiment}/{sample}/{sample}.md5',
-    'fastq_clean_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
-    },
-    'atropos': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
-    },
-    'fastq_atropos_count': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
-    },
-    'fastq_screen': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
     'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_fastqc.zip',
+        'r1': {
+            'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.html',
+            'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.zip',
+        },
     },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
@@ -136,21 +122,12 @@ patterns = {
     'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
+localrules: check_results
 
-#         'geneBodyCoverage': {
-#             'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.txt',
-#             'r': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.r',
-#             'img': '../output/prealignment/raw/{experiment}/{sample}/{sample}.geneBodyCoverage.pdf',
-#         },
-#         'tin': {
-#             'table': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.tsv',
-#             'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.tin.txt',
-#         },
 
 rule targets:
     input: utils.flatten(targets)
 
-localrules: check_results
 
 rule check_results:
     input: utils.flatten(patterns)
@@ -164,52 +141,21 @@ rule check_results:
 
 
 ################################################################################
-# FASTQ Pre-process
-################################################################################
-rule fastq_clean:
-    output:
-        r1=temp(patterns['fastq_clean']['r1']),
-        md5=patterns['fastq_md5']
-    shell:
-        'fastq-dump -O $TMPDIR -X 1000000 --split-files --gzip {wildcards.sample} '
-        '&& gzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz | md5sum > {output.md5} '
-        '&& cp $TMPDIR/{wildcards.sample}_1.fastq.gz {output.r1} '
-        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz '
-
-
-rule atropos:
-    input:
-        R1=patterns['fastq_clean']['r1']
-    output:
-        R1=temp(patterns['atropos']['r1'])
-    params:
-        extra='-a file:../data/adapters.fa -q 20'
-    log: patterns['atropos']['r1'] + '.log'
-    threads: 8
-    wrapper: wrapper_for('atropos')
-
-
-rule fastq_count:
-    input: '{prefix}.fastq.gz'
-    output: '{prefix}.fastq.gz.libsize'
-    shell: 'zcat {input} | echo $((`wc -l`/4)) > {output}'
-
-################################################################################
 # FASTQ QC
 ################################################################################
 rule fastqc:
-    input: patterns['fastq_clean']['r1']
+    input: fastqs['r1']
     output:
-        html=patterns['fastqc']['html'],
-        zip=patterns['fastqc']['zip']
+        html=patterns['fastqc']['r1']['html'],
+        zip=patterns['fastqc']['r1']['zip']
     params: extra="--format fastq"
-    log: patterns['fastqc']['html'] + '.log'
+    log: patterns['fastqc']['r1']['html'] + '.log'
     wrapper: wrapper_for('fastqc')
 
 
 rule fastq_screen:
     input:
-        fastq=patterns['fastq_clean']['r1'],
+        fastq=fastqs['r1'],
         dm6=config['references']['dmel']['bowtie2'],
         hg19=config['references']['human']['bowtie2'],
         wolbachia=config['references']['wolbachia']['bowtie2'],
@@ -219,8 +165,8 @@ rule fastq_screen:
         phix=config['references']['phix']['bowtie2'],
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
-    output: txt=patterns['fastq_screen']
-    log: patterns['fastq_screen'] + '.log'
+    output: txt=patterns['fastq_screen']['r1']
+    log: patterns['fastq_screen']['r1'] + '.log'
     wrapper: wrapper_for('fastq_screen')
 
 ################################################################################
@@ -236,7 +182,7 @@ rule hisat2_fastq:
     input:
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=rules.fastq_clean.output.r1
+        fastq=fastqs['r1']
     output: bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
@@ -251,6 +197,7 @@ rule bai:
     output: bai=temp('{prefix}.bam.bai')
     conda: "../config/samtools_environment.yaml"
     shell: "samtools index {input.bam}"
+
 
 ################################################################################
 # RSEQC
@@ -275,36 +222,12 @@ rule infer_experiment:
     wrapper: wrapper_for('rseqc/infer_experiment')
 
 
-# rule geneBody_coverage:
-#     input:
-#         bam=patterns['hisat2']['bam'],
-#         bai=patterns['bai'],
-#         bed=patterns['bed12']
-#     output:
-#         txt=patterns['rseqc']['geneBodyCoverage']['txt'],
-#         r=patterns['rseqc']['geneBodyCoverage']['r'],
-#         img=patterns['rseqc']['geneBodyCoverage']['img']
-#     log: patterns['rseqc']['geneBodyCoverage']['txt'] + '.log'
-#     wrapper: wrapper_for('rseqc/geneBody_coverage')
-#
-#
-# rule tin:
-#     input:
-#         bam=patterns['hisat2']['bam'],
-#         bai=patterns['bai'],
-#         bed=patterns['bed12']
-#     output:
-#         table=patterns['rseqc']['tin']['table'],
-#         summary=patterns['rseqc']['tin']['summary']
-#     log: os.path.abspath(patterns['rseqc']['tin']['table'] + '.log')
-#     wrapper: wrapper_for('rseqc/tin')
-
-
 rule bam_stat:
     input: bam=patterns['hisat2']['bam'],
     output: txt=patterns['rseqc']['bam_stat']
     log: patterns['rseqc']['bam_stat'] + '.log'
     wrapper: wrapper_for('rseqc/bam_stat')
+
 
 ################################################################################
 # DupRadar
@@ -322,6 +245,7 @@ rule dupRadar:
         dataframe=patterns['dupradar']['dataframe']
     wrapper:
         wrapper_for('dupradar')
+
 
 ################################################################################
 # Feature Counts
@@ -347,6 +271,7 @@ rule featurecounts_second:
     params: extra='-s 2'
     wrapper: wrapper_for('featurecounts')
 
+
 ################################################################################
 # Stats
 ################################################################################
@@ -367,6 +292,7 @@ rule run_stats:
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
+
 
 ################################################################################
 # PICARD RNA Seq Metrics
