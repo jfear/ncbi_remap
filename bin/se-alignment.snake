@@ -5,8 +5,6 @@ import sys
 
 import pandas as pd
 from pymongo import MongoClient
-from snakemake.logging import logger
-from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
@@ -20,7 +18,7 @@ TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '../.se_alignment'
+workdir: '../.se-alignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
@@ -52,7 +50,7 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': modEncode}},
+                {'runs.srr': {'$in': golden}},
                 {'runs.pre_aln_flags': 'SE'},
                 {'runs.pre_aln_flags': 'complete'}
             ]
@@ -69,14 +67,11 @@ sample_table = pd.DataFrame(list(samples))
 # Set up file naming patterns and targets
 ################################################################################
 # Patterns
+fastqs = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'
+    }
+
 patterns = {
-    'fastq_clean': {
-        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
-    },
-    'fastq_md5': '../output/alignment/raw/{experiment}/{sample}/{sample}.md5',
-    'fastq_clean_count': {
-        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
-    },
     'atropos': {
         'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
     },
@@ -131,20 +126,9 @@ def get_strand(srr):
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-rule fastq_clean:
-    output:
-        r1=patterns['fastq_clean']['r1'],
-        md5=patterns['fastq_md5']
-    shell:
-        'fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
-        '&& gzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz | md5sum > {output.md5} '
-        '&& cp $TMPDIR/{wildcards.sample}_1.fastq.gz {output.r1} '
-        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz '
-
-
 rule atropos:
-    input: R1=patterns['fastq_clean']['r1']
-    output: R1=patterns['atropos']['r1']
+    input: R1=fastqs['r1']
+    output: R1=temp(patterns['atropos']['r1'])
     params: extra='-a file:../data/adapters.fa -q 20'
     log: patterns['atropos']['r1'] + '.log'
     threads: 8
@@ -167,8 +151,7 @@ rule hisat2_splice_site:
 
 
 def _params_hisat2_fastq(wildcards):
-    base = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
-
+    base = '--dta --max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
     strand = get_strand(wildcards.sample)
     if strand == 'first_strand':
         return base + '--rna-strandness F'
@@ -187,6 +170,7 @@ rule hisat2_fastq:
     threads: 8
     params:
         hisat2_extra=_params_hisat2_fastq,
+        samtools_view_extra="--threads 6 -q 20",
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
@@ -207,7 +191,7 @@ rule bai:
 def _params_featurecounts(wildcards):
     """Determine strandedness and pass correct settings."""
     strand = get_strand(wildcards.sample)
-    base = '-Q 20 --ignoreDup -J '
+    base = '-J '
 
     if strand == 'first_strand':
         return base + '-s 1'

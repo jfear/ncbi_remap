@@ -1,18 +1,10 @@
 #!/usr/bin/env python
 # vim: set ft=python.snakemake
-""" The prealignment workflow to identify basic characteristics about SRA runs.
-
-Zhenxia originally developed this workflow. The goal here is to use the data to
-determine if the sample is really RNA-seq and strandedness.
-
-"""
 import os
 import sys
 
 import pandas as pd
 from pymongo import MongoClient
-from snakemake.logging import logger
-from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
@@ -23,17 +15,16 @@ import ncbi_remap
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
-#TMPDIR = '/mnt/threeTB/centos_scratch'
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '.'
+workdir: '../.pe-alignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
 
 # Connect to mongodb
-with open('.mongodb_host', 'r') as fh:
+with open('../output/.mongodb_host', 'r') as fh:
     mongo_client = MongoClient(host=fh.read().strip(), port=27022)
     db = mongo_client['sra2']
     remap = db['remap']
@@ -41,8 +32,17 @@ with open('.mongodb_host', 'r') as fh:
 ################################################################################
 # Build Sample Table
 ################################################################################
+# Golden 312 test runs (312)
 with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
     golden = [x.strip() for x in fh.readlines()]
+
+# All SRRs that the Miegs analyzed (13495)
+with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
+    mieg = [x.strip() for x in fh.readlines()]
+
+# modEncode SRRs (644)
+with open('../data/modEncode_srrs.txt', 'r') as fh:
+    modEncode = [x.strip() for x in fh.readlines()]
 
 samples = remap.aggregate([
     {'$unwind': '$runs'},
@@ -66,18 +66,18 @@ sample_table = pd.DataFrame(list(samples))
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
-
 # Patterns
+fastqs = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'
+        'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz'
+    }
+
+fastqs_clean = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz'
+        'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz'
+    }
+
 patterns = {
-    'fastq_clean': {
-        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
-        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz',
-    },
-    'fastq_md5': '../output/alignment/raw/{experiment}/{sample}/{sample}.md5',
-    'fastq_clean_count': {
-        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz.libsize',
-        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz.libsize',
-    },
     'atropos': {
         'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
@@ -113,7 +113,6 @@ rule targets:
 ################################################################################
 # Fuctions
 ################################################################################
-
 # Find snakemake wrappers:
 def wrapper_for(path):
     URI = '../lcdb-wf/wrappers/wrappers'
@@ -136,28 +135,26 @@ def get_strand(srr):
 # FASTQ Pre-process
 ################################################################################
 rule fastq_clean:
+    input:
+        r1=fastqs['r1'],
+        r2=fastqs['r2'],
     output:
-        r1=patterns['fastq_clean']['r1'],
-        r2=patterns['fastq_clean']['r2'],
-        md5=patterns['fastq_md5'],
+        r1=temp(fastqs_clean['r1']),
+        r2=temp(fastqs_clean['r2']),
     shell:
-        'source activate ncbi_remap '
-        '&& fastq-dump -O $TMPDIR --split-files --gzip {wildcards.sample} '
-        '&& gunzip -c $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz | md5sum > {output.md5}'
-        '&& ./get_proper_read_pairs.sh $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
+        './get_proper_read_pairs.sh {input.r1} {input.r2} $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
         '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
         '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
-        '&& rm $TMPDIR/{wildcards.sample}_1.fastq.gz $TMPDIR/{wildcards.sample}_2.fastq.gz '
         '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
 
 
 rule atropos:
     input:
-        R1=patterns['fastq_clean']['r1'],
-        R2=patterns['fastq_clean']['r2']
+        R1=rules.fastq_clean.output.r1,
+        R2=rules.fastq_clean.output.r2
     output:
-        R1=patterns['atropos']['r1'],
-        R2=patterns['atropos']['r2']
+        R1=temp(patterns['atropos']['r1']),
+        R2=temp(patterns['atropos']['r2'])
     params:
         extra='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
     log: patterns['atropos']['r1'] + '.log'
@@ -181,8 +178,7 @@ rule hisat2_splice_site:
 
 
 def _params_hisat2_fastq(wildcards):
-    base = '--max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
-
+    base = '--dta --max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
     strand = get_strand(wildcards.sample)
     if strand == 'first_strand':
         return base + '--rna-strandness FR'
@@ -201,6 +197,7 @@ rule hisat2_fastq:
     threads: 8
     params:
         hisat2_extra=_params_hisat2_fastq,
+        samtools_view_extra="--threads 6 -q 20",
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
@@ -221,7 +218,7 @@ rule bai:
 def _params_featurecounts(wildcards):
     """Determine strandedness and pass correct settings."""
     strand = get_strand(wildcards.sample)
-    base = '-Q 20 --ignoreDup -p -P -C -J '
+    base = '-p -P -C -J '
 
     if strand == 'first_strand':
         return base + '-s 1'

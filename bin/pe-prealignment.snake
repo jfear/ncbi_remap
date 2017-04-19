@@ -68,6 +68,11 @@ fastqs = {
         'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz'
     }
 
+fastqs_clean = {
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz'
+        'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz'
+    }
+
 patterns = {
     'fastq_screen': {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
@@ -154,8 +159,8 @@ rule fastq_clean:
         r1=fastqs['r1'],
         r2=fastqs['r2'],
     output:
-        r1=temp(patterns['fastq_clean']['r1']),
-        r2=temp(patterns['fastq_clean']['r2']),
+        r1=temp(fastqs_clean['r1']),
+        r2=temp(fastqs_clean['r2']),
     shell:
         './get_proper_read_pairs.sh {input.r1} {input.r2} $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
         '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
