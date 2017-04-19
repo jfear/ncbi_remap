@@ -22,7 +22,7 @@ TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '../test'
+workdir: '../.bigwigs'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
