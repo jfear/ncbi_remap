@@ -2,20 +2,13 @@
 __default__:
     mem: "4g"
     time: "11:00:00"
-    gres: "lscratch:20"
+    gres: "lscratch:100"
     partition: 'niddk,norm'
 
 fastq_clean:
   mem: "32g"
-  gres: "lscratch:80"
 
 hisat2:
     mem: "80g"
     time: "24:00:00"
-    gres: "lscratch:80"
-
-tin:
-    gres: "lscratch:60"
-
-geneBody_coverage:
-    gres: "lscratch:60"
+    gres: "lscratch:200"

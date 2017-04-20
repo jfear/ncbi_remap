@@ -64,7 +64,6 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 1}
 ])
 
 sample_table = pd.DataFrame(list(samples))

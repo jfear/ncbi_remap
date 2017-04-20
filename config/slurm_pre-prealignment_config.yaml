@@ -1,6 +1,6 @@
 __default__:
     mem: "4g"
-    time: "12:00:00"
-    gres: "lscratch:200"
+    time: "24:00:00"
+    gres: "lscratch:300"
     partition: 'niddk,norm'
 
