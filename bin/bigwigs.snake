@@ -50,6 +50,7 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
+    {'$limit': 1}
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -63,11 +64,13 @@ patterns = {
     'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
+    'bamCoverage_inverse': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.inverse.{strand}.bw',
     'bamCoverage_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
     'expBamCoverage': '../output/alignment/raw/{experiment}/{experiment}.{strand}.bw',
     'expBamCoverage_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.{strand}.bw',
     'allBamCoverage': '../output/alignment/golden_312.{strand}.bw',
     'allBamCoverage_fb': '../output/alignment/golden_312.flybase.{strand}.bw',
+    'inverse_bed': '../output/inverse_exons_20bp.{strand}.bed',
 }
 
 # Build target files
@@ -76,7 +79,9 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
     input: utils.flatten(targets['allBamCoverage']) +
-           utils.flatten(targets['bamCoverage'])
+           utils.flatten(targets['bamCoverage']) +
+           utils.flatten(targets['bamCoverage_inverse']) +
+           utils.flatten(targets['inverse_bed'])
 
 
 ################################################################################
@@ -130,10 +135,12 @@ rule convertBedGraphToBigWig:
         chromSizes=config['references']['dmel']['chromSizes']
     output:
         bigwig='{prefix}.bw'
-    shell: """
-    source activate ncbi_remap
-    bedGraphToBigWig {input.bedgraph} {input.chromSizes} {output.bigwig}
-    """
+    shell:
+        'source activate ncbi_remap '
+        '&& tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
+        '&& rm $tmpBg '
 
 
 ################################################################################
@@ -146,7 +153,7 @@ def _input_expMerge(wildcards):
 
 rule expMerge:
     input: _input_expMerge
-    output: bedgraph=temp(patterns['expBamCoverage'].replace('.bw', '.bedgraph'))
+    output: bedgraph=patterns['expBamCoverage'].replace('.bw', '.bedgraph')
     shell: """
     source activate ncbi_remap
     bigWigMerge {input} {output.bedgraph}
@@ -155,7 +162,7 @@ rule expMerge:
 
 rule allMerge:
     input: targets['bamCoverage']
-    output: gedgraph=temp(patterns['allBamCoverage'].replace('.bw', '.bedgraph'))
+    output: bedgraph=patterns['allBamCoverage'].replace('.bw', '.bedgraph')
     shell: """
     source activate ncbi_remap
     bigWigMerge {input} {output.bedgraph}
@@ -167,8 +174,74 @@ rule allMerge:
 ################################################################################
 rule convertFlybase:
     input: bedgraph='{prefix}.{strand}.bedgraph'
-    output: bedgraph=temp('{prefix}.flybase.{strand,first|second}.bedgraph')
+    output: bedgraph='{prefix}.flybase.{strand,first|second}.bedgraph'
     shell:"""
     source activate ncbi_remap
     chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
     """
+
+
+################################################################################
+# Create Diff BedGraphs
+################################################################################
+
+rule create_inverse_bed:
+    input:
+        gtf=config['references']['dmel']['gtf'],
+        chromSizes=config['references']['dmel']['chromSizes']
+    output:
+        plus=patterns['inverse_bed'].format(strand='first'),
+        minus=patterns['inverse_bed'].format(strand='second')
+    run:
+        import pybedtools
+
+        # Import GTF
+        gtf = pybedtools.BedTool(input.gtf).remove_invalid().saveas()
+
+        # Subset functions for pybedtools
+        def featuretype_filter(feature, featuretype):
+            if feature[2] == featuretype:
+                return True
+            return False
+
+        def subset_featuretypes(g, featuretype):
+            result = g.filter(featuretype_filter, featuretype).saveas()
+            return pybedtools.BedTool(result.fn)
+
+        def strand_filter(feature, strand):
+            if feature[3] == strand:
+                return True
+            return False
+
+        def subset_strand(g, strand):
+            result = g.filter(strand_filter, strand).saveas()
+            return pybedtools.BedTool(result.fn)
+
+        # pull out all exons
+        exons = subset_featuretypes(gtf, 'exon').bed6()
+
+        # Merge overlapping regions strand specifically
+        merged = exons.sort().merge(s=True, bed=True)
+
+        # Extend features by 20bp
+        extended = merged.slop( g=input.chromSizes, b=20)
+
+        # split by strand
+        exons_plus = pybedtools.BedTool([x[:3] for x in subset_strand(extended, '+')])
+        exons_minus = pybedtools.BedTool([x[:3] for x in subset_strand(extended, '-')])
+
+        exons_plus.sort().complement(g=input.chromSizes).saveas(output.plus)
+        exons_minus.sort().complement(g=input.chromSizes).saveas(output.minus)
+
+
+rule create_inverse_bedgraph:
+    input:
+        bedgraph='{prefix}.{strand}.bedgraph',
+        inverse_bed=patterns['inverse_bed']
+    output: bedgraph='{prefix}.inverse.{strand,first|second}.bedgraph'
+    run:
+        import pybedtools
+        bg = pybedtools.BedTool(input.bedgraph)
+        bed = pybedtools.BedTool(input.inverse_bed)
+        bg_bed = bg.intersect(bed).sort().merge(c=4, o='max').saveas(output.bedgraph)
+
