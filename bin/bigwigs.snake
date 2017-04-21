@@ -6,6 +6,8 @@ import sys
 import pandas as pd
 from pymongo import MongoClient
 
+from snakemake.io import regex
+
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
@@ -64,13 +66,14 @@ patterns = {
     'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
-    'bamCoverage_inverse': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.inverse.{strand}.bw',
     'bamCoverage_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
     'expBamCoverage': '../output/alignment/raw/{experiment}/{experiment}.{strand}.bw',
     'expBamCoverage_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.{strand}.bw',
     'allBamCoverage': '../output/alignment/golden_312.{strand}.bw',
     'allBamCoverage_fb': '../output/alignment/golden_312.flybase.{strand}.bw',
     'inverse_bed': '../output/inverse_exons_20bp.{strand}.bed',
+    'unannotated': '../output/alignment/golden_312.{strand}.unannotated.bw',
+    'hub': '/data/fearjm/datashare/ncbi_remap/hubs/flybase_example_hub.txt',
 }
 
 # Build target files
@@ -78,10 +81,9 @@ sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
-    input: utils.flatten(targets['allBamCoverage']) +
-           utils.flatten(targets['bamCoverage']) +
-           utils.flatten(targets['bamCoverage_inverse']) +
-           utils.flatten(targets['inverse_bed'])
+    input:
+       utils.flatten(targets['bamCoverage']) +
+       utils.flatten(targets['hub'])
 
 
 ################################################################################
@@ -110,8 +112,7 @@ def get_strand(srr):
 ################################################################################
 def _param_bamCoverage(wildcards):
     """Get strand information from wildcards."""
-    base = '--outFileFormat bedgraph --binSize 10 '
-
+    base = '--outFileFormat bedgraph --binSize 1 '
     if wildcards.strand == 'first':
         return base + '--filterRNAstrand forward'
     elif wildcards.strand == 'second':
@@ -153,16 +154,24 @@ def _input_expMerge(wildcards):
 
 rule expMerge:
     input: _input_expMerge
-    output: bedgraph=patterns['expBamCoverage'].replace('.bw', '.bedgraph')
+    output: bedgraph=temp(patterns['expBamCoverage'].replace('.bw', '.bedgraph'))
     shell: """
     source activate ncbi_remap
     bigWigMerge {input} {output.bedgraph}
     """
 
 
+def _allMerge(wildcards):
+    inputs = []
+    for fn in targets['bamCoverage']:
+        if wildcards.strand in fn:
+            inputs.append(fn)
+    return inputs
+
+
 rule allMerge:
-    input: targets['bamCoverage']
-    output: bedgraph=patterns['allBamCoverage'].replace('.bw', '.bedgraph')
+    input: _allMerge
+    output: bedgraph='../output/alignment/golden_312.{strand,first|second}.bedgraph'
     shell: """
     source activate ncbi_remap
     bigWigMerge {input} {output.bedgraph}
@@ -174,7 +183,7 @@ rule allMerge:
 ################################################################################
 rule convertFlybase:
     input: bedgraph='{prefix}.{strand}.bedgraph'
-    output: bedgraph='{prefix}.flybase.{strand,first|second}.bedgraph'
+    output: bedgraph=temp('{prefix}.flybase.{strand,first|second}.bedgraph')
     shell:"""
     source activate ncbi_remap
     chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
@@ -184,7 +193,6 @@ rule convertFlybase:
 ################################################################################
 # Create Diff BedGraphs
 ################################################################################
-
 rule create_inverse_bed:
     input:
         gtf=config['references']['dmel']['gtf'],
@@ -230,18 +238,107 @@ rule create_inverse_bed:
         exons_plus = pybedtools.BedTool([x[:3] for x in subset_strand(extended, '+')])
         exons_minus = pybedtools.BedTool([x[:3] for x in subset_strand(extended, '-')])
 
-        exons_plus.sort().complement(g=input.chromSizes).saveas(output.plus)
-        exons_minus.sort().complement(g=input.chromSizes).saveas(output.minus)
+        pybedtools.BedTool([x[:3] + ['.', '.', '+'] for x in exons_plus.sort().complement(g=input.chromSizes)]).saveas(output.plus)
+        pybedtools.BedTool([x[:3] + ['.', '.', '-'] for x in exons_minus.sort().complement(g=input.chromSizes)]).saveas(output.minus)
 
 
-rule create_inverse_bedgraph:
+rule unannotated:
     input:
         bedgraph='{prefix}.{strand}.bedgraph',
-        inverse_bed=patterns['inverse_bed']
-    output: bedgraph='{prefix}.inverse.{strand,first|second}.bedgraph'
+        bed=patterns['inverse_bed']
+    output:
+        bedgraph=temp('{prefix}.{strand}.unannotated.bedgraph')
     run:
         import pybedtools
-        bg = pybedtools.BedTool(input.bedgraph)
-        bed = pybedtools.BedTool(input.inverse_bed)
-        bg_bed = bg.intersect(bed).sort().merge(c=4, o='max').saveas(output.bedgraph)
+
+        if wildcards.strand == 'first':
+            strand = '+'
+        else:
+            strand = '-'
+
+        bg = pybedtools.BedTool([x[:4] + ['.', strand] for x in pybedtools.BedTool(input.bedgraph)])
+        bed = pybedtools.BedTool(input.bed)
+        pybedtools.BedTool([x[:4] for x in bg.intersect(bed, s=True)]).saveas(output.bedgraph)
+
+
+################################################################################
+# Create Track Hub
+################################################################################
+def _trackhub_individual(wildcards):
+    pat = dict(bc=patterns['bamCoverage'])
+    first_st = sample_table[sample_table['strand'] == 'first']
+    first = helpers.fill_patterns(pat, first_st)['bc']
+
+    return list(first)
+
+
+rule trackhub:
+    input:
+        individual=_trackhub_individual
+    output: targets['hub']
+    run:
+        from trackhub import Track, AggregateTrack, default_hub
+        from trackhub.upload import upload_hub
+
+        hub, genomes_file, genome, trackdb = default_hub(
+            hub_name="hisat2",
+            genome="dm6",
+            short_label="Flybase example Hisat2",
+            long_label="Flybase example Hisat2",
+            email="justin.fear@nih.gov")
+
+        # hub's location on remote host, for use with rsync
+        hub.remote_fn = output[0]
+
+        # publicly accessible hub URL
+        hub.url = output[0].replace('/data/fearjm/datashare', 'http://helix.nih.gov/~fearjm')
+
+        rx = re.compile(regex(patterns['bamCoverage']))
+        for first in input.individual:
+            second = first.replace('first', 'second')
+
+            m = re.match(rx, first).groupdict()
+            label = '{experiment}_{sample}'.format(**m)
+
+            aggregate = AggregateTrack(
+                name=label,
+                tracktype='bigWig 0 2000',
+                short_label=label,
+                long_label=label,
+                aggregate='transparentOverlay',
+                showSubtrackColorOnUi='on',
+            )
+
+            # Parameters are checked for valid values, see
+            l1 = label + '_first'
+            track1 = Track(
+                name=l1,
+                short_label=l1,
+                long_label=l1,
+                autoScale='off',
+                local_fn=first,
+                tracktype='bigWig',
+                color="255,0,0"
+                )
+
+            l2 = label + '_second'
+            track2 = Track(
+                name=l2,
+                short_label=l2,
+                long_label=l2,
+                autoScale='off',
+                local_fn=second,
+                tracktype='bigWig',
+                color="0,0,255"
+                )
+
+            aggregate.add_subtrack(track1)
+            aggregate.add_subtrack(track2)
+            trackdb.add_tracks(aggregate)
+
+        # Render the hub to text files
+        hub.render()
+
+        # Upload the hub files and all the bigwig files using rsync.
+        upload_hub(None, None, hub=hub)
 
