@@ -1,14 +1,24 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-    mem: "4g"
+    mem: "2g"
     time: "11:00:00"
-    gres: "lscratch:100"
+    gres: "lscratch:50"
     partition: 'niddk,norm'
 
-fastq_clean:
-  mem: "32g"
+fastq_screen:
+    mem: "8g"
 
-hisat2:
-    mem: "80g"
+fastq_screen_r1:
+    mem: "8g"
+
+fastq_screen_r2:
+    mem: "8g"
+
+markduplicates:
+    mem: "20g"
+    time: "24:00:00"
+
+hisat2_fastq:
+    mem: "34g"
     time: "24:00:00"
     gres: "lscratch:200"

@@ -11,12 +11,12 @@ fastq_clean:
 
 atropos:
   mem: "32g"
-  gres: "lscratch:80"
+  gres: "lscratch:200"
 
 hisat2_fastq:
     mem: "30g"
     time: "24:00:00"
-    gres: "lscratch:120"
+    gres: "lscratch:200"
 
 featurecounts_first:
     mem: "30g"

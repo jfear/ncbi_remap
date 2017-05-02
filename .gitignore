@@ -22,6 +22,7 @@ figs
 wip
 references
 _build
+.*
 
 # Files
 notebook/*/*.html

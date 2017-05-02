@@ -34,8 +34,17 @@ with open('../output/.mongodb_host', 'r') as fh:
 ################################################################################
 # Build Sample Table
 ################################################################################
+# Golden 312 test runs (312)
 with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
     golden = [x.strip() for x in fh.readlines()]
+
+# All SRRs that the Miegs analyzed (13495)
+with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
+    mieg = [x.strip() for x in fh.readlines()]
+
+# modEncode SRRs (644)
+with open('../data/modEncode_srrs.txt', 'r') as fh:
+    modEncode = [x.strip() for x in fh.readlines() if x.strip() != 'SRR325179']
 
 samples = remap.aggregate([
     {'$unwind': '$runs'},
@@ -44,7 +53,6 @@ samples = remap.aggregate([
             '$and': [
                 {'runs.srr': {'$exists': 1}},
                 {'runs.srr': {'$in': golden}},
-                {'runs.pre_aln_flags': 'SE'},
                 {'runs.pre_aln_flags': 'complete'}
             ]
         }
@@ -52,8 +60,8 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 1}
 ])
+#{'runs.pre_aln_flags': 'PE'},
 
 sample_table = pd.DataFrame(list(samples))
 
@@ -63,18 +71,24 @@ sample_table = pd.DataFrame(list(samples))
 
 # Patterns
 patterns = {
+    'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
     'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
-    'bamCoverage': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
-    'bamCoverage_fb': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
-    'expBamCoverage': '../output/alignment/raw/{experiment}/{experiment}.{strand}.bw',
-    'expBamCoverage_fb': '../output/alignment/raw/{experiment}/{experiment}.flybase.{strand}.bw',
-    'allBamCoverage': '../output/alignment/golden_312.{strand}.bw',
-    'allBamCoverage_fb': '../output/alignment/golden_312.flybase.{strand}.bw',
-    'inverse_bed': '../output/inverse_exons_20bp.{strand}.bed',
-    'unannotated': '../output/alignment/golden_312.{strand}.unannotated.bw',
+    'jcounts': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.jcounts',
+    'bamCoverage': '../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
+    'bamCoverage_fb': '../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand}.bw',
+    'expBamCoverage': '../output/bigwigs/raw/{experiment}/{experiment}.{strand}.bw',
+    'expBamCoverage_fb': '../output/bigwigs/raw/{experiment}/{experiment}.flybase.{strand}.bw',
+    'golden': '../output/bigwigs/golden_312.{strand}.bw',
+    'golden_fb': '../output/bigwigs/golden_312.flybase.{strand}.bw',
+    'inverse_bed': '../output/bigwigs/inverse_exons_20bp.{strand}.bed',
+    'unannotated_golden': '../output/bigwigs/golden_312.{strand}.unannotated.bw',
+    'unannotated_golden_fb': '../output/bigwigs/golden_312.flybase.{strand}.unannotated.bw',
     'hub': '/data/fearjm/datashare/ncbi_remap/hubs/flybase_example_hub.txt',
+    'fb_tgz': '/data/fearjm/datashare/ncbi_remap/flybase_example_tracks.tgz',
+    'jcount': '../output/bigwigs/golden_312.jcount',
 }
+
 
 # Build target files
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
@@ -82,8 +96,16 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
     input:
-       utils.flatten(targets['bamCoverage']) +
-       utils.flatten(targets['hub'])
+       targets['bamCoverage'],
+       targets['bamCoverage_fb'],
+       targets['expBamCoverage'],
+       targets['expBamCoverage_fb'],
+       targets['golden'],
+       targets['golden_fb'],
+       targets['unannotated_golden'],
+       targets['unannotated_golden_fb'],
+       targets['hub'],
+       targets['jcount']
 
 
 ################################################################################
@@ -121,24 +143,32 @@ def _param_bamCoverage(wildcards):
 
 rule bamCoverage:
     input:
-        bam='{prefix}.bam',
-        bai='{prefix}.bam.bai',
-    output: '{prefix}.{strand,first|second}.bedgraph'
+        bam=patterns['bam'],
+        bai=patterns['bai']
+    output: '../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.{strand,first|second}.bedgraph'
     params:
         extra=_param_bamCoverage
     threads: 8
     wrapper: wrapper_for('deeptools/bamCoverage')
 
 
+def _convertBedGraphToBigWig(wildcards):
+    if 'flybase' in wildcards.prefix:
+        return targets['chromSizes_fb']
+    else:
+        return config['references']['dmel']['chromSizes']
+
+
 rule convertBedGraphToBigWig:
     input:
         bedgraph='{prefix}.bedgraph',
-        chromSizes=config['references']['dmel']['chromSizes']
+        chromSizes=_convertBedGraphToBigWig
     output:
         bigwig='{prefix}.bw'
+    conda: '../config/extra_env.yaml'
     shell:
-        'source activate ncbi_remap '
-        '&& tmpBg=`mktemp --suffix=.bedgraph` '
+        'export LC_COLLATE=C; '
+        'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
         '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
         '&& rm $tmpBg '
@@ -148,16 +178,21 @@ rule convertBedGraphToBigWig:
 # Merge Experiment BigWigs
 ################################################################################
 def _input_expMerge(wildcards):
-    sTable = sample_table[sample_table['experiment'] == wildcards.experiment].copy()
+    sTable = sample_table[(sample_table['experiment'] == wildcards.experiment) & (sample_table['strand'] == wildcards.strand)].copy()
     return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bamCoverage']), sTable))
 
 
 rule expMerge:
     input: _input_expMerge
-    output: bedgraph=temp(patterns['expBamCoverage'].replace('.bw', '.bedgraph'))
-    shell: """
-    source activate ncbi_remap
-    bigWigMerge {input} {output.bedgraph}
+    output: bedgraph=temp('../output/bigwigs/raw/{experiment}/{experiment}.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
+    inputs=({input})
+    if [ ${{#inputs[@]}} -gt 1 ]; then
+        bigWigMerge {input} {output.bedgraph}
+    else
+        bigWigToBedGraph {input[0]} {output.bedgraph}
+    fi
     """
 
 
@@ -169,23 +204,69 @@ def _allMerge(wildcards):
     return inputs
 
 
-rule allMerge:
+rule allMerge_gold:
     input: _allMerge
-    output: bedgraph='../output/alignment/golden_312.{strand,first|second}.bedgraph'
-    shell: """
-    source activate ncbi_remap
-    bigWigMerge {input} {output.bedgraph}
+    output: bedgraph=temp('../output/bigwigs/golden_312.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
+    inputs=({input})
+    if [ ${{#inputs[@]}} -gt 1 ]; then
+        bigWigMerge {input} {output.bedgraph}
+    else
+        bigWigToBedGraph {input[0]} {output.bedgraph}
+    fi
     """
 
 
 ################################################################################
 # Convert to Flybase
 ################################################################################
-rule convertFlybase:
-    input: bedgraph='{prefix}.{strand}.bedgraph'
-    output: bedgraph=temp('{prefix}.flybase.{strand,first|second}.bedgraph')
+rule convertChromSizes:
+    input: chromSizes=config['references']['dmel']['chromSizes']
+    output: chromSizes=patterns['chromSizes_fb']
+    run:
+        from lcdblib.utils.chrom_convert import import_conversion
+        mapper = import_conversion('UCSC', 'FlyBase')
+        out = open(output.chromSizes, 'w')
+        with open(input.chromSizes) as fh:
+            for row in fh:
+                chrom, size = row.strip().split()
+                out.write('\t'.join([mapper[chrom], size]) + '\n')
+        out.close()
+
+
+rule convertFlybase_bamCoverage:
+    input: bedgraph=patterns['bamCoverage'].replace('.bw', '.bedgraph')
+    output: bedgraph=temp('../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.flybase.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
     shell:"""
-    source activate ncbi_remap
+    chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
+    """
+
+
+rule convertFlybase_expBamCoverage:
+    input: bedgraph=patterns['expBamCoverage'].replace('.bw', '.bedgraph')
+    output: bedgraph=temp('../output/bigwigs/raw/{experiment}/{experiment}.flybase.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
+    chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
+    """
+
+
+rule convertFlybase_golden:
+    input: bedgraph=patterns['golden'].replace('.bw', '.bedgraph')
+    output: bedgraph=temp('../output/bigwigs/golden_312.flybase.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
+    chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
+    """
+
+
+rule convertFlybase_unannotated:
+    input: bedgraph=patterns['unannotated_golden'].replace('.bw', '.bedgraph')
+    output: bedgraph=temp('../output/bigwigs/golden_312.flybase.{strand,first|second}.unannotated.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
     chrom_convert --from UCSC --to FlyBase --fileType BED -i {input.bedgraph} -o {output.bedgraph}
     """
 
@@ -204,7 +285,7 @@ rule create_inverse_bed:
         import pybedtools
 
         # Import GTF
-        gtf = pybedtools.BedTool(input.gtf).remove_invalid().saveas()
+        gtf = pybedtools.BedTool(input.gtf).remove_invalid().sort().saveas()
 
         # Subset functions for pybedtools
         def featuretype_filter(feature, featuretype):
@@ -242,12 +323,12 @@ rule create_inverse_bed:
         pybedtools.BedTool([x[:3] + ['.', '.', '-'] for x in exons_minus.sort().complement(g=input.chromSizes)]).saveas(output.minus)
 
 
-rule unannotated:
+rule unannotated_golden:
     input:
-        bedgraph='{prefix}.{strand}.bedgraph',
+        bedgraph=patterns['golden'].replace('.bw', '.bedgraph'),
         bed=patterns['inverse_bed']
     output:
-        bedgraph=temp('{prefix}.{strand}.unannotated.bedgraph')
+        bedgraph=temp('../output/bigwigs/golden_312.{strand,first|second}.unannotated.bedgraph')
     run:
         import pybedtools
 
@@ -268,13 +349,14 @@ def _trackhub_individual(wildcards):
     pat = dict(bc=patterns['bamCoverage'])
     first_st = sample_table[sample_table['strand'] == 'first']
     first = helpers.fill_patterns(pat, first_st)['bc']
-
     return list(first)
 
 
 rule trackhub:
     input:
-        individual=_trackhub_individual
+        individual=_trackhub_individual,
+        golden=patterns['golden'].format(strand='first'),
+        unannotated_golden=patterns['unannotated_golden'].format(strand='first'),
     output: targets['hub']
     run:
         from trackhub import Track, AggregateTrack, default_hub
@@ -302,7 +384,8 @@ rule trackhub:
 
             aggregate = AggregateTrack(
                 name=label,
-                tracktype='bigWig 0 2000',
+                autoScale='on',
+                tracktype='bigWig',
                 short_label=label,
                 long_label=label,
                 aggregate='transparentOverlay',
@@ -315,7 +398,6 @@ rule trackhub:
                 name=l1,
                 short_label=l1,
                 long_label=l1,
-                autoScale='off',
                 local_fn=first,
                 tracktype='bigWig',
                 color="255,0,0"
@@ -326,7 +408,6 @@ rule trackhub:
                 name=l2,
                 short_label=l2,
                 long_label=l2,
-                autoScale='off',
                 local_fn=second,
                 tracktype='bigWig',
                 color="0,0,255"
@@ -336,9 +417,124 @@ rule trackhub:
             aggregate.add_subtrack(track2)
             trackdb.add_tracks(aggregate)
 
+        # golden
+        label = 'golden'
+        first = input.golden
+        second = first.replace('first', 'second')
+
+        aggregate = AggregateTrack(
+            name=label,
+            autoScale='on',
+            tracktype='bigWig',
+            short_label=label,
+            long_label=label,
+            aggregate='transparentOverlay',
+            showSubtrackColorOnUi='on',
+        )
+
+        # Parameters are checked for valid values, see
+        l1 = label + '_first'
+        track1 = Track(
+            name=l1,
+            short_label=l1,
+            long_label=l1,
+            local_fn=first,
+            tracktype='bigWig',
+            color="255,0,0"
+            )
+
+        l2 = label + '_second'
+        track2 = Track(
+            name=l2,
+            short_label=l2,
+            long_label=l2,
+            local_fn=second,
+            tracktype='bigWig',
+            color="0,0,255"
+            )
+
+        aggregate.add_subtrack(track1)
+        aggregate.add_subtrack(track2)
+        trackdb.add_tracks(aggregate)
+
+        # unannotated golden
+        label = 'unannotated_golden'
+        first = input.unannotated_golden
+        second = first.replace('first', 'second')
+
+        aggregate = AggregateTrack(
+            name=label,
+            autoScale='on',
+            tracktype='bigWig',
+            short_label=label,
+            long_label=label,
+            aggregate='transparentOverlay',
+            showSubtrackColorOnUi='on',
+        )
+
+        # Parameters are checked for valid values, see
+        l1 = label + '_first'
+        track1 = Track(
+            name=l1,
+            short_label=l1,
+            long_label=l1,
+            local_fn=first,
+            tracktype='bigWig',
+            color="255,0,0"
+            )
+
+        l2 = label + '_second'
+        track2 = Track(
+            name=l2,
+            short_label=l2,
+            long_label=l2,
+            local_fn=second,
+            tracktype='bigWig',
+            color="0,0,255"
+            )
+
+        aggregate.add_subtrack(track1)
+        aggregate.add_subtrack(track2)
+        trackdb.add_tracks(aggregate)
+
+
         # Render the hub to text files
         hub.render()
 
         # Upload the hub files and all the bigwig files using rsync.
         upload_hub(None, None, hub=hub)
 
+
+rule make_tgz:
+    input:
+        targets['expBamCoverage_fb'] +
+        targets['golden_fb'] +
+        targets['unannotated_golden_fb']
+    output: patterns['fb_tgz']
+    shell: """
+    TMP=`mktemp -d`
+    for FILE in {input}; do
+        cp $FILE $TMP/
+    done;
+
+    tar -czf {output[0]} -C $TMP .
+    rm -r $TMP
+    """
+
+
+
+################################################################################
+# quick and dirty
+################################################################################
+rule merge_jcount:
+    input: targets['jcounts']
+    output: patterns['jcount']
+    shell:"""
+    if [ -e {output[0]} ]; then
+        rm {output[0]}
+    fi
+
+    for FILE in {input}; do
+        cat $FILE >> {output[0]}
+    done;
+    """

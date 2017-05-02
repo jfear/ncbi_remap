@@ -42,7 +42,7 @@ with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
 
 # modEncode SRRs (644)
 with open('../data/modEncode_srrs.txt', 'r') as fh:
-    modEncode = [x.strip() for x in fh.readlines()]
+    modEncode = [x.strip() for x in fh.readlines() if x.strip() != 'SRR325179']
 
 samples = remap.aggregate([
     {'$unwind': '$runs'},
@@ -68,12 +68,12 @@ sample_table = pd.DataFrame(list(samples))
 ################################################################################
 # Patterns
 fastqs = {
-        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
         'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz'
     }
 
 fastqs_clean = {
-        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz'
+        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.clean.fastq.gz',
         'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.clean.fastq.gz'
     }
 
@@ -107,7 +107,10 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 rule targets:
     input:
-        utils.flatten(targets)
+        utils.flatten(targets['fastq_atropos_count']) +
+        utils.flatten(targets['feature_counts']) +
+        utils.flatten(targets['hisat2']) +
+        [targets['samtools_stats'], targets['samtools_idxstats'], targets['bamtools_stats']]
 
 
 ################################################################################
@@ -134,24 +137,10 @@ def get_strand(srr):
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-rule fastq_clean:
-    input:
-        r1=fastqs['r1'],
-        r2=fastqs['r2'],
-    output:
-        r1=temp(fastqs_clean['r1']),
-        r2=temp(fastqs_clean['r2']),
-    shell:
-        './get_proper_read_pairs.sh {input.r1} {input.r2} $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
-        '&& cp $TMPDIR/{wildcards.sample}_1.clean.fastq.gz {output.r1} '
-        '&& cp $TMPDIR/{wildcards.sample}_2.clean.fastq.gz {output.r2} '
-        '&& rm $TMPDIR/{wildcards.sample}_1.clean.fastq.gz $TMPDIR/{wildcards.sample}_2.clean.fastq.gz '
-
-
 rule atropos:
     input:
-        R1=rules.fastq_clean.output.r1,
-        R2=rules.fastq_clean.output.r2
+        R1=fastqs['r1'],
+        R2=fastqs['r2'],
     output:
         R1=temp(patterns['atropos']['r1']),
         R2=temp(patterns['atropos']['r2'])
@@ -206,8 +195,8 @@ rule hisat2_fastq:
 rule bai:
     input: bam='{prefix}.bam'
     output: bai='{prefix}.bam.bai'
+    conda: '../config/extra_env.yaml'
     shell: """
-    source activate ncbi_remap
     samtools index {input.bam}
     """
 
@@ -252,9 +241,9 @@ rule run_stats:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
+    conda: '../config/extra_env.yaml'
     shell:
-        'source activate ncbi_remap '
-        '&& BAM=$(mktemp --suffix=".bam") '
+        'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
         '&& cp {input.bam}.bai $BAM.bai '
         '&& samtools stats $BAM > {output.samtools_stats} '

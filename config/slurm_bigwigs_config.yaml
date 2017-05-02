@@ -7,3 +7,6 @@ __default__:
 
 bamCoverage:
     mem: "32g"
+
+unannotated_golden:
+    mem: "20g"
