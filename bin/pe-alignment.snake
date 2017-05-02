@@ -86,6 +86,10 @@ patterns = {
         'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
         'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
     },
+    'atropos_agg': {
+        'summary': '../output/alignment/atropos_se_summary.tsv',
+        'counts': '../output/alignment/atropos_se_counts.tsv',
+    },
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
@@ -110,6 +114,7 @@ rule targets:
         utils.flatten(targets['fastq_atropos_count']) +
         utils.flatten(targets['feature_counts']) +
         utils.flatten(targets['hisat2']) +
+        utils.flatten(targets['atropos_agg']) +
         [targets['samtools_stats'], targets['samtools_idxstats'], targets['bamtools_stats']]
 
 
@@ -155,6 +160,26 @@ rule fastq_count:
     input: '{prefix}.fastq.gz'
     output: '{prefix}.fastq.gz.libsize'
     shell: 'gunzip -c {input} | echo $((`wc -l`/4)) > {output}'
+
+def _atropos_agg(wildcards):
+    return [x + '.log' for x in targets['atropos']['r1']]
+
+rule atropos_agg:
+    input: _atropos_agg
+    output:
+        summary=patterns['atropos_agg']['summary'],
+        counts=patterns['atropos_agg']['counts'],
+    run:
+        from ncbi_remap.parser import parse_atropos
+        summary = []
+        cnts = []
+        for fn in input:
+            srr = os.path.basename(os.path.dirname(fn))
+            dfSummary, dfCounts = parse_atropos(srr, fn)
+            summary.append(dfSummary)
+            cnts.append(dfCounts)
+        pd.concat(summary).to_csv(output.summary, sep='\t')
+        pd.concat(cnts).to_csv(output.counts, sep='\t')
 
 
 ################################################################################
