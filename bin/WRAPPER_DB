@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH --job-name="mongo_db"
+#SBATCH --partition="niddk,norm"
+#SBATCH --cpus-per-task=4
+#SBATCH --time=240:00:00
+#SBATCH --mem=3G
+#SBATCH --output=../output/logs/mongo_db-%j.out
+#SBATCH --error=../output/logs/mongo_db-%j.out
+source activate ncbi_remap
+
+# Start mongo
+echo 'Starting MongoDB'
+./start_db.sh
+
+finish() {
+    # stop mongo
+    echo 'Stoping MongoDB'
+    ./stop_db.sh
+    exit 0
+}
+trap finish SIGTERM
+
+while true; do
+    sleep 1600 &
+    wait $!
+done

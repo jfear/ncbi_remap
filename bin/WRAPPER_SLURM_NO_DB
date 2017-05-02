@@ -4,6 +4,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --time=120:00:00
 #SBATCH --mem=12G
+#SBATCH --output=../output/logs/slurm-%j.out
+#SBATCH --error=../output/logs/slurm-%j.out
 source activate ncbi_remap
 
 SNAKEFILE=$1
@@ -11,16 +13,15 @@ EXTRA=$2
 CLUSTER=$3
 
 # Make required folders
-LOGS=../output/logs
-if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
-if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
+WORKDIR=../.`basename $SNAKEFILE .snake`
+if [[ ! -e $WORKDIR/slurm_logs ]]; then mkdir -p $WORKDIR/slurm_logs; fi
 
 # run pipeline
 (time snakemake \
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 1000 \
+    -j 800 \
     -k \
     --verbose \
     --use-conda \
@@ -29,4 +30,15 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
     --latency-wait=60 \
     -s $SNAKEFILE \
     $EXTRA \
-    ) > "$LOGS/${SNAKEFILE}_${EXTRA}.log" 2>&1
+    ) > "$WORKDIR/${SNAKEFILE}_${EXTRA}.log" 2>&1 &
+
+SNAKE_PID=$!
+
+finish(){
+    echo 'Stopping running snakemake job.'
+    kill -SIGINT $SNAKE_PID
+    exit 0
+}
+trap finish SIGTERM
+
+wait $SNAKE_PID

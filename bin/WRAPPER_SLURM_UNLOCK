@@ -4,14 +4,15 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --time=120:00:00
 #SBATCH --mem=12G
+#SBATCH --output=../output/logs/slurm-%j.out
+#SBATCH --error=../output/logs/slurm-%j.out
 source activate ncbi_remap
 
 SNAKEFILE=$1
 
 # Make required folders
-LOGS=../output/logs
-if [[ ! -e $LOGS ]]; then mkdir -p $LOGS; fi
-if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
+WORKDIR=../.`basename $SNAKEFILE .snake`
+if [[ ! -e $WORKDIR/slurm_logs ]]; then mkdir -p $WORKDIR/slurm_logs; fi
 
 # Start mongo
 ./start_db.sh
