@@ -335,6 +335,7 @@ def parse_atropos(sample, file):
         parsed = OrderedDict()
         block = None
         subBlock = None
+        cnts = {}
         for l in fh:
             l = l.replace(',', '')
 
@@ -357,6 +358,22 @@ def parse_atropos(sample, file):
                     if fqs:
                         key = 'Number {} trimmed'.format(block)
                         parsed[key] = int(fqs.group(1))
+                    elif l.startswith('length'):
+                        # This will pull out the length count tables and make dataframes
+                        cnts[block] = l
+                        try:
+                            while True:
+                                l = next(fh)
+                                if l.startswith('\n'):
+                                    break
+                                cnts[block] += l
+                        except StopIteration:
+                            pass
+                        cnts[block] = pd.read_table(StringIO(cnts[block]))
+                        cnts[block]['adapter'] = block
+                        cnts[block]['sample'] = sample
+                        cnts[block].set_index(['sample', 'adapter', 'length'], inplace=True)
+
         if len(parsed) == 0:
             return None
         else:
@@ -371,7 +388,7 @@ def parse_atropos(sample, file):
                 # SE
                 df['pct_read1_adapters'] = df['Reads with adapters'] / df['Total reads processed'] * 100
 
-            return df
+            return df, pd.concat(cnts.values())
 
 
 def parse_hisat2(sample, file):
