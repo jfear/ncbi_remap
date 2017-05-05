@@ -56,7 +56,7 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': golden}},
+                {'runs.srr': {'$in': modEncode}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
                 {'runs.pre_aln_flags': 'PE'}

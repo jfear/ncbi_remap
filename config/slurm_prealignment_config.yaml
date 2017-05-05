@@ -16,7 +16,7 @@ fastq_screen_r2:
 
 markduplicates:
     mem: "20g"
-    time: "24:00:00"
+    time: "48:00:00"
 
 hisat2_fastq:
     mem: "34g"

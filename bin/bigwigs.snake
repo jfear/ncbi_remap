@@ -53,7 +53,7 @@ samples = remap.aggregate([
             '$and': [
                 {'runs.srr': {'$exists': 1}},
                 {'runs.srr': {'$in': golden}},
-                {'runs.pre_aln_flags': 'complete'}
+                {'runs.pre_aln_flags': 'complete'},
             ]
         }
     },
@@ -61,7 +61,7 @@ samples = remap.aggregate([
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
 ])
-#{'runs.pre_aln_flags': 'PE'},
+#                 {'runs.pre_aln_flags': 'SE'},
 
 sample_table = pd.DataFrame(list(samples))
 
@@ -87,6 +87,10 @@ patterns = {
     'hub': '/data/fearjm/datashare/ncbi_remap/hubs/flybase_example_hub.txt',
     'fb_tgz': '/data/fearjm/datashare/ncbi_remap/flybase_example_tracks.tgz',
     'jcount': '../output/bigwigs/golden_312.jcount',
+    'annotated_junc': '/data/fearjm/datashare/ncbi_remap/hubs/dm6/golden_annotated_junc.bed',
+    'annotated_filter_junc': '/data/fearjm/datashare/ncbi_remap/hubs/dm6/golden_annotated_filter_junc.bed',
+    'unannotated_junc': '/data/fearjm/datashare/ncbi_remap/hubs/dm6/golden_unannotated_junc.bed',
+    'unannotated_filter_junc': '/data/fearjm/datashare/ncbi_remap/hubs/dm6/golden_unannotated_filter_junc.bed',
 }
 
 
@@ -105,7 +109,11 @@ rule targets:
        targets['unannotated_golden'],
        targets['unannotated_golden_fb'],
        targets['hub'],
-       targets['jcount']
+       targets['jcount'],
+       targets['annotated_junc'],
+       targets['annotated_filter_junc'],
+       targets['unannotated_junc'],
+       targets['unannotated_filter_junc']
 
 
 ################################################################################
@@ -529,12 +537,73 @@ rule make_tgz:
 rule merge_jcount:
     input: targets['jcounts']
     output: patterns['jcount']
-    shell:"""
-    if [ -e {output[0]} ]; then
-        rm {output[0]}
-    fi
+    run:
+        dfs = []
+        for fn in input:
+            sample = os.path.basename(os.path.dirname(fn))
+            df = pd.read_table(fn)
+            df.columns = ['PrimaryGene', 'SecondaryGenes', 'Site1_chr', 'Site1_location', 'Site1_strand', 'Site2_chr', 'Site2_location', 'Site2_strand', 'count']
+            df['sample'] = sample
+            dfs.append(df)
 
-    for FILE in {input}; do
-        cat $FILE >> {output[0]}
-    done;
-    """
+        pd.concat(dfs).to_csv(output[0], sep='\t')
+
+rule make_junc_bed:
+    input: patterns['jcount']
+    output:
+        anno=patterns['annotated_junc'],
+        annoFilter=patterns['annotated_filter_junc'],
+        unanno=patterns['unannotated_junc'],
+        unannoFilter=patterns['unannotated_filter_junc'],
+    run:
+        juncs = pd.read_table(str(input))
+
+        # Make bed of unannoated
+        unanno = open(str(output.unanno), 'w')
+        unanno.write('track name="Unannotated Junctions"\n')
+
+        unannoFilter = open(str(output.unannoFilter), 'w')
+        unannoFilter.write('track name="Filtered Unannotated Junctions"\n')
+
+        juncsUn = juncs[juncs.PrimaryGene.isnull()].copy()
+        juncsUn['count'] = juncsUn['count'].map(lambda x: int(x))
+        grp = juncsUn.groupby(['Site1_chr', 'Site1_location', 'Site2_chr', 'Site2_location'])
+        cnts =  grp['count'].aggregate(['sum', 'size'])
+        cnts.reset_index(inplace=True)
+
+        for r in cnts.to_records():
+            chrom = r[1]
+            start = str(int(r[2]))
+            end = str(int(r[4]))
+            name = '{0}({1})'.format(r[5], r[6])
+            unanno.write('\t'.join([chrom, start, end, name]) + '\n')
+            if r[6] > 1:
+                unannoFilter.write('\t'.join([chrom, start, end, name]) + '\n')
+
+        unanno.close()
+        unannoFilter.close()
+
+        # Make bed of unannoated
+        anno = open(str(output.anno), 'w')
+        anno.write('track name="Annotated Junctions"\n')
+
+        annoFilter = open(str(output.annoFilter), 'w')
+        annoFilter.write('track name="Filtered Annotated Junctions"\n')
+
+        juncsAnno = juncs[~juncs.PrimaryGene.isnull()].copy()
+        juncsAnno['count'] = juncsAnno['count'].fillna(0).map(lambda x: int(x))
+        grp = juncsAnno.groupby(['Site1_chr', 'Site1_location', 'Site2_chr', 'Site2_location'])
+        cnts =  grp['count'].aggregate(['sum', 'size'])
+        cnts.reset_index(inplace=True)
+
+        for r in cnts.to_records():
+            chrom = r[1]
+            start = str(int(r[2]))
+            end = str(int(r[4]))
+            name = '{0}({1})'.format(r[5], r[6])
+            anno.write('\t'.join([chrom, start, end, name]) + '\n')
+            if r[6] > 1:
+                annoFilter.write('\t'.join([chrom, start, end, name]) + '\n')
+
+        anno.close()
+        annoFilter.close()
