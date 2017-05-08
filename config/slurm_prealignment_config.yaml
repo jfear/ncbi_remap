@@ -8,17 +8,11 @@ __default__:
 fastq_screen:
     mem: "8g"
 
-fastq_screen_r1:
-    mem: "8g"
-
-fastq_screen_r2:
-    mem: "8g"
-
 markduplicates:
     mem: "20g"
     time: "48:00:00"
 
-hisat2_fastq:
+hisat2:
     mem: "34g"
     time: "24:00:00"
     gres: "lscratch:200"

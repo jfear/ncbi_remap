@@ -89,7 +89,7 @@ def parse_files(files, pattern, parser, **kwargs):
 
 # Parsing functions
 
-def parse_fqscreen(sample, file):
+def parse_fastq_screen(sample, file):
     """Parser for fastq screen.
 
     Adapted from multiqc.
@@ -124,6 +124,14 @@ def parse_fqscreen(sample, file):
 
 def parse_inferExperiment(sample, file):
     """Parse rseqc infer expeirment."""
+    mapper = {
+        'Fraction of reads explained by "++,--"': 'same_strand',
+        'Fraction of reads explained by "+-,-+"': 'opposite_strand',
+        'Fraction of reads explained by "1++,1--,2+-,2-+"': 'same_strand',
+        'Fraction of reads explained by "1+-,1-+,2++,2--"': 'opposite_strand',
+        'Fraction of reads failed to determine': 'undertermined'
+    }
+
     with open(file, 'r') as fh:
         parsed = OrderedDict()
         for l in fh:
@@ -134,7 +142,9 @@ def parse_inferExperiment(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[sample])
+            df.columns = df.columns.map(lambda x: mapper[x])
+            return df
 
 
 def parse_geneBodyCoverage(sample, file):
@@ -154,6 +164,23 @@ def parse_geneBodyCoverage(sample, file):
 
 def parse_bamStat(sample, file):
     """Parse rseqc bam stat."""
+    mapper = {
+        'Total records': 'total_records',
+        'QC failed': 'qc_failed',
+        'Optical/PCR duplicate': 'optical_pcr_duplicates',
+        'Unmapped reads': 'unmapped_reads',
+        'mapq < mapq_cut (non-unique)': 'non_unique',
+        'mapq >= mapq_cut (unique)': 'unique',
+        'Read-1': 'read_1',
+        'Read-2': 'read_2',
+        "Reads map to '+'": 'reads_map_plus',
+        "Reads map to '-'": 'reads_map_minus',
+        'Non-splice reads': 'nonsplice_reads',
+        'Splice reads': 'splice_reads',
+        'Reads mapped in proper pairs': 'reads_mapped_proper_pairs',
+        'Proper-paired reads map to different chrom': 'proper_pair_map_to_different_chrom',
+    }
+
     with open(file, 'r') as fh:
         parsed = OrderedDict()
         for l in fh:
@@ -164,7 +191,9 @@ def parse_bamStat(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[sample])
+            df.columns = df.columns.map(lambda x: mapper[x])
+            return df
 
 
 def parse_tin(sample, file):
@@ -236,12 +265,21 @@ def parse_dupradar(sample, file):
 
 
 def parse_featureCounts_counts(sample, file):
-    """Parser for picard collectRNAMetrics summary."""
+    """Parser for subread feature counts."""
     df = pd.read_csv(file, sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
     df['sample'] = sample
     df.set_index(['sample', 'FBgn'], inplace=True)
     return df['count']
+
+
+def parse_featureCounts_jcounts(sample, file):
+    """Parser for subread feature jcounts."""
+    header = ['PrimaryGene', 'SecondaryGenes', 'Site1_chr', 'Site1_location', 'Site1_strand', 'Site2_chr', 'Site2_location', 'Site2_strand', 'count']
+    df = pd.read_csv(file, sep='\t', header=None, names=header, skiprows=1)
+    df['sample'] = sample
+    df.set_index('sample', inplace=True)
+    return df
 
 
 def parse_featureCounts_summary(sample, file):
@@ -281,7 +319,13 @@ def parse_bamtools_stats(sample, file):
 
 def parse_picard_markduplicate_metrics(sample, file):
     """Parser for picard markduplicates."""
-    df = pd.read_csv(file, sep='\t', comment='#')
+    with open(file, 'r') as fh:
+        for l in fh:
+            if l.startswith('## METRICS CLASS'):
+                dat = next(fh)
+                dat += next(fh)
+                break
+    df = pd.read_csv(StringIO(dat), sep='\t', comment='#')
     df['sample'] = sample
     return df.set_index('sample')
 
@@ -302,10 +346,13 @@ def parse_samtools_stats(sample, file):
             if l.startswith('SN'):
                 fqs = re.search(r"^SN\s+(.+?):\s+([\d\.]+)\s.*$", l)
                 if fqs:
-                    if '.' in fqs.group(2):
-                        parsed[fqs.group(1)] = float(fqs.group(2))
+                    name = fqs.group(1).replace(' ', '_')
+                    value = fqs.group(2)
+
+                    if ('.' in value) or ('average' in name):
+                        parsed[name] = float(value)
                     else:
-                        parsed[fqs.group(1)] = int(fqs.group(2))
+                        parsed[name] = int(value)
 
         if len(parsed) == 0:
             return None
@@ -395,53 +442,35 @@ def parse_hisat2(sample, file):
     """Parse hisat2."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
-        header = ['# Reads', '# Unpaired', '# Unaligned', '# Uniquely Aligned', '# Multimappers', 'Pct Alignment']
-        cnt = 0
+        header = {
+            'reads; of these:': 'num_reads',
+            'were paired; of these:': 'num_reads_paired',
+            'were unpaired; of these:': 'num_reads_unpaired',
+            'aligned concordantly 0 times': 'num_concordant_reads_unaligned',
+            'aligned concordantly exactly 1 time': 'num_concordant_reads_uniquely_aligned',
+            'aligned concordantly >1 times': 'num_concordant_multimappers',
+            'aligned discordantly 1 time': 'num_discordant_reads_aligned',
+            'aligned 0 times': 'num_unaligned',
+            'aligned exactly 1 time': 'num_uniquely_algined',
+            'aligned >1 times': 'num_multimappers',
+            'overall alignment rate': 'per_alignment',
+        }
+
         for l in fh:
             row = l.strip()
-
-            if row.startswith('Warning'):
-                continue
-
-            fqs = re.search(r"^([\d\.]+?)[%\s].*$", row)
-            if fqs:
-                if cnt == 5:
-                    parsed[header[cnt]] = float(fqs.group(1))
-                else:
-                    parsed[header[cnt]] = int(fqs.group(1))
-                cnt+=1
-
-        if len(parsed) == 0:
-            return None
-        else:
-            return pd.DataFrame(parsed, index=[sample])
-
-
-def parse_hisat2_pe(sample, file):
-    """Parse hisat2."""
-    with open(file, 'r') as fh:
-        parsed = OrderedDict()
-        header = ['# Reads', '# Reads Paired', '# Unaligned', '# Uniquely Aligned',
-                  '# Multimappers', 'skip', '# Uniquely Aligned Discordantly', 'skip',
-                  'skip', '# Unaligned mates', '# Uniquely Aligned Mates',
-                  '# Multimappers Mates', 'Pct Alignment']
-        cnt = 0
-        for l in fh:
-            row = l.strip()
-
             if row.startswith('Warning') or row.startswith('---'):
                 continue
 
-            fqs = re.search(r"^([\d\.]+?)[%\s].*$", row)
+            fqs = re.search(r"^([\d\.]+)[%]*\s([\(\)\d\.%]*\s)?(.*)$", row)
             if fqs:
-                head = header[cnt]
-                if head == 'skip':
-                    continue
-                elif head == 'Pct Alignment':
-                    parsed[head] = float(fqs.group(1))
-                else:
-                    parsed[head] = int(fqs.group(1))
-                cnt+=1
+                name = fqs.group(3)
+                value = fqs.group(1)
+                if name in header:
+                    head = header[name]
+                    if head == 'per_alignment':
+                        parsed[head] = float(value)
+                    else:
+                        parsed[head] = int(value)
 
         if len(parsed) == 0:
             return None

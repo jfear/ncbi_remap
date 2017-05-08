@@ -1,8 +1,9 @@
 """Mongo document schema."""
-from mongoengine import ListField, DictField, StringField, IntField, FloatField, \
+from mongoengine import ListField, DictField, MapField, StringField, IntField, FloatField, \
     EmbeddedDocument, EmbeddedDocumentField, Document
 
 from sramongo.mongo_schema import Pubmed
+
 class Run(EmbeddedDocument):
     srr = StringField()
     pre_aln_flags = ListField(StringField(), default=list)
@@ -10,15 +11,181 @@ class Run(EmbeddedDocument):
     avgReadLen = DictField()
     md5 = DictField()
 
+
 class Sample(EmbeddedDocument):
     srs = StringField()
     biosample = StringField()
     gsm = StringField()
 
+
 class Contacts(EmbeddedDocument):
     first_name = StringField()
     last_name = StringField()
     email = StringField()
+
+
+class FastqScreen(EmbeddedDocument):
+    """Representation of FASTQ Screen results."""
+    reads_processed_count = IntField()
+    unmapped_count = IntField()
+    unmapped_percent = FloatField()
+    one_hit_one_library_count = IntField()
+    one_hit_one_library_percent = FloatField()
+    multiple_hits_one_library_count = IntField()
+    multiple_hits_one_library_percent = FloatField()
+    one_hit_multiple_libraries_count = IntField()
+    one_hit_multiple_libraries_percent = FloatField()
+    multiple_hits_multiple_libraries_count = IntField()
+    multiple_hits_multiple_libraries_percent = FloatField()
+
+
+class BamStat(EmbeddedDocument):
+    non_unique = IntField()
+    nonsplice_reads = IntField()
+    optical_pcr_duplicates = IntField()
+    proper_pair_map_to_different_chrom = IntField()
+    qc_failed = IntField()
+    read_1 = IntField()
+    read_2 = IntField()
+    reads_map_minus = IntField()
+    reads_map_plus = IntField()
+    reads_mapped_proper_pairs = IntField()
+    splice_reads = IntField()
+    total_records = IntField()
+    unique = IntField()
+    unmapped_reads = IntField()
+
+
+class InferExperiment(EmbeddedDocument):
+    same_strand = FloatField()
+    opposite_strand = FloatField()
+    undetermined = FloatField()
+
+
+class Hisat2(EmbeddedDocument):
+    """Container for Hisat2 alignemnt summary output.
+
+    https://ccb.jhu.edu/software/hisat2/manual.shtml#alignment-summary
+    """
+    num_reads = IntField()
+    num_reads_paired = IntField()
+    num_reads_unpaired = IntField()
+    num_reads_unaligned = IntField()
+    num_reads_uniquely_aligned = IntField()
+    num_multimappers = IntField()
+    num_reads_aligned_discordantly = IntField()
+    num_unaligned_mates = IntField()
+    num_uniquely_algined_mates = IntField()
+    num_multimappers_mates = IntField()
+    per_alignment = FloatField()
+
+
+class SamtoolsStats(EmbeddedDocument):
+    """The SN fields from samtools stats."""
+    raw_total_sequences = IntField()
+    filtered_sequences = IntField()
+    sequences = IntField()
+    is_sorted = IntField()
+    1st_fragments = IntField()
+    last_fragments = IntField()
+    reads_mapped = IntField()
+    reads_mapped_and_paired = IntField()
+    reads_unmapped = IntField()
+    reads_properly_paired = IntField()
+    reads_paired = IntField()
+    reads_duplicated = IntField()
+    reads_MQ0 = IntField()
+    reads_QC_failed = IntField()
+    non-primary_alignments = IntField()
+    total_length = IntField()
+    bases_mapped = IntField()
+    bases_mapped_(cigar) = IntField()
+    bases_trimmed = IntField()
+    bases_duplicated = IntField()
+    mismatches = IntField()
+    error_rate = FloatField()
+    average_length = FloatField()
+    maximum_length = IntField()
+    average_quality = FloatField()
+    insert_size_average = FloatField()
+    insert_size_standard_deviation = FloatField()
+    inward_oriented_pairs = IntField()
+    outward_oriented_pairs = IntField()
+    pairs_with_other_orientation = IntField()
+    pairs_on_different_chromosomes = IntField()
+
+
+class CollectRNAseqMetrics(EmbeddedDocument):
+    PF_BASES = IntField()
+    PF_ALIGNED_BASES = IntField()
+    RIBOSOMAL_BASES = IntField()
+    CODING_BASES = IntField()
+    UTR_BASES = IntField()
+    INTRONIC_BASES = IntField()
+    INTERGENIC_BASES = IntField()
+    IGNORED_READS = IntField()
+    CORRECT_STRAND_READS = IntField()
+    INCORRECT_STRAND_READS = IntField()
+    PCT_RIBOSOMAL_BASES = FloatField()
+    PCT_CODING_BASES = FloatField()
+    PCT_UTR_BASES = FloatField()
+    PCT_INTRONIC_BASES = FloatField()
+    PCT_INTERGENIC_BASES = FloatField()
+    PCT_MRNA_BASES = FloatField()
+    PCT_USABLE_BASES = FloatField()
+    PCT_CORRECT_STRAND_READS = FloatField()
+    MEDIAN_CV_COVERAGE = FloatField()
+    MEDIAN_5PRIME_BIAS = FloatField()
+    MEDIAN_3PRIME_BIAS = FloatField()
+    MEDIAN_5PRIME_TO_3PRIME_BIAS = FloatField()
+    SAMPLE = StringField()
+    LIBRARY = StringField()
+    READ_GROUP = StringField()
+
+
+class MarkDuplicates(EmbeddedDocument):
+    LIBRARY = StringField()
+    UNPAIRED_READS_EXAMINED = IntField()
+    READ_PAIRS_EXAMINED = IntField()
+    SECONDARY_OR_SUPPLEMENTARY_RDS = IntField()
+    UNMAPPED_READS = IntField()
+    UNPAIRED_READ_DUPLICATES = IntField()
+    READ_PAIR_DUPLICATES = IntField()
+    READ_PAIR_OPTICAL_DUPLICATES = IntField()
+    PERCENT_DUPLICATION = FloatField()
+    ESTIMATED_LIBRARY_SIZE = IntField()
+
+
+class FeatureCounts(EmbeddedDocument):
+    Assigned = IntField()
+    Assigned_Junction = IntField()
+    Unassigned_Ambiguity = IntField()
+    Unassigned_MultiMapping = IntField()
+    Unassigned_NoFeatures = IntField()
+    Unassigned_Unmapped = IntField()
+    Unassigned_MappingQuality = IntField()
+    Unassigned_FragmentLength = IntField()
+    Unassigned_Chimera = IntField()
+    Unassigned_Secondary = IntField()
+    Unassigned_Nonjunction = IntField()
+    Unassigned_Duplicate = IntField()
+
+
+class PreAlignmentWorkflow(EmbeddedDocument):
+    hisat2 = EmbeddedDocumentField(Hisat2)
+    samtools_stats = EmbeddedDocumentField(SamtoolsStats)
+    fastq_screen = MapFied(FastqScreen)
+    infer_experiment = EmbeddedDocumentField(InferExperiment)
+    bam_stat = EmbeddedDocumentField(BamStat)
+    picard_collectrnaseqmetrics = MapField(EmbeddedDocumentField(CollectRNAseqMetrics))
+    picard_markduplicates = EmbeddedDocumentField(MarkDuplicates)
+    featurecounts = EmbeddedDocumentField(FeatureCounts)
+
+
+class AlignmentWorkflow(EmbeddedDocument):
+    hisat2 = EmbeddedDocumentField(Hisat2)
+    samtools_stats = EmbeddedDocumentField(SamtoolsStats)
+
 
 class Remap(Document):
     """Drosophila remap data base schema.
@@ -120,3 +287,5 @@ class Remap(Document):
     papers = ListField(EmbeddedDocumentField(Pubmed), default=list)
     contacts = ListField(EmbeddedDocumentField(Contacts), default=list)
     pre_aln_flags = ListField(StringField(), default=list)
+    pre_aln_workflow = EmbeddedDocument(PreAlignmentWorkflow)
+    aln_workflow = EmbeddedDocument(AlignmentWorkflow)
