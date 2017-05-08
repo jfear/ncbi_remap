@@ -2,6 +2,7 @@
 # vim: set ft=python.snakemake
 import os
 import sys
+from pathlib import Path
 
 import pandas as pd
 from pymongo import MongoClient
@@ -93,6 +94,7 @@ patterns = {
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        'db': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.done',
     },
     'bai': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'feature_counts': {
@@ -100,6 +102,7 @@ patterns = {
         'summary': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.counts.summary',
     },
     'samtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_stats_db': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats.done',
     'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
@@ -108,6 +111,7 @@ patterns = {
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 targets = helpers.fill_patterns(patterns, sample_table)
 
+localrules: hisat2_db
 
 rule targets:
     input:
@@ -115,7 +119,10 @@ rule targets:
         utils.flatten(targets['feature_counts']) +
         utils.flatten(targets['hisat2']) +
         utils.flatten(targets['atropos_agg']) +
-        [targets['samtools_stats'], targets['samtools_idxstats'], targets['bamtools_stats']]
+        [targets['samtools_stats'],
+         targets['samtools_stats_db'],
+         targets['samtools_idxstats'],
+         targets['bamtools_stats']]
 
 
 ################################################################################
@@ -217,6 +224,27 @@ rule hisat2_fastq:
     wrapper: wrapper_for('hisat2/align')
 
 
+rule hisat2_db:
+    input:
+        fn=patterns['hisat2']['bam'] + '.log'
+    output:
+        done=patterns['hisat2']['db']
+    run:
+        from ncbi_remap.parser import parse_hisat2_pe
+        srr = wildcards.sample
+        df = parse_hisat2_pe(srr, input.fn)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.aln_workflow.hisat2': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()
+
+
 rule bai:
     input: bam='{prefix}.bam'
     output: bai='{prefix}.bam.bai'
@@ -275,3 +303,24 @@ rule run_stats:
         '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
+
+rule samtools_stats_db:
+    input:
+        fn=patterns['samtools_stats']
+    output:
+        done=patterns['samtools_stats_db']
+    run:
+        from ncbi_remap.parser import parse_samtools_stats
+        srr = wildcards.sample
+        df = parse_samtools_stats(srr, input.fn)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.aln_workflow.samtools_stats': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()
+

@@ -35,6 +35,19 @@ def wrapper_for(path):
     URI = '../lcdb-wf/wrappers/wrappers'
     return 'file:' + os.path.join(URI, path)
 
+
+def get_strand(srr):
+    """Check strandedsess."""
+    flags = remap.find_one({'runs.srr': srr}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
+
+    if 'same_strand' in flags:
+        return 'same_strand'
+    elif 'opposite_strand' in flags:
+        return 'opposite_strand'
+    else:
+        return 'unstranded'
+
+
 ################################################################################
 # Build Sample Table
 ################################################################################
@@ -50,13 +63,17 @@ with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
 with open('../data/modEncode_srrs.txt', 'r') as fh:
     modEncode = [x.strip() for x in fh.readlines()]
 
+# s2 SRRs
+with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
+    s2 = [x.strip() for x in fh.readlines()]
+
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': modEncode}},
+                {'runs.srr': {'$in': s2}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
                 {'runs.pre_aln_flags': 'PE'}
@@ -85,28 +102,25 @@ fastqs = {
 
 patterns = {
     'fastq_screen': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.clean_screen.txt',
+        'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.done',
     },
     'fastqc': {
-        'r1': {
-            'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.html',
-            'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.zip',
-        },
-        'r2': {
-            'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2_fastqc.html',
-            'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2_fastqc.zip',
-        },
+        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.html',
+        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.zip',
     },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.done',
     },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
+        'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt.done',
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
+        'infer_experiment_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt.done',
     },
     'dupradar': {
         'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.density_scatter.png',
@@ -119,18 +133,15 @@ patterns = {
         'curve': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.curve.txt',
     },
     'feature_counts': {
-        'first': {
-            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
-            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
-        },
-        'second': {
-            'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts',
-            'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.fq.bam.counts.summary',
-        },
+        'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
+        'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.jcounts',
+        'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.done',
     },
     'picard': {
         'collectrnaseqmetrics': {
             'metrics': {
+                'unstranded': '../output/prealignment/raw/{experiment}/{sample}/{sample}_NONE.fq.bam.picard.collectrnaseqmetrics',
                 'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}_FIRST_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
                 'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}_SECOND_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
             },
@@ -138,18 +149,24 @@ patterns = {
         'markduplicates': {
             'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
             'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics',
+            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics.done',
         },
     },
     'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
+    'samtools_stats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats.done',
     'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
 }
 
-localrules: check_results, bai
+
+localrules:
+    check_results, bai, fastq_screen_db, hisat2_db,
+    infer_experiment_db, bam_stat_db, samtools_stats_db
 
 
 rule targets:
     input: utils.flatten(targets)
+
 
 rule check_results:
     input:
@@ -159,20 +176,14 @@ rule check_results:
         utils.flatten(patterns['feature_counts']) +
         utils.flatten(patterns['picard']) +
         utils.flatten(patterns['fastq_screen']) +
-        [patterns['samtools_stats'], patterns['samtools_idxstats'], patterns['bamtools_stats']]
+        [
+            patterns['samtools_stats_db'],
+            patterns['samtools_idxstats'],
+            patterns['bamtools_stats'],
+        ]
     output: all_complete['files']
     params: infer=patterns['rseqc']['infer_experiment']
     run:
-        # check strandedness
-        inferPE = parse_inferExperiment(wildcards.sample, params.infer)
-
-        if inferPE.ix[0, 'Fraction of reads explained by "1++,1--,2+-,2-+"'] > 0.75:
-            strand_type = 'first_strand'
-        elif inferPE.ix[0, 'Fraction of reads explained by "1+-,1-+,2++,2--"'] > 0.75:
-            strand_type = 'second_strand'
-        else:
-            strand_type = 'unstranded'
-
         # Update database
         remap.find_one_and_update(
             {'runs.srr': wildcards.sample},
@@ -186,27 +197,17 @@ rule check_results:
 ################################################################################
 # FASTQ QC
 ################################################################################
-rule fastqc_r1:
+rule fastqc:
     input: fastqs['r1']
     output:
-        html=patterns['fastqc']['r1']['html'],
-        zip=patterns['fastqc']['r1']['zip']
+        html=patterns['fastqc']['html'],
+        zip=patterns['fastqc']['zip']
     params: extra="--format fastq"
-    log: patterns['fastqc']['r1']['html'] + '.log'
+    log: patterns['fastqc']['html'] + '.log'
     wrapper: wrapper_for('fastqc')
 
 
-rule fastqc_r2:
-    input: fastqs['r2']
-    output:
-        html=patterns['fastqc']['r2']['html'],
-        zip=patterns['fastqc']['r2']['zip']
-    params: extra="--format fastq"
-    log: patterns['fastqc']['r2']['html'] + '.log'
-    wrapper: wrapper_for('fastqc')
-
-
-rule fastq_screen_r1:
+rule fastq_screen:
     input:
         fastq=fastqs['r1'],
         dm6=config['references']['dmel']['bowtie2'],
@@ -218,26 +219,32 @@ rule fastq_screen_r1:
         phix=config['references']['phix']['bowtie2'],
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
-    output: txt=patterns['fastq_screen']['r1']
-    log: patterns['fastq_screen']['r1'] + '.log'
+    output: txt=patterns['fastq_screen']['txt']
+    log: patterns['fastq_screen']['txt'] + '.log'
     wrapper: wrapper_for('fastq_screen')
 
 
-rule fastq_screen_r2:
+rule fastq_screen_db:
     input:
-        fastq=fastqs['r2'],
-        dm6=config['references']['dmel']['bowtie2'],
-        hg19=config['references']['human']['bowtie2'],
-        wolbachia=config['references']['wolbachia']['bowtie2'],
-        ecoli=config['references']['ecoli']['bowtie2'],
-        yeast=config['references']['yeast']['bowtie2'],
-        rRNA=config['references']['rRNA']['bowtie2'],
-        phix=config['references']['phix']['bowtie2'],
-        ercc=config['references']['ercc']['bowtie2'],
-        adapters=config['references']['adapters']['bowtie2']
-    output: txt=patterns['fastq_screen']['r2']
-    log: patterns['fastq_screen']['r2'] + '.log'
-    wrapper: wrapper_for('fastq_screen')
+        fn=patterns['fastq_screen']['txt']
+    output:
+        done=patterns['fastq_screen']['db']
+    run:
+        from ncbi_remap.parser import parse_fastq_screen
+        srr = wildcards.sample
+        df = parse_fastq_screen(srr, input.fn)
+        df2 = {k[0]: {'_'.join(k[1:]): v} for k, v in df.to_dict('index')[srr].items()}
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.fastq_screen': df2
+                }
+            }
+        )
+
+        Path(output.done).touch()
+
 
 ################################################################################
 # Alignment
@@ -261,6 +268,27 @@ rule hisat2_fastq:
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
+
+
+rule hisat2_db:
+    input:
+        fn=patterns['hisat2']['bam'] + '.log'
+    output:
+        done=patterns['hisat2']['db']
+    run:
+        from ncbi_remap.parser import parse_hisat2
+        srr = wildcards.sample
+        df = parse_hisat2(srr, input.fn)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.hisat2': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()
 
 
 rule bai:
@@ -293,11 +321,65 @@ rule infer_experiment:
     wrapper: wrapper_for('rseqc/infer_experiment')
 
 
+rule infer_experiment_db:
+    input:
+        fn=patterns['rseqc']['infer_experiment']
+    output:
+        done=patterns['rseqc']['infer_experiment_db']
+    run:
+        from ncbi_remap.parser import parse_inferExperiment
+        srr = wildcards.sample
+        df = parse_inferExperiment(srr, input.fn)
+
+        if df.ix[0, 'same_strand'] > 0.75:
+            strand_type = 'same_strand'
+        elif df.ix[0, 'opposite_strand'] > 0.75:
+            strand_type = 'opposite_strand'
+        else:
+            strand_type = 'unstranded'
+
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.infer_expeirment': df.to_dict('index')[srr]
+                },
+                '$addToSet': {
+                    'runs.$.pre_aln_flags': strand_type]
+                }
+            }
+        )
+
+        Path(output.done).touch()
+
+
 rule bam_stat:
     input: bam=patterns['hisat2']['bam'],
     output: txt=patterns['rseqc']['bam_stat']
     log: patterns['rseqc']['bam_stat'] + '.log'
     wrapper: wrapper_for('rseqc/bam_stat')
+
+
+rule bam_stat_db:
+    input:
+        fn=patterns['rseqc']['bam_stat']
+    output:
+        done=patterns['rseqc']['bam_stat_db']
+    run:
+        from ncbi_remap.parser import parse_bamStat
+        srr = wildcards.sample
+        df = parse_bamStat(srr, input.fn)
+
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.bam_stat': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()
 
 
 ################################################################################
@@ -323,26 +405,60 @@ rule dupRadar:
 ################################################################################
 # Feature Counts
 ################################################################################
-rule featurecounts_first:
+def _params_featurecounts(wildcards):
+    """Determine strandedness and pass correct settings."""
+    strand = get_strand(wildcards.sample)
+    base = '-J '
+
+    if strand == 'same_strand':
+        return base + '-s 1'
+    elif strand == 'opposite_strand':
+        return base + '-s 2'
+    else:
+        return base + '-s 0'
+
+
+rule featurecounts:
     input:
         annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam']
+        bam=patterns['hisat2']['bam'],
+        db=patterns['rseqc']['infer_experiment_db']
     output:
-        counts=patterns['feature_counts']['first']['counts'],
-        summary=patterns['feature_counts']['first']['summary']
-    params: extra='-s 1'
+        counts=patterns['feature_counts']['counts'],
+        jcounts=patterns['feature_counts']['jcounts'],
+        summary=patterns['feature_counts']['summary']
+    params: extra=_params_featurecounts
+    threads: 4
+    log: patterns['feature_counts']['counts'] + '.log'
     wrapper: wrapper_for('featurecounts')
 
 
-rule featurecounts_second:
+rule featurecounts_db:
     input:
-        annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam']
+        jcount=patterns['feature_counts']['jcounts'],
+        summary=patterns['feature_counts']['summary']
     output:
-        counts=patterns['feature_counts']['second']['counts'],
-        summary=patterns['feature_counts']['second']['summary']
-    params: extra='-s 2'
-    wrapper: wrapper_for('featurecounts')
+        done=patterns['feature_counts']['db']
+    run:
+        from ncbi_remap.parser import parse_featureCounts_jcounts, parse_featureCounts_summary
+        srr = wildcards.sample
+        dfJ = parse_featureCounts_jcounts(srr, input.jcount)
+        num_junction_reads = df.loc[~df.PrimaryGene.isnull(), 'count'].sum()
+
+        dfS = parse_featureCounts_jcounts(srr, input.summary)
+        summary = dfS.to_dict('index')[srr]
+        summary['Assigned_Junction'] = num_junction_reads
+
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.featurecounts': summary
+                }
+            }
+        )
+
+        Path(output.done).touch()
 
 
 ################################################################################
@@ -367,9 +483,40 @@ rule run_stats:
         '&& rm $BAM'
 
 
+rule samtools_stats_db:
+    input:
+        fn=patterns['samtools_stats']
+    output:
+        done=patterns['samtools_stats_db']
+    run:
+        from ncbi_remap.parser import parse_samtools_stats
+        srr = wildcards.sample
+        df = parse_samtools_stats(srr, input.fn)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.samtools_stats': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()
+
+
 ################################################################################
 # PICARD RNA Seq Metrics
 ################################################################################
+rule collectrnaseqmetrics_unstrand:
+    input:
+        bam=patterns['hisat2']['bam'],
+        refflat=config['references']['dmel']['refflat']
+    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
+    params: extra='STRAND=NONE'
+    log: patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
+    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+
+
 rule collectrnaseqmetrics_first:
     input:
         bam=patterns['hisat2']['bam'],
@@ -390,6 +537,35 @@ rule collectrnaseqmetrics_second:
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
 
 
+rule collectrnaseqmetrics_db:
+    input:
+        unstranded=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
+        first=patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
+        second=patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
+    output:
+        done=patterns['picard']['collectrnaseqmetrics']['db']
+    run:
+        from ncbi_remap.parser import parse_picardCollect_summary
+        srr = wildcards.sample
+        dfU = parse_picardCollect_summary(srr, input.unstranded)
+        dfF = parse_picardCollect_summary(srr, input.first)
+        dfS = parse_picardCollect_summary(srr, input.second)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.picard_collectrnaseqmetrics': {
+                        'unstranded': dfU.to_dict('index')[srr],
+                        'first': dfF.to_dict('index')[srr],
+                        'second': dfS.to_dict('index')[srr],
+                    },
+                }
+            }
+        )
+
+        Path(output.done).touch()
+
+
 rule markduplicates:
     input: bam=patterns['hisat2']['bam']
     output:
@@ -399,3 +575,24 @@ rule markduplicates:
         java_args='-Xmx15g'
     log: patterns['picard']['markduplicates']['metrics'] + '.log'
     wrapper: wrapper_for('picard/markduplicates')
+
+
+rule markduplicates_db:
+    input:
+        fn=patterns['picard']['markduplicates']['metrics'],
+    output:
+        done=patterns['picard']['markduplicates']['db']
+    run:
+        from ncbi_remap.parser import parse_picard_markduplicate_metrics
+        srr = wildcards.sample
+        df = parse_picard_markduplicate_metrics(srr, input.fn)
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.picard_markduplicates': df.to_dict('index')[srr]
+                }
+            }
+        )
+
+        Path(output.done).touch()

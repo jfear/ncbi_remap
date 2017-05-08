@@ -67,7 +67,7 @@ with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
 samples = remap.aggregate([
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': s2},
+        'runs.srr': {'$in': mieg},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
