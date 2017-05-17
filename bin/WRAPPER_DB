@@ -3,7 +3,7 @@
 #SBATCH --partition="niddk,norm"
 #SBATCH --cpus-per-task=4
 #SBATCH --time=240:00:00
-#SBATCH --mem=3G
+#SBATCH --mem=6G
 #SBATCH --output=../output/logs/mongo_db-%j.out
 #SBATCH --error=../output/logs/mongo_db-%j.out
 source activate ncbi_remap

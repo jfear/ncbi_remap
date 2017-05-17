@@ -90,11 +90,12 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': golden}},
+                {'runs.srr': {'$in': s2}},
+                {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
                 {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
-            ]
+            ],
         }
     },
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
@@ -119,61 +120,51 @@ fastqs = {
 
 patterns = {
     'fastq_screen': {
-        'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.txt',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.clean_screen.done',
+        'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq_screen.txt',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq_screen.done',
     },
     'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1_fastqc.zip',
+        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastqc.html',
+        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastqc.zip',
     },
     'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
-        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.done',
+        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.done',
     },
-    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bai',
+    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bai',
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
-        'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt.done',
+        'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.done',
         'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
-        'infer_experiment_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt.done',
-    },
-    'dupradar': {
-        'density_scatter': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.density_scatter.png',
-        'expression_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_histogram.png',
-        'expression_boxplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_boxplot.png',
-        'expression_barplot': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.expression_barplot.png',
-        'multimapping_histogram': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.multimapping_histogram.png',
-        'dataframe': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.tsv',
-        'model': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.model.txt',
-        'curve': '../output/prealignment/raw/{experiment}/{sample}/{sample}.dupradar.curve.txt',
+        'infer_experiment_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.done',
     },
     'feature_counts': {
-        'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts',
-        'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.jcounts',
-        'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.summary',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fq.bam.counts.done',
+        'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts',
+        'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.jcounts',
+        'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.summary',
+        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.done',
     },
     'picard': {
         'collectrnaseqmetrics': {
             'metrics': {
-                'unstranded': '../output/prealignment/raw/{experiment}/{sample}/{sample}_NONE.fq.bam.picard.collectrnaseqmetrics',
-                'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}_FIRST_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
-                'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}_SECOND_READ_TRANSCRIPTION_STRAND.fq.bam.picard.collectrnaseqmetrics',
+                'unstranded': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.NONE.picard.collectrnaseqmetrics',
+                'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
+                'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
             },
-            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.collectrnaseqmetrics.done',
+            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.collectrnaseqmetrics.done',
         },
         'markduplicates': {
-            'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.picard.dups.fq.bam',
-            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics',
-            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.picard.markduplicatesmetrics.done',
+            'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.bam',
+            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.metrics',
+            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.done',
         },
     },
-    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats',
-    'samtools_stats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats.done',
-    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
-    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
+    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats',
+    'samtools_stats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats.done',
+    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.idxstats',
+    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bamtools.stats',
 }
 
 
@@ -186,11 +177,18 @@ localrules:
 rule targets:
     input: utils.flatten(targets)
 
+onsuccess:
+    print('All Finished')
+    mongo_client.close()
+
+onerror:
+    print('Something went wrong, you need to re-run')
+    mongo_client.close()
+
 
 rule check_results:
     input:
 #         utils.flatten(patterns['fastqc']) +
-#         utils.flatten(patterns['dupradar']) +
         [
             patterns['fastq_screen']['db'],
             patterns['hisat2']['db'],
@@ -428,42 +426,26 @@ rule bam_stat_db:
 
 
 ################################################################################
-# DupRadar
-################################################################################
-rule dupRadar:
-    input:
-       bam=patterns['hisat2']['bam'],
-       annotation=config['references']['dmel']['gtf'],
-    output:
-        density_scatter=patterns['dupradar']['density_scatter'],
-        expression_histogram=patterns['dupradar']['expression_histogram'],
-        expression_boxplot=patterns['dupradar']['expression_boxplot'],
-        expression_barplot=patterns['dupradar']['expression_barplot'],
-        multimapping_histogram=patterns['dupradar']['multimapping_histogram'],
-        dataframe=patterns['dupradar']['dataframe'],
-        model=patterns['dupradar']['model'],
-        curve=patterns['dupradar']['curve'],
-    wrapper:
-        wrapper_for('dupradar')
-
-
-################################################################################
 # Feature Counts
 ################################################################################
 def _params_featurecounts(wildcards):
     """Determine strandedness and pass correct settings."""
-    strand = get_strand(wildcards.sample)
-    base = '-J '
+    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
+    if 'PE' in flags:
+        base = '-p -P -C -J '
+    else:
+        base = '-J '
 
-    if strand == 'same_strand':
+    strand = get_strand(wildcards.sample)
+    if strand == 'first_strand':
         return base + '-s 1'
-    elif strand == 'opposite_strand':
+    elif strand == 'second_strand':
         return base + '-s 2'
     else:
         return base + '-s 0'
 
 
-rule featurecounts:
+rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=patterns['hisat2']['bam'],
@@ -478,7 +460,7 @@ rule featurecounts:
     wrapper: wrapper_for('featurecounts')
 
 
-rule featurecounts_db:
+rule feature_counts_db:
     input:
         jcount=patterns['feature_counts']['jcounts'],
         summary=patterns['feature_counts']['summary']
@@ -561,7 +543,9 @@ rule collectrnaseqmetrics_unstrand:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
     output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
-    params: extra='STRAND=NONE'
+    params:
+        extra='STRAND=NONE',
+        java_args='-Xmx15g'
     log: patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
 
@@ -571,7 +555,9 @@ rule collectrnaseqmetrics_first:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
     output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
-    params: extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND'
+    params:
+        extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
+        java_args='-Xmx15g'
     log: patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
 
@@ -581,7 +567,9 @@ rule collectrnaseqmetrics_second:
         bam=patterns['hisat2']['bam'],
         refflat=config['references']['dmel']['refflat']
     output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
-    params: extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND'
+    params:
+        extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND',
+        java_args='-Xmx15g'
     log: patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
 

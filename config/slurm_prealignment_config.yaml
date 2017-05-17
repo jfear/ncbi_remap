@@ -8,7 +8,22 @@ __default__:
 fastq_screen:
     mem: "8g"
 
+feature_counts:
+    mem: "8g"
+
 markduplicates:
+    mem: "20g"
+    time: "48:00:00"
+
+collectrnaseqmetrics_unstrand:
+    mem: "20g"
+    time: "48:00:00"
+
+collectrnaseqmetrics_first:
+    mem: "20g"
+    time: "48:00:00"
+
+collectrnaseqmetrics_second:
     mem: "20g"
     time: "48:00:00"
 
@@ -16,3 +31,8 @@ hisat2:
     mem: "34g"
     time: "24:00:00"
     gres: "lscratch:200"
+
+infer_experiment:
+    mem: "12g"
+    gres: "lscratch:200"
+
