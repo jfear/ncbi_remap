@@ -4,6 +4,7 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from pymongo import MongoClient
 
@@ -19,7 +20,7 @@ TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '../.pe-alignment'
+workdir: '../.alignment'
 
 # import config
 configfile: '../config/prealignment_config.yaml'
@@ -55,14 +56,17 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': golden}},
-                {'runs.pre_aln_flags': 'complete'}
+                {'runs.srr': {'$in': s2}},
+                {'runs.pre_aln_flags': 'complete'},
+                {'runs.aln_flags': {'$ne': 'complete'}},
+                {'runs.aln_flags': {'$ne': 'alignment_bad'}},
             ]
         }
     },
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
+    {'$limit': 400},
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -81,14 +85,6 @@ patterns = {
         'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
     },
-    'fastq_atropos_count': {
-        'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz.libsize',
-        'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz.libsize',
-    },
-    'atropos_agg': {
-        'summary': '../output/alignment/atropos_se_summary.tsv',
-        'counts': '../output/alignment/atropos_se_counts.tsv',
-    },
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam',
@@ -106,21 +102,43 @@ patterns = {
 }
 
 # Build target files
-targets = helpers.fill_patterns(patterns, sample_table)
+all_complete = {'files': '../output/alignment/raw/{experiment}/{sample}/{sample}.done'}
+targets = helpers.fill_patterns(all_complete, sample_table)
+#targets = helpers.fill_patterns(patterns, sample_table)
 
 localrules: hisat2_db
 
 rule targets:
-    input:
-        utils.flatten(targets['fastq_atropos_count']) +
-        utils.flatten(targets['feature_counts']) +
-        utils.flatten(targets['hisat2']) +
-        utils.flatten(targets['atropos_agg']) +
-        [targets['samtools_stats'],
-         targets['samtools_stats_db'],
-         targets['samtools_idxstats'],
-         targets['bamtools_stats']]
+    input: utils.flatten(targets)
+    #input: targets['atropos']['r1']
 
+onsuccess:
+    print('All Finished')
+    mongo_client.close()
+
+onerror:
+    print('Something went wrong, you need to re-run')
+    mongo_client.close()
+
+
+rule check_results:
+    input:
+        utils.flatten(patterns['feature_counts']) +
+        [
+            patterns['samtools_stats_db'],
+            patterns['samtools_idxstats'],
+            patterns['bamtools_stats'],
+        ]
+    output: all_complete['files']
+    run:
+        # Update database
+        remap.find_one_and_update(
+            {'runs.srr': wildcards.sample},
+            {'$addToSet': {'runs.$.aln_flags': 'complete'}}
+        )
+
+        # Touch dummy file for snakemake
+        Path(output[0]).touch()
 
 ################################################################################
 # Fuctions
@@ -163,48 +181,51 @@ def clean_types(dic):
 # FASTQ Pre-process
 ################################################################################
 def _atropos(wildcards):
-    """Determine strandedness and pass correct settings."""
+    """Determine if the sample is PE or SE"""
     flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
     if 'PE' in flags:
         return {'R1': expand(fastqs['r1'], **wildcards)[0], 'R2': expand(fastqs['r2'], **wildcards)[0]}
     else:
-        return {'fastq': expand(fastqs['r1'], **wildcards)[0]}
+        return {'R1': expand(fastqs['r1'], **wildcards)[0]}
 
 
-def _output_atropos(wildcards):
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
-        return {'R1': temp(expand(patterns['atropos']['r1'], **wildcards)[0]), 'R2': temp(expand(patterns['atropos']['r2'], **wildcards)[0])}
-    else:
-        return {'fastq': temp(expand(patterns['atropos']['r1'], **wildcards)[0])}
-
-
-def _params_atropos(wildcards):
+def _params_extra_atropos(wildcards):
     """Determine strandedness and pass correct settings."""
     flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
     if 'PE' in flags:
-        return '-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20'
+        return '-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25'
     else:
-        return '-a file:../data/adapters.fa -q 20'
+        return '-a file:../data/adapters.fa -q 20 --minimum-length 25'
+
+
+def _params_r2_atropos(wildcards):
+    """Determine strandedness and pass correct settings."""
+    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
+    if 'PE' in flags:
+        return expand(patterns['atropos']['r2'], **wildcards)[0] + '.tmp.gz'
+    else:
+        return None
 
 
 rule atropos:
-    input:
-        unpack(_atropos)
+    input: unpack(_atropos)
     output:
-        unpack(_output_atropos)
+        R1=temp(patterns['atropos']['r1'])
     params:
-        extra=_params_atropos
+        extra=_params_extra_atropos,
+        R2=_params_r2_atropos
     log:
         patterns['atropos']['r1'] + '.log'
     threads: 8
     wrapper: wrapper_for('atropos')
 
 
-rule fastq_count:
-    input: '{prefix}.fastq.gz'
-    output: '{prefix}.fastq.gz.libsize'
-    shell: 'gunzip -c {input} | echo $((`wc -l`/4)) > {output}'
+rule atropos_phony:
+    input: rules.atropos.output
+    output: temp(patterns['atropos']['r2'])
+    shell: """
+    mv {output[0]}.tmp.gz {output[0]}
+    """
 
 
 ################################################################################
@@ -227,12 +248,20 @@ def _hisat2(wildcards):
 def _params_hisat2_fastq(wildcards):
     base = '--dta --max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
     strand = get_strand(wildcards.sample)
+    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
+
     if strand == 'first_strand':
-        return base + '--rna-strandness FR'
+        if 'PE' in flags:
+            return base + '--rna-strandness FR'
+        else:
+            return base + '--rna-strandness F'
     elif strand == 'second_strand':
-        return base + '--rna-strandness RF'
-    else:
-        return base
+        if 'PE' in flags:
+            return base + '--rna-strandness RF'
+        else:
+            return base + '--rna-strandness R'
+
+    return base
 
 
 rule hisat2:
@@ -268,6 +297,16 @@ rule hisat2_db:
                 }
             }
         )
+
+        if df.ix[0, 'per_alignment'] < .20:
+            remap.update_one(
+                {'runs.srr': srr},
+                {
+                    '$addToSet': {
+                        'runs.$.aln_flags': 'alignment_bad'
+                    }
+                }
+            )
 
         Path(output.done).touch()
 
