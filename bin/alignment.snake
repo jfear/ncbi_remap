@@ -202,7 +202,7 @@ def _params_extra_atropos(wildcards):
 
 
 def _params_r2_atropos(wildcards):
-    """Determine strandedness and pass correct settings."""
+    """Determine if the sample is PE or SE and return a temp R2 if PE."""
     flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
     if 'PE' in flags:
         return expand(patterns['atropos']['r2'], **wildcards)[0] + '.tmp.gz'
