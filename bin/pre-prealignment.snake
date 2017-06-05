@@ -63,21 +63,24 @@ with open('../data/modEncode_srrs.txt', 'r') as fh:
 with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
+with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
+    s2_2 = [x.strip() for x in fh.readlines()]
+
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
+    {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': mieg},
+        'runs.srr': {'$in': s2_2 + s2 + golden},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
             ],
         }
     },
-    {'$unwind': '$runs'},
     {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 300},
+    {'$limit': 100},
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -220,7 +223,7 @@ def actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen
             })
 
 
-def downloadBad(sample, R1Libsize, R1avgLen, R1md5, R2Libsize=None, R2avgLen=None, R2md5=None):
+def downloadBad(sample, output, R1Libsize, R1avgLen, R1md5, R2Libsize=None, R2avgLen=None, R2md5=None):
     """Something went wrong.
 
     There are just some entries that don't download right. Either they are
@@ -240,7 +243,7 @@ def downloadBad(sample, R1Libsize, R1avgLen, R1md5, R2Libsize=None, R2avgLen=Non
                     'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
                 }
             })
-    shell("touch {output.fastq}")
+    shell("touch {output}".format(output=output))
 
 
 """Downloads fastq and checks if there is one or two sets of reads."""
@@ -277,7 +280,7 @@ rule fastq_dump:
                 # Only R2 looks ok, consider single-end, symlink R2 to R1 for proper workflow.
                 actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5, link=True)
             else:
-                downloadBad(sample, odir, R1, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+                downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
 
         # Single-end
         elif check_fastq(os.path.join(TMPDIR, R1)):
@@ -290,4 +293,4 @@ rule fastq_dump:
             # Copy and Add to database
             singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5)
         else:
-            downloadBad(sample, R1Libsize, R1avgLen, R1md5)
+            downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5)

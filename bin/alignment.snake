@@ -50,13 +50,16 @@ with open('../data/modEncode_srrs.txt', 'r') as fh:
 with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
+with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
+    s2_2 = [x.strip() for x in fh.readlines()]
+
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': s2}},
+                {'runs.srr': {'$in': s2 + s2_2 + golden}},
                 {'runs.pre_aln_flags': 'complete'},
                 {'runs.aln_flags': {'$ne': 'complete'}},
                 {'runs.aln_flags': {'$ne': 'alignment_bad'}},
@@ -104,17 +107,17 @@ patterns = {
 # Build target files
 all_complete = {'files': '../output/alignment/raw/{experiment}/{sample}/{sample}.done'}
 targets = helpers.fill_patterns(all_complete, sample_table)
-#targets = helpers.fill_patterns(patterns, sample_table)
 
 localrules: hisat2_db
 
 rule targets:
     input: utils.flatten(targets)
-    #input: targets['atropos']['r1']
+
 
 onsuccess:
     print('All Finished')
     mongo_client.close()
+
 
 onerror:
     print('Something went wrong, you need to re-run')
@@ -246,7 +249,7 @@ def _hisat2(wildcards):
 
 
 def _params_hisat2_fastq(wildcards):
-    base = '--dta --max-intronlen 300000 --known-splicesite-infile {input.splice_sites} '
+    base = '--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=patterns['hisat2']['splice_sites'])
     strand = get_strand(wildcards.sample)
     flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
 
@@ -395,4 +398,3 @@ rule samtools_stats_db:
         )
 
         Path(output.done).touch()
-

@@ -84,16 +84,20 @@ with open('../data/modEncode_srrs.txt', 'r') as fh:
 with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
+with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
+    s2_2 = [x.strip() for x in fh.readlines()]
+
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': mieg}},
+                {'runs.srr': {'$in': s2 + s2_2 + golden + modEncode + mieg}},
                 {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
+                {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
                 {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
             ],
         }
@@ -101,7 +105,7 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 400}
+    {'$limit': 200}
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -348,7 +352,7 @@ rule hisat2:
     output: bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
-        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {input.splice_sites}',
+        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper: wrapper_for('hisat2/align')
