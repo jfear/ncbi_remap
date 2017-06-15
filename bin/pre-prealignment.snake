@@ -71,7 +71,7 @@ samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': s2_2 + s2 + golden},
+        'runs.srr': {'$in': mieg},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
@@ -80,7 +80,7 @@ samples = remap.aggregate([
     },
     {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 100},
+    {'$limit': 1000},
 ])
 
 sample_table = pd.DataFrame(list(samples))

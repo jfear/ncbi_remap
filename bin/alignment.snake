@@ -59,7 +59,7 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': s2 + s2_2 + golden}},
+                {'runs.srr': {'$in': modEncode}},
                 {'runs.pre_aln_flags': 'complete'},
                 {'runs.aln_flags': {'$ne': 'complete'}},
                 {'runs.aln_flags': {'$ne': 'alignment_bad'}},
