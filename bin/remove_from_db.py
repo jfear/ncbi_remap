@@ -10,7 +10,7 @@ remap = db['remap']
 
 
 def remove_prealn(srr):
-    remap.find_one_and_update({'runs.srr': srr}, {
+    res = remap.find_one_and_update({'runs.srr': srr}, {
         '$set': {
             'runs.$.pre_aln_flags': [],
             'runs.$.pre_aln_workflow': {},
@@ -18,3 +18,4 @@ def remove_prealn(srr):
             'runs.$.avgReadLen': {},
             'runs.$.md5': {},
         }})
+    return res

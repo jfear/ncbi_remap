@@ -47,32 +47,86 @@ with open('../data/modEncode_srrs.txt', 'r') as fh:
     modEncode = [x.strip() for x in fh.readlines()]
 
 # s2 SRRs
-with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
+with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
-with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
-    s2_2 = [x.strip() for x in fh.readlines()]
-
-samples = remap.aggregate([
-    {'$unwind': '$runs'},
+samples = list(remap.aggregate([
+    # Pull out an initial set of SRXs
     {
         '$match': {
             '$and': [
+                {'aln_flags': {'$ne': 'complete'}},
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': modEncode}},
-                {'runs.pre_aln_flags': 'complete'},
-                {'runs.aln_flags': {'$ne': 'complete'}},
+                {'runs.srr': {'$in': mieg}},
+            ]
+        }
+    },
+    {'$sort': {'_id': 1}},
+    {'$limit': 500},
+
+    # Drop SRRs that have problems
+    {'$unwind': '$runs'},
+    {
+        '$match':{
+            '$and': [
+                {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
+                {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
+                {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
                 {'runs.aln_flags': {'$ne': 'alignment_bad'}},
             ]
         }
     },
-    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
-    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
-    {'$sort': {'sample': 1}},
-    {'$limit': 400},
-])
+    {
+        '$group': {
+            '_id': '$_id',
+            'runs': {'$push': '$runs'},
 
-sample_table = pd.DataFrame(list(samples))
+        }
+    },
+
+    # Figure out how many SRRs there are per SRX
+    {
+        '$project': {
+            '_id': 1,
+            'runs': 1,
+            'num_runs': {'$size': '$runs'},
+        }
+    },
+
+    # Figure out how many SRRs are ready
+    {'$unwind': '$runs'},
+    {
+        '$match': {
+            'runs.pre_aln_flags': 'complete',
+        }
+    },
+    {
+        '$group': {
+            '_id': '$_id',
+            'num_good_runs': {'$sum': 1},
+            'num_runs': {'$first': '$num_runs'},
+            'srr': {'$addToSet': '$runs.srr'},
+        }
+    },
+
+    # Make sure that all SRRs are ready before runnig the sample
+    {
+        '$project': {
+            '_id': 1,
+            'srr': 1,
+            'all_srrs_ready': {'$cond': [{'$eq': ['$num_good_runs', '$num_runs']}, True, False]}
+        }
+    },
+
+    {'$match': {'all_srrs_ready': True}},
+
+    # Format for sample table
+    {'$unwind': '$srr'},
+    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$srr'}},
+    {'$sort': {'sample': 1}},
+]))
+
+sample_table = pd.DataFrame(samples)
 
 ################################################################################
 # Set up file naming patterns and targets
@@ -84,6 +138,7 @@ fastqs = {
     }
 
 patterns = {
+    # SRR Level Files
     'atropos': {
         'r1': '../output/alignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/alignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
@@ -102,10 +157,23 @@ patterns = {
     'samtools_stats_db': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.stats.done',
     'samtools_idxstats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.samtools.idxstats',
     'bamtools_stats': '../output/alignment/raw/{experiment}/{sample}/{sample}.fq.bam.bamtools.stats',
+
+    # SRX Level Files
+    'bamCoverage': '../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.{strand}.bw',
+    'expFeatureCounts': '../output/alignment/raw/{experiment}/{experiment}.counts',
+    'expBamCoverage': '../output/bigwigs/raw/{experiment}/{experiment}.{strand}.bw',
+
+    # MISC Files
+    'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
 
 # Build target files
-all_complete = {'files': '../output/alignment/raw/{experiment}/{sample}/{sample}.done'}
+all_complete = {
+    'srx': '../output/alignment/raw/{experiment}/{experiment}.done',
+    'srr': '../output/alignment/raw/{experiment}/{sample}/{sample}.done',
+    'bigwig': patterns['expBamCoverage']
+}
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 targets = helpers.fill_patterns(all_complete, sample_table)
 
 localrules: hisat2_db
@@ -124,20 +192,45 @@ onerror:
     mongo_client.close()
 
 
-rule check_results:
+rule check_srr:
     input:
         utils.flatten(patterns['feature_counts']) +
         [
+            patterns['hisat2']['db'],
             patterns['samtools_stats_db'],
             patterns['samtools_idxstats'],
             patterns['bamtools_stats'],
         ]
-    output: all_complete['files']
+    output: all_complete['srr']
     run:
         # Update database
         remap.find_one_and_update(
             {'runs.srr': wildcards.sample},
             {'$addToSet': {'runs.$.aln_flags': 'complete'}}
+        )
+
+        # Touch dummy file for snakemake
+        Path(output[0]).touch()
+
+
+def _check_srx(wildcards):
+    sTable = sample_table[(sample_table['experiment'] == wildcards.experiment)].copy()
+    _patterns = {
+        'srrs': all_complete['srr'],
+        'expBamCoverage': patterns['expBamCoverage'],
+        'expFeatureCounts': patterns['expFeatureCounts'],
+    }
+    return utils.flatten(helpers.fill_patterns(_patterns, sTable))
+
+
+rule check_srx:
+    input: _check_srx
+    output: all_complete['srx']
+    run:
+        # Update database
+        remap.find_one_and_update(
+            {'_id': wildcards.experiment},
+            {'$addToSet': {'aln_flags': 'complete'}}
         )
 
         # Touch dummy file for snakemake
@@ -272,7 +365,7 @@ rule hisat2:
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
         fastq=_hisat2,
-    output: bam=patterns['hisat2']['bam']
+    output: bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
         hisat2_extra=_params_hisat2_fastq,
@@ -316,7 +409,7 @@ rule hisat2_db:
 
 rule bai:
     input: bam='{prefix}.bam'
-    output: bai='{prefix}.bam.bai'
+    output: bai=temp('{prefix}.bam.bai')
     conda: '../config/extra_env.yaml'
     shell: """
     samtools index {input.bam}
@@ -354,6 +447,30 @@ rule featurecounts:
     threads: 4
     log: patterns['feature_counts']['counts'] + '.log'
     wrapper: wrapper_for('featurecounts')
+
+
+def _expFeatureCounts(wildcards):
+    sTable = sample_table[(sample_table['experiment'] == wildcards.experiment)].copy()
+    return utils.flatten(helpers.fill_patterns(dict(fc=patterns['feature_counts']['counts']), sTable))
+
+
+rule expFeatureCounts:
+    input: cnts=_expFeatureCounts
+    output: patterns['expFeatureCounts']
+    run:
+        from ncbi_remap.parser import parse_featureCounts_counts
+        dfs = []
+        for cnt in input.cnts:
+            name = os.path.basename(os.path.dirname(cnt))
+            dfs.append(parse_featureCounts_counts(name, cnt).unstack(level=0))
+
+        if len(dfs) > 1:
+            df = pd.concat(dfs, axis=1)
+        else:
+            df = dfs[0]
+
+        df.to_csv(output[0], sep='\t')
+
 
 
 ################################################################################
@@ -398,3 +515,70 @@ rule samtools_stats_db:
         )
 
         Path(output.done).touch()
+
+
+################################################################################
+# Make Individual BedGraphs
+################################################################################
+def _param_bamCoverage(wildcards):
+    """Get strand information from wildcards."""
+    base = '--outFileFormat bedgraph --binSize 1 '
+    if wildcards.strand == 'first':
+        return base + '--filterRNAstrand forward'
+    elif wildcards.strand == 'second':
+        return base + '--filterRNAstrand reverse'
+
+
+rule bamCoverage:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai']
+    output: temp('../output/bigwigs/raw/{experiment}/{sample}/{sample}.fq.{strand,first|second}.bedgraph')
+    params:
+        extra=_param_bamCoverage
+    threads: 8
+    wrapper: wrapper_for('deeptools/bamCoverage')
+
+
+def _convertBedGraphToBigWig(wildcards):
+    if 'flybase' in wildcards.prefix:
+        return targets['chromSizes_fb']
+    else:
+        return config['references']['dmel']['chromSizes']
+
+
+rule convertBedGraphToBigWig:
+    input:
+        bedgraph='{prefix}.bedgraph',
+        chromSizes=_convertBedGraphToBigWig
+    output:
+        bigwig='{prefix}.bw'
+    conda: '../config/extra_env.yaml'
+    shell:
+        'export LC_COLLATE=C; '
+        'tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
+        '&& rm $tmpBg '
+
+
+################################################################################
+# Merge Experiment BigWigs
+################################################################################
+def _input_expMerge(wildcards):
+    sTable = sample_table[(sample_table['experiment'] == wildcards.experiment) & (sample_table['strand'] == wildcards.strand)].copy()
+    return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bamCoverage']), sTable))
+
+
+rule expMerge:
+    input: _input_expMerge
+    output: bedgraph=temp('../output/bigwigs/raw/{experiment}/{experiment}.{strand,first|second}.bedgraph')
+    conda: '../config/extra_env.yaml'
+    shell:"""
+    inputs=({input})
+    if [ ${{#inputs[@]}} -gt 1 ]; then
+        bigWigMerge {input} {output.bedgraph}
+    else
+        bigWigToBedGraph {input[0]} {output.bedgraph}
+    fi
+    """
