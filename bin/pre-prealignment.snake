@@ -59,19 +59,16 @@ with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
 with open('../data/modEncode_srrs.txt', 'r') as fh:
     modEncode = [x.strip() for x in fh.readlines()]
 
-# modEncode SRRs (1,104)
-with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
-    s2 = [x.strip() for x in fh.readlines()]
-
+# s2 cells (1508)
 with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
-    s2_2 = [x.strip() for x in fh.readlines()]
+    s2 = [x.strip() for x in fh.readlines()]
 
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': mieg},
+#         'runs.srr': {'$in': mieg},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
