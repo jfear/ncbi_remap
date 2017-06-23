@@ -34,7 +34,7 @@ collectrnaseqmetrics_second:
 hisat2:
     mem: "34g"
     time: "24:00:00"
-    gres: "lscratch:200"
+    gres: "lscratch:250"
 
 infer_experiment:
     mem: "12g"

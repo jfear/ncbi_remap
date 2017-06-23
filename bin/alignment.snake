@@ -62,7 +62,7 @@ samples = list(remap.aggregate([
         }
     },
     {'$sort': {'_id': 1}},
-    {'$limit': 500},
+    {'$limit': 1000},
 
     # Drop SRRs that have problems
     {'$unwind': '$runs'},

@@ -56,6 +56,15 @@ Mapping Pipeline
 				[_] modEncode (684)
 				[_] s2 cell data (1,508)
 				[_] remaining (10,991)
+	Other things
+		: Here is a list of other analyses that really need to be added.
+		poly(A) site
+			: Need to find someway to identify poly(A) reads and use them to try to
+			: ID poly(A) sites. I am already trimming poly(A) reads using atropos. I
+			: may need to go back to the origininal reads for this. I wonder if I
+			: could do something where I pull out all of the poly(A) reads from
+			: everything and trim and map those. PE reads would be the challenge.
+
 Metadata Processing
 	Technical
 		[X] Uniqueness of Library
