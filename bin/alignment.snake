@@ -62,7 +62,7 @@ samples = list(remap.aggregate([
         }
     },
     {'$sort': {'_id': 1}},
-    {'$limit': 1000},
+    {'$limit': 5000},
 
     # Drop SRRs that have problems
     {'$unwind': '$runs'},
@@ -71,6 +71,7 @@ samples = list(remap.aggregate([
             '$and': [
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
                 {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
+                {'runs.pre_aln_flags': {'$ne': 'quality_scores_bad'}},
                 {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
                 {'runs.aln_flags': {'$ne': 'alignment_bad'}},
             ]
