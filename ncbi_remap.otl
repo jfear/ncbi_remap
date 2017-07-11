@@ -31,22 +31,22 @@ Sra2Mongo Database Dump
 		[_] clean up documentation
 Mapping Pipeline
 	pre-pre-alignment
-		[_] % download all data (35,382)
+		[_] 50% download all data (35,382)
 			[_] remaining (21,887)
-			[_] % mieg set (13,495)
+			[X] 100% mieg set (13,495)
 				[X] golden (312)
 				[X] modEncode (684)
 				[X] s2 cell data (1,508)
-				[_] remaining (10,991)
+				[X] remaining (10,991)
 					missing 19
 	pre-alignment
-		[_] % pre-align all data (35,382)
+		[_] 50% pre-align all data (35,382)
 			[_] remaining (21,887)
-			[_] % mieg set (13,495)
+			[X] 100% mieg set (13,495)
 				[X] golden (312)
 				[X] modEncode (684)
 				[X] s2 cell data (1,508)
-				[_] remaining (10,991)
+				[X] remaining (10,991)
 					missing 1,013
 	alignment
 		[_] 0% align all data (35,382)
@@ -157,3 +157,79 @@ Paper
 				:
 				: [IDEA] studies will typically describe things somewhat consistently,
 				: so this may be useful for building training sets. Logic in MetaSRA
+
+metasra-pipeline
+	analysis_data
+		predict_sample_type
+			test_data.json
+			train_data.json
+		README
+		term_mapping
+			test_ontology_mapping_data.json
+	bktree
+	map_sra_to_ontology
+		config.py
+		__init__.py
+		LEX
+			README
+		load_ontology.py
+		load_specialist_lex.py
+		metadata
+			acronym_to_expansions.json
+			custom_term_to_consequent_terms.json
+			cvcl_mappings.json
+			filter_key_val_rules.json
+			has_val_syn_term_ids.json
+			__init__.py
+			noun_phrases.json
+			real_valued_properties.json
+			term_to_extra_synonyms.json
+			term_to_remove_synonyms.json
+			term_to_superterm_linked_terms.json
+		obo
+			README
+		ontology_configurations.json
+		ontology_graph.py
+		pipeline_components.py
+		predict_sample_type
+			__init__.py
+			learn_classifier.py
+			one_vs_rest_classifier_same_features.py
+			run_on_entire_dataset.py
+			sample_type_classifier.dill
+			sample_type_vectorizor.dill
+			stop_words.09-23-16.json
+		README
+		run_sample_type_predictor.py
+		string_metrics.py
+		synonym_sets
+			custom_syn_sets.json
+			cvcl_syn_sets.json
+		text_reasoning_graph.py
+	README.md
+	run_pipeline.py
+	setup_map_sra_to_ontology
+		build_bk_tree.py
+		download_ontologies.py
+		download_specialist_lexicon.py
+		generate_extra_synonyms.py
+		generate_implications.py
+		generate_term_to_remove_synonyms.py
+		lex_file_to_url.json
+		link_ontologies.py
+		ontology_name_to_url.json
+		reformat_cellosaurus.py
+		setup.sh
+			: Shell script that runs the setup pipeline
+			download_ontologies.py
+			reformat_cellosaurus.py
+			download_specialist_lexicon.py
+			build_bk_tree.py
+				mkdir ../map_sra_to_ontology/fuzzy_matching_index
+				mv fuzzy_match_bk_tree.pickle ../map_sra_to_ontology/fuzzy_matching_index
+				mv fuzzy_match_string_data.json ../map_sra_to_ontology/fuzzy_matching_index
+			link_ontologies.py
+			superterm_linked_terms.py
+				cp term_to_superterm_linked_terms.json ../map_sra_to_ontology/metadata
+			generate_implications.py
+				cp cellline_to_disease_implied_terms.json ../map_sra_to_ontology/metadata
