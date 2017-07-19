@@ -3,7 +3,7 @@ __default__:
     mem: "2g"
     time: "11:00:00"
     gres: "lscratch:50"
-    partition: 'niddk,norm'
+    partition: 'norm'
 
 atropos:
   mem: "32g"
