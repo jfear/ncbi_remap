@@ -63,12 +63,16 @@ with open('../data/modEncode_srrs.txt', 'r') as fh:
 with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
+# rnaseq runselector (13462)
+with open('../data/run_selector_RNA_accession_list.txt', 'r') as fh:
+    rsel = [x.strip() for x in fh.readlines()]
+
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-#         'runs.srr': {'$in': mieg},
+        'runs.srr': {'$in': rsel},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
@@ -77,7 +81,7 @@ samples = remap.aggregate([
     },
     {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 400},
+    {'$limit': 5000},
 ])
 
 sample_table = pd.DataFrame(list(samples))
