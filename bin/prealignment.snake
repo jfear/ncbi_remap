@@ -93,7 +93,7 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': mieg}},
+#                 {'runs.srr': {'$in': mieg}},
                 {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
@@ -106,7 +106,7 @@ samples = remap.aggregate([
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 400}
+    {'$limit': 100}
 ])
 
 sample_table = pd.DataFrame(list(samples))
