@@ -57,7 +57,6 @@ samples = list(remap.aggregate([
             '$and': [
                 {'aln_flags': {'$ne': 'complete'}},
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': mieg}},
             ]
         }
     },
