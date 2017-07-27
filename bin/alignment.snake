@@ -54,75 +54,75 @@ samples = list(remap.aggregate([
     # Pull out an initial set of SRXs
     {
         '$match': {
-            '$and': [
-                {'aln_flags': {'$ne': 'complete'}},
-                {'runs.srr': {'$exists': 1}},
-            ]
+            'aln_flags': {'$ne': 'complete'},
+            'runs.srr': {'$exists': 1},
         }
     },
     {'$sort': {'_id': 1}},
     {'$limit': 5000},
 
-    # Drop SRRs that have problems
+    # Flag SRRs that have problems
     {'$unwind': '$runs'},
     {
-        '$match':{
-            '$and': [
-                {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
-                {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
-                {'runs.pre_aln_flags': {'$ne': 'quality_scores_bad'}},
-                {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
-                {'runs.aln_flags': {'$ne': 'alignment_bad'}},
-            ]
+        '$project': {
+            '_id': 0,
+            'runs.aln_flags': 1,
+            'srx': '$_id',
+            'srr': '$runs.srr',
+            'pre_aln_flags': '$runs.pre_aln_flags',
+            'aln_flags': '$runs.aln_flags',
+            'flag_pre_aln_bad': {
+                '$cond': [
+                    {'$or': [
+                        {'$in': ['download_bad', '$runs.pre_aln_flags']},
+                        {'$in': ['alignment_bad', '$runs.pre_aln_flags']},
+                        {'$in': ['quality_scores_bad', '$runs.pre_aln_flags']},
+                        {'$in': ['abi_solid', '$runs.pre_aln_flags']},
+                    ]},
+                    1, 0]
+            },
+            'flag_pre_aln_complete': {
+                '$cond': [{'$in': ['complete', '$runs.pre_aln_flags']}, 1, 0]
+            },
+            'flag_aln_bad': {
+                '$cond': [{'$in': ['alignment_bad', {'$ifNull': ['$runs.aln_flags', []]}]}, 1, 0]
+            },
         }
     },
+    # Remove problem SRRs
+    {
+        '$match': {
+            'flag_pre_aln_bad': {'$eq': 0},
+            'flag_aln_bad': {'$eq': 0},
+        }
+    },
+
+    # Collapse back to SRX level
     {
         '$group': {
-            '_id': '$_id',
-            'runs': {'$push': '$runs'},
-
-        }
+            '_id': '$srx',
+            'runs': {'$push': '$srr'},
+            'total': {'$sum': 1},
+            'ready': {'$sum': '$flag_pre_aln_complete'},
+        },
     },
+    {'$match': {'total': {'$gte': 1}}},
 
-    # Figure out how many SRRs there are per SRX
+    # Make sure that all remaining SRRs for an SRX are ready
     {
         '$project': {
             '_id': 1,
             'runs': 1,
-            'num_runs': {'$size': '$runs'},
+            'total': 1,
+            'ready': 1,
+            'diff': {'$subtract': ['$total', '$ready']},
         }
     },
-
-    # Figure out how many SRRs are ready
-    {'$unwind': '$runs'},
-    {
-        '$match': {
-            'runs.pre_aln_flags': 'complete',
-        }
-    },
-    {
-        '$group': {
-            '_id': '$_id',
-            'num_good_runs': {'$sum': 1},
-            'num_runs': {'$first': '$num_runs'},
-            'srr': {'$addToSet': '$runs.srr'},
-        }
-    },
-
-    # Make sure that all SRRs are ready before runnig the sample
-    {
-        '$project': {
-            '_id': 1,
-            'srr': 1,
-            'all_srrs_ready': {'$cond': [{'$eq': ['$num_good_runs', '$num_runs']}, True, False]}
-        }
-    },
-
-    {'$match': {'all_srrs_ready': True}},
+    {'$match': {'diff': {'$eq': 0}}},
 
     # Format for sample table
-    {'$unwind': '$srr'},
-    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$srr'}},
+    {'$unwind': '$runs'},
+    {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs'}},
     {'$sort': {'sample': 1}},
 ]))
 
