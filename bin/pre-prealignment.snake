@@ -72,7 +72,6 @@ samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': rsel},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
