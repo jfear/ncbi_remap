@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import sys
 import logging
@@ -13,8 +14,8 @@ from ncbi_remap.parser import parse_featureCounts_jcounts, parse_featureCounts_s
 DEBUG = False
 logging.basicConfig(level=logging.INFO)
 
-client = MongoClient(host='localhost', port=27022)
-db = client['sra']
+client = MongoClient(host='cn0330', port=27022)
+db = client['sra2']
 remap = db['remap']
 
 
@@ -60,8 +61,8 @@ def get_records():
 def parse_records(records):
     for record in records:
         srr = record['srr']
-        fnameS = '/data/fearjm/ncbi_remap/output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary'.format(**record)
-        fnameJ = '/data/fearjm/ncbi_remap/output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts'.format(**record)
+        fnameS = '/data/MiegNCBI/ncbi_remap/output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary'.format(**record)
+        fnameJ = '/data/MiegNCBI/ncbi_remap/output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts'.format(**record)
 
         if os.path.exists(fnameS) & os.path.exists(fnameJ):
             logging.info('Files exists for:  {srx}/{srr}'.format(**record))
@@ -94,5 +95,4 @@ if __name__ == '__main__':
     # Pull out a list of srx/srr that have feature counts
     records = get_records()
     logging.info('There were {:,} records'.format(len(records)))
-
     parse_records(records)
