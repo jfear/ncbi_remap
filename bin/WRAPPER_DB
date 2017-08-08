@@ -3,7 +3,7 @@
 #SBATCH --partition="niddk,norm"
 #SBATCH --cpus-per-task=4
 #SBATCH --time=240:00:00
-#SBATCH --mem=6G
+#SBATCH --mem=1G
 #SBATCH --output=../output/logs/mongo_db-%j.out
 #SBATCH --error=../output/logs/mongo_db-%j.out
 source activate ncbi_remap
@@ -18,9 +18,10 @@ finish() {
     ./stop_db.sh
     exit 0
 }
-trap finish SIGTERM
+trap finish SIGTERM SIGKILL
 
 while true; do
     sleep 1600 &
     wait $!
+    echo "Up"
 done

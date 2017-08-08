@@ -59,19 +59,19 @@ with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
 with open('../data/modEncode_srrs.txt', 'r') as fh:
     modEncode = [x.strip() for x in fh.readlines()]
 
-# modEncode SRRs (1,104)
-with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
+# s2 cells (1508)
+with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
     s2 = [x.strip() for x in fh.readlines()]
 
-with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
-    s2_2 = [x.strip() for x in fh.readlines()]
+# rnaseq runselector (13462)
+with open('../data/run_selector_RNA_accession_list.txt', 'r') as fh:
+    rsel = [x.strip() for x in fh.readlines()]
 
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': mieg},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
@@ -80,7 +80,7 @@ samples = remap.aggregate([
     },
     {'$project': {'_id': 0, 'experiment': '$_id', 'sample': '$runs.srr'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 1000},
+    {'$limit': 5000},
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -271,8 +271,13 @@ rule fastq_dump:
 
             # Copy and Add to database
             if (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
-                # Both reads look good.
-                pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+                if R1Libsize == R2Libsize:
+                    # Both reads look good.
+                    pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+                else:
+                    # There are an uneven number of reads between R1 and R2.
+                    # Instead of messing with this, just consider SE and use R1.
+                    actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
             elif (R1Libsize > 1000) & (R1avgLen > 10):
                 # Only R1 looks ok, consider single-end
                 actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
@@ -293,4 +298,25 @@ rule fastq_dump:
             # Copy and Add to database
             singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5)
         else:
-            downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5)
+
+            try:
+                R1md5 = md5sum(os.path.join(TMPDIR, R1))
+            except:
+                R1md5 = None
+
+            try:
+                R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
+            except:
+                R1Libsize, R1avgLen = None, None
+
+            try:
+                R2md5 = md5sum(os.path.join(TMPDIR, R2))
+            except:
+                R2md5 = None
+
+            try:
+                R2Libsize, R2avgLen = fastq_stats(os.path.join(TMPDIR, R2))
+            except:
+                R2Libsize, R2avgLen = None, None
+
+            downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)

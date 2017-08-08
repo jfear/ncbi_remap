@@ -93,19 +93,20 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': mieg}},
+#                 {'runs.srr': {'$in': mieg}},
                 {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
                 {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
                 {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
+                {'runs.pre_aln_flags': {'$ne': 'quality_scores_bad'}},
             ],
         }
     },
     {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
     {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
     {'$sort': {'sample': 1}},
-    {'$limit': 400}
+    {'$limit': 2000}
 ])
 
 sample_table = pd.DataFrame(list(samples))
@@ -226,6 +227,7 @@ rule check_results:
 ################################################################################
 # FASTQ QC
 ################################################################################
+#TODO https://github.com/jfear/ncbi_remap/issues/3
 rule fastqc:
     input: fastqs['r1']
     output:
@@ -253,6 +255,7 @@ rule fastq_screen:
     wrapper: wrapper_for('fastq_screen')
 
 
+#TODO https://github.com/jfear/ncbi_remap/issues/1
 rule fastq_screen_db:
     input:
         fn=patterns['fastq_screen']['txt']
@@ -520,6 +523,7 @@ rule feature_counts:
     wrapper: wrapper_for('featurecounts')
 
 
+#TODO https://github.com/jfear/ncbi_remap/issues/2
 rule feature_counts_db:
     input:
         jcount=patterns['feature_counts']['jcounts'],

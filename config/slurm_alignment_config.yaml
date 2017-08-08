@@ -2,7 +2,7 @@ __default__:
     mem: "8g"
     time: "11:00:00"
     gres: "lscratch:80"
-    partition: 'niddk,norm'
+    partition: 'norm'
 
 atropos:
   mem: "36g"
@@ -11,7 +11,10 @@ atropos:
 hisat2:
     mem: "32g"
     time: "24:00:00"
-    gres: "lscratch:200"
+    gres: "lscratch:250"
 
 featurecounts:
     mem: "8g"
+
+bamCoverage:
+    mem: "32g"
