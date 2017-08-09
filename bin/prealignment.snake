@@ -539,7 +539,7 @@ rule feature_counts_db:
         else:
             num_junction_reads = 0
 
-        dfS = parse_featureCounts_jcounts(srr, input.summary)
+        dfS = parse_featureCounts_summary(srr, input.summary)
         dd = dfS.to_dict('index')[srr]
         dd['Assigned_Junction'] = num_junction_reads
 
