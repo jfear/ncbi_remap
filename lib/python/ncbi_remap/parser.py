@@ -122,7 +122,9 @@ def parse_fastq_screen(sample, file):
             return None
         else:
             df = pd.DataFrame(parsed, columns=header)
-            return df.set_index(['sample', 'reference', 'type']).unstack()
+            udf = df.set_index(['sample', 'reference', 'type']).unstack()
+            udf.columns = udf.columns.droplevel()
+            return udf
 
 
 def parse_inferExperiment(sample, file):
