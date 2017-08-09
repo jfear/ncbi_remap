@@ -99,27 +99,32 @@ def parse_fastq_screen(sample, file):
     pandas.DataFrame: A single row dataframe.
     """
     with open(file, 'r') as fh:
-        parsed = OrderedDict()
+        header = ['sample', 'reference', 'type', 'value']
+        parsed = []
+
         for l in fh:
             fqs = re.search(r"^(\S+)\s+(\d+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)$", l)
             if fqs:
                 org = fqs.group(1)
-                parsed[(org, 'reads_processed', 'count')] = int(fqs.group(2))
-                parsed[(org, 'unmapped', 'count')] = int(fqs.group(3))
-                parsed[(org, 'unmapped', 'percent')] = float(fqs.group(4))
-                parsed[(org, 'one_hit_one_library', 'count')] = int(fqs.group(5))
-                parsed[(org, 'one_hit_one_library', 'percent')] = float(fqs.group(6))
-                parsed[(org, 'multiple_hits_one_library', 'count')] = int(fqs.group(7))
-                parsed[(org, 'multiple_hits_one_library', 'percent')] = float(fqs.group(8))
-                parsed[(org, 'one_hit_multiple_libraries', 'count')] = int(fqs.group(9))
-                parsed[(org, 'one_hit_multiple_libraries', 'percent')] = float(fqs.group(10))
-                parsed[(org, 'multiple_hits_multiple_libraries', 'count')] = int(fqs.group(11))
-                parsed[(org, 'multiple_hits_multiple_libraries', 'percent')] = float(fqs.group(12))
+                parsed.append((sample, org, 'reads_processed_count', int(fqs.group(2))))
+                parsed.append((sample, org, 'unmapped_count', int(fqs.group(3))))
+                parsed.append((sample, org, 'unmapped_percent', float(fqs.group(4))))
+                parsed.append((sample, org, 'one_hit_one_library_count', int(fqs.group(5))))
+                parsed.append((sample, org, 'one_hit_one_library_percent', float(fqs.group(6))))
+                parsed.append((sample, org, 'multiple_hits_one_library_count', int(fqs.group(7))))
+                parsed.append((sample, org, 'multiple_hits_one_library_percent', float(fqs.group(8))))
+                parsed.append((sample, org, 'one_hit_multiple_libraries_count', int(fqs.group(9))))
+                parsed.append((sample, org, 'one_hit_multiple_libraries_percent', float(fqs.group(10))))
+                parsed.append((sample, org, 'multiple_hits_multiple_libraries_count', int(fqs.group(11))))
+                parsed.append((sample, org, 'multiple_hits_multiple_libraries_percent', float(fqs.group(12))))
 
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, columns=header)
+            udf = df.set_index(['sample', 'reference', 'type']).unstack()
+            udf.columns = udf.columns.droplevel()
+            return udf
 
 
 def parse_inferExperiment(sample, file):

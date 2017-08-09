@@ -265,7 +265,7 @@ rule fastq_screen_db:
         from ncbi_remap.parser import parse_fastq_screen
         srr = wildcards.sample
         df = parse_fastq_screen(srr, input.fn)
-        df2 = {k[0]: {'_'.join(k[1:]): v} for k, v in df.to_dict('index')[srr].items()}
+        df2 = {k[1]: v for k, v in df.to_dict('index').items()}
         remap.update_one(
             {'runs.srr': srr},
             {
