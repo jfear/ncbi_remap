@@ -456,7 +456,7 @@ def parse_hisat2(sample, file):
             'aligned concordantly >1 times': 'num_concordant_multimappers',
             'aligned discordantly 1 time': 'num_discordant_reads_aligned',
             'aligned 0 times': 'num_unaligned',
-            'aligned exactly 1 time': 'num_uniquely_algined',
+            'aligned exactly 1 time': 'num_uniquely_aligned',
             'aligned >1 times': 'num_multimappers',
             'overall alignment rate': 'per_alignment',
         }
