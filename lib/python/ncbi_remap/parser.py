@@ -127,31 +127,6 @@ def parse_fastq_screen(sample, file):
             return udf
 
 
-def parse_inferExperiment(sample, file):
-    """Parse rseqc infer expeirment."""
-    mapper = {
-        'Fraction of reads explained by "++,--"': 'same_strand',
-        'Fraction of reads explained by "+-,-+"': 'opposite_strand',
-        'Fraction of reads explained by "1++,1--,2+-,2-+"': 'same_strand',
-        'Fraction of reads explained by "1+-,1-+,2++,2--"': 'opposite_strand',
-        'Fraction of reads failed to determine': 'undertermined'
-    }
-
-    with open(file, 'r') as fh:
-        parsed = OrderedDict()
-        for l in fh:
-            fqs = re.search(r"^(.+?):\s+([\d\.]+)$", l)
-            if fqs:
-                parsed[fqs.group(1)] = float(fqs.group(2))
-
-        if len(parsed) == 0:
-            return None
-        else:
-            df = pd.DataFrame(parsed, index=[sample])
-            df.columns = df.columns.map(lambda x: mapper[x])
-            return df
-
-
 def parse_geneBodyCoverage(sample, file):
     """Parse rseqc genebody coverage."""
     with open(file, 'r') as fh:
