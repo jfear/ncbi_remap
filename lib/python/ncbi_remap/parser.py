@@ -142,40 +142,6 @@ def parse_geneBodyCoverage(sample, file):
             return pd.DataFrame(parsed, index=[sample])
 
 
-def parse_bamStat(sample, file):
-    """Parse rseqc bam stat."""
-    mapper = {
-        'Total records': 'total_records',
-        'QC failed': 'qc_failed',
-        'Optical/PCR duplicate': 'optical_pcr_duplicates',
-        'Unmapped reads': 'unmapped_reads',
-        'mapq < mapq_cut (non-unique)': 'non_unique',
-        'mapq >= mapq_cut (unique)': 'unique',
-        'Read-1': 'read_1',
-        'Read-2': 'read_2',
-        "Reads map to '+'": 'reads_map_plus',
-        "Reads map to '-'": 'reads_map_minus',
-        'Non-splice reads': 'nonsplice_reads',
-        'Splice reads': 'splice_reads',
-        'Reads mapped in proper pairs': 'reads_mapped_proper_pairs',
-        'Proper-paired reads map to different chrom': 'proper_pair_map_to_different_chrom',
-    }
-
-    with open(file, 'r') as fh:
-        parsed = OrderedDict()
-        for l in fh:
-            fqs = re.search(r"^(.+?):\s*(\d+)$", l)
-            if fqs:
-                parsed[fqs.group(1)] = int(fqs.group(2))
-
-        if len(parsed) == 0:
-            return None
-        else:
-            df = pd.DataFrame(parsed, index=[sample])
-            df.columns = df.columns.map(lambda x: mapper[x])
-            return df
-
-
 def parse_tin(sample, file):
     """Parse rseqc tin."""
     with open(file, 'r') as fh:
