@@ -423,7 +423,6 @@ rule feature_counts:
     wrapper: wrapper_for('featurecounts')
 
 
-#TODO https://github.com/jfear/ncbi_remap/issues/2
 rule feature_counts_db:
     input:
         jcount=patterns['feature_counts']['jcounts'],
