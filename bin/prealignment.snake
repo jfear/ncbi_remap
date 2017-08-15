@@ -136,17 +136,12 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
     },
-    'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam',
         'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.done',
     },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bai',
-    'rseqc': {
-        'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
-        'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.done',
-    },
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts',
         'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.jcounts',
@@ -177,8 +172,8 @@ patterns = {
 
 localrules:
     check_results, bai, fastq_screen_db, hisat2_db,
-    bam_stat_db, samtools_stats_db,
-    featurecounts_db, collectrnaseqmetrics_db, markduplicates_db
+    samtools_stats_db, featurecounts_db, collectrnaseqmetrics_db,
+    markduplicates_db
 
 
 rule targets:
@@ -199,7 +194,6 @@ rule check_results:
         [
             patterns['fastq_screen']['db'],
             patterns['hisat2']['db'],
-            patterns['rseqc']['bam_stat_db'],
             patterns['samtools_stats_db'],
             patterns['feature_counts']['db'],
             patterns['picard']['collectrnaseqmetrics']['db'],
@@ -396,52 +390,6 @@ rule bai:
 
 
 ################################################################################
-# RSEQC
-################################################################################
-rule gtf2bed12:
-    input: db=config['references']['dmel']['db']
-    output: bed12=patterns['bed12']
-    run:
-        import gffutils
-        db = gffutils.FeatureDB(input.db)
-        with open(output.bed12, 'w') as fo:
-            for t in db.features_of_type('transcript'):
-                fo.write(db.bed12(t, name_field='transcript_id') + '\n')
-
-
-rule bam_stat:
-    input: bam=patterns['hisat2']['bam'],
-    output: txt=patterns['rseqc']['bam_stat']
-    log: patterns['rseqc']['bam_stat'] + '.log'
-    wrapper: wrapper_for('rseqc/bam_stat')
-
-
-rule bam_stat_db:
-    input:
-        fn=patterns['rseqc']['bam_stat']
-    output:
-        done=patterns['rseqc']['bam_stat_db']
-    run:
-        from ncbi_remap.parser import parse_bamStat
-        srr = wildcards.sample
-        df = parse_bamStat(srr, input.fn)
-        dd = df.to_dict('index')[srr]
-        for k, v in dd.items():
-            dd[k] = int(v)
-
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.bam_stat': clean_types(dd)
-                }
-            }
-        )
-
-        Path(output.done).touch()
-
-
-################################################################################
 # Feature Counts
 ################################################################################
 def _params_featurecounts(wildcards):
@@ -475,7 +423,6 @@ rule feature_counts:
     wrapper: wrapper_for('featurecounts')
 
 
-#TODO https://github.com/jfear/ncbi_remap/issues/2
 rule feature_counts_db:
     input:
         jcount=patterns['feature_counts']['jcounts'],
