@@ -136,7 +136,6 @@ patterns = {
         'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
         'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
     },
-    'bed12': '../output/dm6_r6-11.bed12',
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
         'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam',
@@ -388,20 +387,6 @@ rule bai:
     output: bai=temp('{prefix}.bam.bai')
     conda: "../config/extra_env.yaml"
     shell: "samtools index {input.bam}"
-
-
-################################################################################
-# RSEQC
-################################################################################
-rule gtf2bed12:
-    input: db=config['references']['dmel']['db']
-    output: bed12=patterns['bed12']
-    run:
-        import gffutils
-        db = gffutils.FeatureDB(input.db)
-        with open(output.bed12, 'w') as fo:
-            for t in db.features_of_type('transcript'):
-                fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
 
 ################################################################################
