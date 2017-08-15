@@ -127,36 +127,6 @@ def parse_fastq_screen(sample, file):
             return udf
 
 
-def parse_geneBodyCoverage(sample, file):
-    """Parse rseqc genebody coverage."""
-    with open(file, 'r') as fh:
-        lines = fh.readlines()
-        header = lines[0].strip().split('\t')[1:]
-        values = lines[1].strip().split('\t')[1:]
-        parsed = OrderedDict()
-        for k, v in zip(header, values):
-            parsed[int(k)] = float(v)
-        if len(parsed) == 0:
-            return None
-        else:
-            return pd.DataFrame(parsed, index=[sample])
-
-
-def parse_tin(sample, file):
-    """Parse rseqc tin."""
-    with open(file, 'r') as fh:
-        lines = fh.readlines()
-        header = lines[0].strip().split('\t')[1:]
-        values = lines[1].strip().split('\t')[1:]
-        parsed = OrderedDict()
-        for k, v in zip(header, values):
-            parsed[k] = float(v)
-        if len(parsed) == 0:
-            return None
-        else:
-            return pd.DataFrame(parsed, index=[sample])
-
-
 def parse_picardCollect_summary(sample, file):
     """Parser for picard collectRNAMetrics summary."""
     with open(file, 'r') as fh:
