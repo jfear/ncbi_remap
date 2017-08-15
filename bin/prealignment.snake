@@ -13,7 +13,6 @@ from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib/python')
 import ncbi_remap
-from ncbi_remap.parser import parse_inferExperiment
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
@@ -147,8 +146,6 @@ patterns = {
     'rseqc': {
         'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
         'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.done',
-        'infer_experiment': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.txt',
-        'infer_experiment_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.infer_experiment.done',
     },
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts',
@@ -180,7 +177,7 @@ patterns = {
 
 localrules:
     check_results, bai, fastq_screen_db, hisat2_db,
-    infer_experiment_db, bam_stat_db, samtools_stats_db,
+    bam_stat_db, samtools_stats_db,
     featurecounts_db, collectrnaseqmetrics_db, markduplicates_db
 
 
@@ -202,7 +199,6 @@ rule check_results:
         [
             patterns['fastq_screen']['db'],
             patterns['hisat2']['db'],
-            patterns['rseqc']['infer_experiment_db'],
             patterns['rseqc']['bam_stat_db'],
             patterns['samtools_stats_db'],
             patterns['feature_counts']['db'],
@@ -212,7 +208,6 @@ rule check_results:
             patterns['bamtools_stats'],
         ]
     output: all_complete['files']
-    params: infer=patterns['rseqc']['infer_experiment']
     run:
         # Update database
         remap.find_one_and_update(
@@ -414,48 +409,6 @@ rule gtf2bed12:
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
 
 
-rule infer_experiment:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bed=patterns['bed12']
-    output: txt=patterns['rseqc']['infer_experiment']
-    log: patterns['rseqc']['infer_experiment'] + '.log'
-    wrapper: wrapper_for('rseqc/infer_experiment')
-
-
-rule infer_experiment_db:
-    input:
-        fn=patterns['rseqc']['infer_experiment']
-    output:
-        done=patterns['rseqc']['infer_experiment_db']
-    run:
-        from ncbi_remap.parser import parse_inferExperiment
-        srr = wildcards.sample
-        df = parse_inferExperiment(srr, input.fn)
-        dd = df.to_dict('index')[srr]
-
-        if dd['same_strand'] > 0.75:
-            strand_type = 'same_strand'
-        elif dd['opposite_strand'] > 0.75:
-            strand_type = 'opposite_strand'
-        else:
-            strand_type = 'unstranded'
-
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.infer_expeirment': clean_types(dd)
-                },
-                '$addToSet': {
-                    'runs.$.pre_aln_flags': strand_type
-                }
-            }
-        )
-
-        Path(output.done).touch()
-
-
 rule bam_stat:
     input: bam=patterns['hisat2']['bam'],
     output: txt=patterns['rseqc']['bam_stat']
@@ -512,7 +465,6 @@ rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=patterns['hisat2']['bam'],
-        db=patterns['rseqc']['infer_experiment_db']
     output:
         counts=patterns['feature_counts']['counts'],
         jcounts=patterns['feature_counts']['jcounts'],
