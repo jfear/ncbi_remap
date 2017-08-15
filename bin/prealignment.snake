@@ -143,10 +143,6 @@ patterns = {
         'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.done',
     },
     'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bai',
-    'rseqc': {
-        'bam_stat': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.txt',
-        'bam_stat_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.bam_stat.done',
-    },
     'feature_counts': {
         'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts',
         'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.jcounts',
@@ -177,8 +173,8 @@ patterns = {
 
 localrules:
     check_results, bai, fastq_screen_db, hisat2_db,
-    bam_stat_db, samtools_stats_db,
-    featurecounts_db, collectrnaseqmetrics_db, markduplicates_db
+    samtools_stats_db, featurecounts_db, collectrnaseqmetrics_db,
+    markduplicates_db
 
 
 rule targets:
@@ -199,7 +195,6 @@ rule check_results:
         [
             patterns['fastq_screen']['db'],
             patterns['hisat2']['db'],
-            patterns['rseqc']['bam_stat_db'],
             patterns['samtools_stats_db'],
             patterns['feature_counts']['db'],
             patterns['picard']['collectrnaseqmetrics']['db'],
@@ -407,38 +402,6 @@ rule gtf2bed12:
         with open(output.bed12, 'w') as fo:
             for t in db.features_of_type('transcript'):
                 fo.write(db.bed12(t, name_field='transcript_id') + '\n')
-
-
-rule bam_stat:
-    input: bam=patterns['hisat2']['bam'],
-    output: txt=patterns['rseqc']['bam_stat']
-    log: patterns['rseqc']['bam_stat'] + '.log'
-    wrapper: wrapper_for('rseqc/bam_stat')
-
-
-rule bam_stat_db:
-    input:
-        fn=patterns['rseqc']['bam_stat']
-    output:
-        done=patterns['rseqc']['bam_stat_db']
-    run:
-        from ncbi_remap.parser import parse_bamStat
-        srr = wildcards.sample
-        df = parse_bamStat(srr, input.fn)
-        dd = df.to_dict('index')[srr]
-        for k, v in dd.items():
-            dd[k] = int(v)
-
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.bam_stat': clean_types(dd)
-                }
-            }
-        )
-
-        Path(output.done).touch()
 
 
 ################################################################################
