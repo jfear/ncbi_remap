@@ -115,6 +115,13 @@ class SamtoolsStats(EmbeddedDocument):
     pairs_on_different_chromosomes = IntField()
 
 
+class SamtoolsIdxStats(EmbeddedDocument):
+    chrom = StringField()
+    length = IntField()
+    num_mapped_reads = IntField()
+    num_unmapped_reads = IntField()
+
+
 class CollectRNAseqMetrics(EmbeddedDocument):
     PF_BASES = IntField()
     PF_ALIGNED_BASES = IntField()
@@ -174,6 +181,7 @@ class FeatureCounts(EmbeddedDocument):
 class PreAlignmentWorkflow(EmbeddedDocument):
     hisat2 = EmbeddedDocumentField(Hisat2)
     samtools_stats = EmbeddedDocumentField(SamtoolsStats)
+    samtools_idxstats = ListField(SamtoolsIdxStats)
     fastq_screen = MapField(EmbeddedDocumentField(FastqScreen))
     infer_experiment = EmbeddedDocumentField(InferExperiment)
     bam_stat = EmbeddedDocumentField(BamStat)
