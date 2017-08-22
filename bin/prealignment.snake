@@ -178,7 +178,7 @@ patterns = {
 
 localrules:
     check_results, bai, fastq_screen_db, hisat2_db,
-    samtools_stats_db, featurecounts_db, collectrnaseqmetrics_db,
+    samtools_stats_db, samtools_idxstats_db, featurecounts_db, collectrnaseqmetrics_db,
     markduplicates_db
 
 
