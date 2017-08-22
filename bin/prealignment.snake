@@ -49,19 +49,25 @@ def get_strand(srr):
 
 
 def clean_types(dic):
-    newDic = {}
-    for k, v in dic.items():
-        if isinstance(v, np.int64):
-            newDic[k] = int(v)
-        elif isinstance(v, np.float64):
-            newDic[k] = float(v)
-        elif v is np.nan:
-            pass
-        elif v is None:
-            pass
-        else:
-            newDic[k] = v
-    return newDic
+    if isinstance(dic, dict):
+        newDic = {}
+        for k, v in dic.items():
+            if isinstance(v, np.int64):
+                newDic[k] = int(v)
+            elif isinstance(v, np.float64):
+                newDic[k] = float(v)
+            elif v is np.nan:
+                pass
+            elif v is None:
+                pass
+            else:
+                newDic[k] = v
+        return newDic
+    elif isinstance(dic, list):
+        newLis = []
+        for row in dic:
+            newLis.append(clean_types(row))
+        return newLis
 
 
 ################################################################################
