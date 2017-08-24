@@ -86,7 +86,7 @@ class SamtoolsStats(EmbeddedDocument):
     filtered_sequences = IntField()
     sequences = IntField()
     is_sorted = IntField()
-    1st_fragments = IntField()
+    first_fragments = IntField()
     last_fragments = IntField()
     reads_mapped = IntField()
     reads_mapped_and_paired = IntField()
@@ -96,10 +96,10 @@ class SamtoolsStats(EmbeddedDocument):
     reads_duplicated = IntField()
     reads_MQ0 = IntField()
     reads_QC_failed = IntField()
-    non-primary_alignments = IntField()
+    non_primary_alignments = IntField()
     total_length = IntField()
     bases_mapped = IntField()
-    bases_mapped_(cigar) = IntField()
+    bases_mapped_cigar = IntField()
     bases_trimmed = IntField()
     bases_duplicated = IntField()
     mismatches = IntField()
@@ -113,6 +113,13 @@ class SamtoolsStats(EmbeddedDocument):
     outward_oriented_pairs = IntField()
     pairs_with_other_orientation = IntField()
     pairs_on_different_chromosomes = IntField()
+
+
+class SamtoolsIdxStats(EmbeddedDocument):
+    chrom = StringField()
+    length = IntField()
+    num_mapped_reads = IntField()
+    num_unmapped_reads = IntField()
 
 
 class CollectRNAseqMetrics(EmbeddedDocument):
@@ -174,7 +181,8 @@ class FeatureCounts(EmbeddedDocument):
 class PreAlignmentWorkflow(EmbeddedDocument):
     hisat2 = EmbeddedDocumentField(Hisat2)
     samtools_stats = EmbeddedDocumentField(SamtoolsStats)
-    fastq_screen = MapFied(FastqScreen)
+    samtools_idxstats = ListField(SamtoolsIdxStats)
+    fastq_screen = MapField(EmbeddedDocumentField(FastqScreen))
     infer_experiment = EmbeddedDocumentField(InferExperiment)
     bam_stat = EmbeddedDocumentField(BamStat)
     picard_collectrnaseqmetrics = MapField(EmbeddedDocumentField(CollectRNAseqMetrics))
@@ -287,5 +295,5 @@ class Remap(Document):
     papers = ListField(EmbeddedDocumentField(Pubmed), default=list)
     contacts = ListField(EmbeddedDocumentField(Contacts), default=list)
     pre_aln_flags = ListField(StringField(), default=list)
-    pre_aln_workflow = EmbeddedDocument(PreAlignmentWorkflow)
-    aln_workflow = EmbeddedDocument(AlignmentWorkflow)
+    pre_aln_workflow = EmbeddedDocumentField(PreAlignmentWorkflow)
+    aln_workflow = EmbeddedDocumentField(AlignmentWorkflow)

@@ -49,19 +49,25 @@ def get_strand(srr):
 
 
 def clean_types(dic):
-    newDic = {}
-    for k, v in dic.items():
-        if isinstance(v, np.int64):
-            newDic[k] = int(v)
-        elif isinstance(v, np.float64):
-            newDic[k] = float(v)
-        elif v is np.nan:
-            pass
-        elif v is None:
-            pass
-        else:
-            newDic[k] = v
-    return newDic
+    if isinstance(dic, dict):
+        newDic = {}
+        for k, v in dic.items():
+            if isinstance(v, np.int64):
+                newDic[k] = int(v)
+            elif isinstance(v, np.float64):
+                newDic[k] = float(v)
+            elif v is np.nan:
+                pass
+            elif v is None:
+                pass
+            else:
+                newDic[k] = v
+        return newDic
+    elif isinstance(dic, list):
+        newLis = []
+        for row in dic:
+            newLis.append(clean_types(row))
+        return newLis
 
 
 ################################################################################
@@ -92,7 +98,6 @@ samples = remap.aggregate([
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
-#                 {'runs.srr': {'$in': mieg}},
                 {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
@@ -166,13 +171,14 @@ patterns = {
     'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats',
     'samtools_stats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats.done',
     'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.idxstats',
+    'samtools_idxstats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.idxstats.done',
     'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bamtools.stats',
 }
 
 
 localrules:
     check_results, bai, fastq_screen_db, hisat2_db,
-    samtools_stats_db, featurecounts_db, collectrnaseqmetrics_db,
+    samtools_stats_db, samtools_idxstats_db, featurecounts_db, collectrnaseqmetrics_db,
     markduplicates_db
 
 
@@ -195,6 +201,7 @@ rule check_results:
             patterns['fastq_screen']['db'],
             patterns['hisat2']['db'],
             patterns['samtools_stats_db'],
+            patterns['samtools_idxstats_db'],
             patterns['feature_counts']['db'],
             patterns['picard']['collectrnaseqmetrics']['db'],
             patterns['picard']['markduplicates']['db'],
@@ -216,7 +223,6 @@ rule check_results:
 ################################################################################
 # FASTQ QC
 ################################################################################
-#TODO https://github.com/jfear/ncbi_remap/issues/3
 rule fastqc:
     input: fastqs['r1']
     output:
@@ -244,7 +250,6 @@ rule fastq_screen:
     wrapper: wrapper_for('fastq_screen')
 
 
-#TODO https://github.com/jfear/ncbi_remap/issues/1
 rule fastq_screen_db:
     input:
         fn=patterns['fastq_screen']['txt']
@@ -497,6 +502,28 @@ rule samtools_stats_db:
 
         Path(output.done).touch()
 
+
+rule samtools_idxstats_db:
+    input:
+        fn=patterns['samtools_idxstats']
+    output:
+        done=patterns['samtools_idxstats_db']
+    run:
+        from ncbi_remap.parser import parse_samtools_idxstats
+        srr = wildcards.sample
+        df = parse_samtools_idxstats(srr, input.fn)
+        df.columns = ['chrom', 'length', 'num_mapped_reads', 'num_unmapped_reads']
+        records = df.to_dict('records')
+        remap.update_one(
+            {'runs.srr': srr},
+            {
+                '$set': {
+                    'runs.$.pre_aln_workflow.samtools_idxstats': clean_types(records)
+                }
+            }
+        )
+
+        Path(output.done).touch()
 
 ################################################################################
 # PICARD RNA Seq Metrics
