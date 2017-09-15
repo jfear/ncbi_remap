@@ -67,11 +67,16 @@ with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
 with open('../data/run_selector_RNA_accession_list.txt', 'r') as fh:
     rsel = [x.strip() for x in fh.readlines()]
 
+# rnaseq wrap up list (163)
+with open('../data/priority.txt', 'r') as fh:
+    priority = [x.strip() for x in fh.readlines()]
+
 # Import run_id and experiment_id and dump into a dataframe
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
+        'runs.srr': {'$in': priority},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
