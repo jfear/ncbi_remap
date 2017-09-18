@@ -92,12 +92,17 @@ with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
 with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
     s2_2 = [x.strip() for x in fh.readlines()]
 
+# rnaseq wrap up list (163)
+with open('../data/priority.txt', 'r') as fh:
+    priority = [x.strip() for x in fh.readlines()]
+
 samples = remap.aggregate([
     {'$unwind': '$runs'},
     {
         '$match': {
             '$and': [
                 {'runs.srr': {'$exists': 1}},
+                {'runs.srr': {'$in': priority}},
                 {'runs.libsize.R1': {'$exists': 1}},
                 {'runs.pre_aln_flags': {'$ne': 'complete'}},
                 {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
