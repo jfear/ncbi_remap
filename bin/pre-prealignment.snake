@@ -55,9 +55,8 @@ with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
 with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
     mieg = [x.strip() for x in fh.readlines()]
 
-# modEncode SRRs (644)
-with open('../data/modEncode_srrs.txt', 'r') as fh:
-    modEncode = [x.strip() for x in fh.readlines()]
+# modEncode SRRs (2,312)
+modEncode = pd.read_csv('../output/modENCODE_sampletable.tsv', sep='\t').srr.unique().tolist()
 
 # s2 cells (1508)
 with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
@@ -76,7 +75,7 @@ samples = remap.aggregate([
     {'$unwind': '$runs'},
     {'$match': {
         'runs.srr': {'$exists': 1},
-        'runs.srr': {'$in': priority},
+        'runs.srr': {'$in': modEncode},
         '$or': [
                 {'runs.pre_aln_flags': {'$exists': 0}},
                 {'runs.pre_aln_flags': {'$eq': []}},
