@@ -103,7 +103,7 @@ def parse_fastq_screen(sample, file):
         parsed = []
 
         for l in fh:
-            fqs = re.search(r"^(\S+)\s+(\d+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)$", l)
+            fqs = re.search(r"^(\S+)\s+(\d+)\s+(\d+)\s+(-?[\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)$", l)
             if fqs:
                 org = fqs.group(1)
                 parsed.append((sample, org, 'reads_processed_count', int(fqs.group(2))))
