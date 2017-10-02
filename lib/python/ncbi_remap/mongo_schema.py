@@ -75,7 +75,7 @@ class Hisat2(EmbeddedDocument):
     num_multimappers = IntField()
     num_reads_aligned_discordantly = IntField()
     num_unaligned_mates = IntField()
-    num_uniquely_algined_mates = IntField()
+    num_uniquely_aligned_mates = IntField()
     num_multimappers_mates = IntField()
     per_alignment = FloatField()
 

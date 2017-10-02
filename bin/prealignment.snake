@@ -581,6 +581,14 @@ rule collectrnaseqmetrics_db:
         dfU = parse_picardCollect_summary(srr, input.unstranded)
         dfF = parse_picardCollect_summary(srr, input.first)
         dfS = parse_picardCollect_summary(srr, input.second)
+
+        if dfF.PCT_CORRECT_STRAND_READS.values[0] >= .75:
+            flag = 'same_strand'
+        elif dfS.PCT_CORRECT_STRAND_READS.values[0] >= .75:
+            flag = 'opposite_strand'
+        else:
+            flag = 'unstranded'
+
         remap.update_one(
             {'runs.srr': srr},
             {
@@ -589,7 +597,10 @@ rule collectrnaseqmetrics_db:
                         'unstranded': clean_types(dfU.to_dict('index')[srr]),
                         'first': clean_types(dfF.to_dict('index')[srr]),
                         'second': clean_types(dfS.to_dict('index')[srr]),
-                    },
+                    }
+                },
+                '$addToSet': {
+                    'runs.$.pre_aln_flags': flag
                 }
             }
         )
