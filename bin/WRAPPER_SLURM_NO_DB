@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name="seq_pipeline"
 #SBATCH --partition="niddk,norm"
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=2
 #SBATCH --time=120:00:00
-#SBATCH --mem=12G
-#SBATCH --output=../output/logs/slurm-%j.out
-#SBATCH --error=../output/logs/slurm-%j.out
+#SBATCH --mem=3G
+#SBATCH --output=../output/logs/slurm.o.%j
+#SBATCH --error=../output/logs/slurm.e.%j
 source activate ncbi_remap
 
 SNAKEFILE=$1
