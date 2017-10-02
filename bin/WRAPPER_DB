@@ -3,9 +3,9 @@
 #SBATCH --partition="niddk,norm"
 #SBATCH --cpus-per-task=2
 #SBATCH --time=240:00:00
-#SBATCH --mem=1G
-#SBATCH --output=../output/logs/mongo_db-%j.out
-#SBATCH --error=../output/logs/mongo_db-%j.out
+#SBATCH --mem=4G
+#SBATCH --output=../output/logs/mongo_db.o.%j
+#SBATCH --error=../output/logs/mongo_db.e.%j
 source activate ncbi_remap
 
 # Start mongo
