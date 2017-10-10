@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+# vim: set ft=python.snakemake
+import os
+import sys
+
+import pandas as pd
+
+from snakemake.io import regex
+
+from lcdblib.snakemake import helpers
+from lcdblib.utils import utils
+from lcdblib.pandas.utils import cartesian_product
+
+sys.path.insert(0, '../lib/python')
+import ncbi_remap
+
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '../.genome_cov'
+
+# import config
+configfile: '../config/prealignment_config.yaml'
+
+
+################################################################################
+# Build Sample Table
+################################################################################
+sample_table = pd.read_csv('../output/wgs_samples.tsv', sep='\t')
+sample_table.rename(columns={'srx': 'experiment', 'srr': 'sample'}, inplace=True)
+
+################################################################################
+# Set up file naming patterns and targets
+################################################################################
+
+# Patterns
+patterns = {
+    'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
+    'bam': '/scratch/fearjm/{experiment}/{sample}.fq.bam',
+    'bai': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bai',
+    'bamCoverage': '../output/bigwigs/genome_cov.bedgraph',
+}
+
+
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
+
+rule targets:
+    input:
+       targets['bamCoverage'],
+
+
+################################################################################
+# Fuctions
+################################################################################
+# Find snakemake wrappers:
+def wrapper_for(path):
+    URI = '../lcdb-wf/wrappers/wrappers'
+    return 'file:' + os.path.join(URI, path)
+
+################################################################################
+# Alignment
+################################################################################
+rule hisat2:
+    input:
+        index=config['references']['dmel']['hisat2'],
+        fastq=patterns['fastq'],
+    output: bam=temp(patterns['bam'])
+    threads: 8
+    params:
+        samtools_view_extra="--threads 6 -q 20",
+        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+    log: patterns['bam'] + '.log'
+    wrapper: wrapper_for('hisat2/align')
+
+
+################################################################################
+# Merge Bams
+################################################################################
+rule merge:
+    input: targets['bam']
+    output: '/scratch/fearjm/merged.bam'
+    params:
+        extra='-m 12g'
+    wrapper: wrapper_for('samtools/merge')
+
+rule index:
+    input:
+        bam='/scratch/fearjm/merged.bam'
+    output:
+        bai='/scratch/fearjm/merged.bam.bai'
+    wrapper: wrapper_for('samtools/index')
+
+################################################################################
+# Make Individual BedGraphs
+################################################################################
+def _param_bamCoverage(wildcards):
+    """Get strand information from wildcards."""
+    base = '--outFileFormat bedgraph --binSize 1 '
+    if wildcards.strand == 'first':
+        return base + '--filterRNAstrand forward'
+    elif wildcards.strand == 'second':
+        return base + '--filterRNAstrand reverse'
+
+
+rule bamCoverage:
+    input:
+        bam='/scratch/fearjm/merged.bam',
+        bai='/scratch/fearjm/merged.bam.bai',
+    output: '../output/bigwigs/genome_cov.bedgraph'
+    params:
+        extra='--binSize 1'
+    threads: 8
+    wrapper: wrapper_for('deeptools/bamCoverage')
