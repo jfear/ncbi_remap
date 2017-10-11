@@ -40,7 +40,11 @@ patterns = {
     'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
     'bam': '/scratch/fearjm/{experiment}/{sample}.fq.bam',
     'bai': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bai',
+    'bedGraph': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bedgraph',
+    'bigWig': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bw',
     'bamCoverage': '../output/bigwigs/genome_cov.bedgraph',
+    # MISC Files
+    'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
 
 
@@ -73,44 +77,56 @@ rule hisat2:
         samtools_view_extra="--threads 6 -q 20",
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['bam'] + '.log'
-    wrapper: wrapper_for('hisat2/align')
+    wrapper:
+        wrapper_for('hisat2/align')
 
-
-################################################################################
-# Merge Bams
-################################################################################
-rule merge:
-    input: targets['bam']
-    output: '/scratch/fearjm/merged.bam'
-    params:
-        extra='-m 12g'
-    wrapper: wrapper_for('samtools/merge')
 
 rule index:
     input:
-        bam='/scratch/fearjm/merged.bam'
+        bam=patterns['bam']
     output:
-        bai='/scratch/fearjm/merged.bam.bai'
-    wrapper: wrapper_for('samtools/index')
+        bai=temp(patterns['bai'])
+    wrapper:
+        wrapper_for('samtools/index')
 
 ################################################################################
 # Make Individual BedGraphs
 ################################################################################
-def _param_bamCoverage(wildcards):
-    """Get strand information from wildcards."""
-    base = '--outFileFormat bedgraph --binSize 1 '
-    if wildcards.strand == 'first':
-        return base + '--filterRNAstrand forward'
-    elif wildcards.strand == 'second':
-        return base + '--filterRNAstrand reverse'
-
-
 rule bamCoverage:
     input:
-        bam='/scratch/fearjm/merged.bam',
-        bai='/scratch/fearjm/merged.bam.bai',
-    output: '../output/bigwigs/genome_cov.bedgraph'
+        bam=patterns['bam'],
+        bai=patterns['bai'],
+    output: temp(patterns['bedGraph'])
     params:
         extra='--binSize 1'
     threads: 8
-    wrapper: wrapper_for('deeptools/bamCoverage')
+    wrapper:
+        wrapper_for('deeptools/bamCoverage')
+
+
+rule convertBedGraphToBigWig:
+    input:
+        bedgraph=patterns['bedGraph'],
+        chromSizes=config['references']['dmel']['chromSizes']
+    output:
+        bigwig=temp(patterns['bigWig'])
+    conda: '../config/extra_env.yaml'
+    shell:
+        'export LC_COLLATE=C; '
+        'tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
+        '&& rm $tmpBg '
+
+
+################################################################################
+# Merge Experiment BigWigs
+################################################################################
+rule expMerge:
+    input: targets['bigWig']
+    output:
+        bedgraph=patterns['bamCoverage']
+    conda: '../config/extra_env.yaml'
+    shell:
+        'bigWigMerge {input} {output.bedgraph}'
+
