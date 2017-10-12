@@ -6,6 +6,88 @@ import pandas as pd
 from IPython.display import display
 import qgrid
 
+
+def build_index(store, key, columns=None):
+    if columns is None:
+        columns = []
+    store.create_table_index(key, columns=columns, optlevel=9, kind='full')
+
+
+def get_queue(store, flag='prealn'):
+    """Provide a list of of SRX/SRR that need run.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        Data store with a key of 'ids'
+    flag : str
+        Indicates which flags to use for the query. Options are
+        ['prealn', 'aln'].
+
+    Returns
+    -------
+    return : pd.DataFrame
+        A frame with srx and srr columns.
+
+    """
+    if flag == 'prealn':
+        query = 'flag_pre_aln_complete == False & columns=[srx, srr]'
+    elif flag == 'aln':
+        query = 'flag_aln_complete == False & columns=[srx, srr]'
+
+    return store.select('ids', query)
+
+
+def update_flag(store, key='ids', query=None, flag=None, value=None):
+    """Update a Flag's value in an HDF5 store.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        A data store which has values you want to change.
+    key : str
+        The key in the store to adjust. Assumes this is an appendable table.
+
+    query : str or dict
+        If str it uses pd.HDFStore query language to pull out the record and
+        update it. If a dict in the form of {'query_key1': ['values'],
+        'query_key2': ['values']} where the key is a column named in the store
+        and the values are values in that column. When using a dict the entire
+        store is replaced and reindexed.
+    flag : str
+        The name of the column whoses values you want to change.
+    value : str bool
+        The value you want to set in the data store.
+
+    """
+    if flag is None:
+        raise TypeError('flag must be a column in the dataframe returned from the store.')
+
+    if isinstance(query, str):
+        df = store.select(key, query)
+        df[flag] = value
+
+        # Replace value in the store
+        store.remove(key, query)
+
+    elif isinstance(query, dict):
+        df = store[key]
+        del store[key]
+
+        # Build boolean array from keys in dict
+        mask = np.array([True] * df.shape[0])
+        for k, v in query.items():
+            mask &= df[k].isin(v)
+
+        df[mask] = value
+
+    else:
+        raise TypeError('query must be a pd.HDFStore query string or a dictionary of {column: value}')
+
+    store.append(key, df, data_columns=True, index=False)
+    build_index(store, 'ids', columns=['srx', 'srr'])
+
+
 class remapDesign(object):
     def __init__(self, sampleTable):
         """ Import sample table and make a set of sampleID lists for easy
