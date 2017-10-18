@@ -4,88 +4,120 @@
 import numpy as np
 import pandas as pd
 from IPython.display import display
-import qgrid
 
 
 def build_index(store, key, columns=None):
+    """Index a HDF5 table.
+
+    Builds an index for an HDF5 table.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    columns : str or list, optional
+        If 'all' then it will index using all data columns in the store. If a
+        list of column headers is given then it will use those columns for
+        indexing.
+
+    """
     if columns is None:
         columns = []
+    elif columns == 'all':
+        columns = store[key].columns.tolist()
+
     store.create_table_index(key, columns=columns, optlevel=9, kind='full')
 
 
-def get_queue(store, flag='prealn'):
-    """Provide a list of of SRX/SRR that need run.
+def create_table(store, key, data=None, force=None, **kwargs):
+    """Create a new HDF5 table.
+
+    Adds a dataframe to an HDF5 store and creates an index.
 
     Parameters
     ----------
-    store : pd.HDFStore
-        Data store with a key of 'ids'
-    flag : str
-        Indicates which flags to use for the query. Options are
-        ['prealn', 'aln'].
-
-    Returns
-    -------
-    return : pd.DataFrame
-        A frame with srx and srr columns.
-
-    """
-    if flag == 'prealn':
-        query = 'flag_pre_aln_complete == False & columns=[srx, srr]'
-    elif flag == 'aln':
-        query = 'flag_aln_complete == False & columns=[srx, srr]'
-
-    return store.select('ids', query)
-
-
-def update_flag(store, key='ids', query=None, flag=None, value=None):
-    """Update a Flag's value in an HDF5 store.
-
-    Parameters
-    ----------
-    store : pd.HDFStore
-        A data store which has values you want to change.
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
     key : str
-        The key in the store to adjust. Assumes this is an appendable table.
-
-    query : str or dict
-        If str it uses pd.HDFStore query language to pull out the record and
-        update it. If a dict in the form of {'query_key1': ['values'],
-        'query_key2': ['values']} where the key is a column named in the store
-        and the values are values in that column. When using a dict the entire
-        store is replaced and reindexed.
-    flag : str
-        The name of the column whoses values you want to change.
-    value : str bool
-        The value you want to set in the data store.
+        The path in the HDF5 store to save data to.
+    data : pd.DataFrame
+        The data to store.
+    force : bool
+        If True then delete the previous store if it exists.
 
     """
-    if flag is None:
-        raise TypeError('flag must be a column in the dataframe returned from the store.')
+    # If the store exists delete
+    if store.get_storer(key):
+        if force is True:
+            del store[key]
 
-    if isinstance(query, str):
-        df = store.select(key, query)
-        df[flag] = value
+    store.append(key, data, data_columns=True, index=False)
+    build_index(store, key, **kwargs)
 
-        # Replace value in the store
-        store.remove(key, query)
 
-    elif isinstance(query, dict):
-        df = store[key]
-        del store[key]
+def add_id(store, key, srx, srr):
+    """Adds an ID to the ids data store.
 
-        # Build boolean array from keys in dict
-        mask = np.array([True] * df.shape[0])
-        for k, v in query.items():
-            mask &= df[k].isin(v)
+    If the SRR is not in the current collection, then append the srx and srr.
 
-        df[mask] = value
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    srx : str
+        An SRX id.
+    srr : str
+        An SRR id.
 
-    else:
-        raise TypeError('query must be a pd.HDFStore query string or a dictionary of {column: value}')
+    """
+    query = 'srr == "{}"'.format(srr)
+    res = store.select(key, query)
+    if res.shape[0] == 0:
+        data = pd.DataFrame([[srx, srr]], columns=['srx', 'srr'])
+        store.append(key, data, data_column=True, index=False)
 
-    store.append(key, df, data_columns=True, index=False)
-    build_index(store, 'ids', columns=['srx', 'srr'])
+
+def remove_id(store, key, srr):
+    """Removes an ID to the ids data store.
+
+    If the SRR is not in the current collection, then append the srx and srr.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    srr : str
+        An SRR id.
+
+    """
+    query = 'srr == "{}"'.format(srr)
+    store.remove(key, query)
+
+
+def remove_chunk(store, key, srrs):
+    """Removes an ID to the ids data store.
+
+    If the SRR is not in the current collection, then append the srx and srr.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    srrs : list
+        A list of SRRs to remove.
+
+    """
+    df = store[key]
+    subset = df[~df.srr.isin(srrs)].copy()
+    store[key] = subset
 
 
 class remapDesign(object):
