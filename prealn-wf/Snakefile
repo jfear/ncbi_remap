@@ -15,8 +15,8 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib/python')
-from ncbi_remap.io import get_queue
 from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats
+from ncbi_remap.snakemake import wrapper_for, put_flag, get_flag
 
 
 # Setup tempdir to work with lscratch
@@ -30,51 +30,11 @@ workdir: '.'
 configfile: '../config/reference_config.yml'
 
 
-# Find snakemake wrappers:
-def wrapper_for(path):
-    URI = '../lcdb-wf/wrappers/wrappers'
-    return 'file:' + os.path.join(URI, path)
-
-
-def get_strand(srr):
-    """Check strandedsess."""
-    flags = remap.find_one({'runs.srr': srr}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-
-    if 'same_strand' in flags:
-        return 'same_strand'
-    elif 'opposite_strand' in flags:
-        return 'opposite_strand'
-    else:
-        return 'unstranded'
-
-
-def clean_types(dic):
-    if isinstance(dic, dict):
-        newDic = {}
-        for k, v in dic.items():
-            if isinstance(v, np.int64):
-                newDic[k] = int(v)
-            elif isinstance(v, np.float64):
-                newDic[k] = float(v)
-            elif v is np.nan:
-                pass
-            elif v is None:
-                pass
-            else:
-                newDic[k] = v
-        return newDic
-    elif isinstance(dic, list):
-        newLis = []
-        for row in dic:
-            newLis.append(clean_types(row))
-        return newLis
-
-
 ################################################################################
 # Build Sample Table
 ################################################################################
 store = pd.HDFStore('../sra.h5')
-sample_table = get_queue(store, flag='prealn')
+sample_table = store['prealn/queue']
 
 
 ##################################################################################################################################################
@@ -331,6 +291,8 @@ fastqs = {
     }
 
 patterns = {
+    'layout': '../output/prealignment/raw/{srx}/{srr}/LAYOUT',
+    'strand': '../output/prealignment/raw/{srx}/{srr}/STRAND',
     'fastq_screen': {
         'txt': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.txt',
         'db': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.done',
@@ -479,17 +441,17 @@ rule fastq_screen_db:
 ################################################################################
 def _atropos(wildcards):
     """Determine if the sample is PE or SE"""
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
         return {'R1': expand(fastqs['r1'], **wildcards)[0], 'R2': expand(fastqs['r2'], **wildcards)[0]}
     else:
         return {'R1': expand(fastqs['r1'], **wildcards)[0]}
 
 
 def _params_extra_atropos(wildcards):
-    """Determine strandedness and pass correct settings."""
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
+    """Determine if the sample is PE or SE"""
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
         return '-U 0 --minimum-length 25'
     else:
         return '--minimum-length 25'
@@ -497,8 +459,8 @@ def _params_extra_atropos(wildcards):
 
 def _params_r2_atropos(wildcards):
     """Determine strandedness and pass correct settings."""
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
         return expand(patterns['atropos']['r2'], **wildcards)[0] + '.tmp.gz'
     else:
         return None
@@ -536,8 +498,8 @@ rule hisat2_splice_site:
 
 
 def _hisat2(wildcards):
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
         return expand(patterns['atropos']['r1'], **wildcards)[0], expand(patterns['atropos']['r2'], **wildcards)[0]
     else:
         return expand(patterns['atropos']['r1'], **wildcards)[0]
@@ -557,6 +519,7 @@ rule hisat2:
     wrapper: wrapper_for('hisat2/align')
 
 
+# TODO: update to use hdf5
 rule hisat2_db:
     input:
         fn=patterns['hisat2']['bam']
@@ -601,13 +564,13 @@ rule bai:
 ################################################################################
 def _params_featurecounts(wildcards):
     """Determine strandedness and pass correct settings."""
-    flags = remap.find_one({'runs.srr': wildcards.sample}, {'runs.$.pre_aln_flags': 1})['runs'][0]['pre_aln_flags']
-    if 'PE' in flags:
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
         base = '-p -P -C -J '
     else:
         base = '-J '
 
-    strand = get_strand(wildcards.sample)
+    strand = get_flag(patterns['strand'].format(**wildcards))
     if strand == 'first_strand':
         return base + '-s 1'
     elif strand == 'second_strand':
@@ -630,6 +593,7 @@ rule feature_counts:
     wrapper: wrapper_for('featurecounts')
 
 
+# TODO: update to use hdf5
 rule feature_counts_db:
     input:
         jcount=patterns['feature_counts']['jcounts'],
@@ -766,13 +730,13 @@ rule collectrnaseqmetrics_second:
     wrapper: wrapper_for('picard/collectrnaseqmetrics')
 
 
-rule collectrnaseqmetrics_db:
+rule collectrnaseqmetrics_agg:
     input:
         unstranded=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
         first=patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
         second=patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
     output:
-        done=patterns['picard']['collectrnaseqmetrics']['db']
+        flag=patterns['strand']
     run:
         from ncbi_remap.parser import parse_picardCollect_summary
         srr = wildcards.sample
@@ -787,23 +751,7 @@ rule collectrnaseqmetrics_db:
         else:
             flag = 'unstranded'
 
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.picard_collectrnaseqmetrics': {
-                        'unstranded': clean_types(dfU.to_dict('index')[srr]),
-                        'first': clean_types(dfF.to_dict('index')[srr]),
-                        'second': clean_types(dfS.to_dict('index')[srr]),
-                    }
-                },
-                '$addToSet': {
-                    'runs.$.pre_aln_flags': flag
-                }
-            }
-        )
-
-        Path(output.done).touch()
+        put_flag(output.flag, flag)
 
 
 rule markduplicates:
@@ -817,6 +765,7 @@ rule markduplicates:
     wrapper: wrapper_for('picard/markduplicates')
 
 
+# TODO: update to use hdf5
 rule markduplicates_db:
     input:
         fn=patterns['picard']['markduplicates']['metrics'],
