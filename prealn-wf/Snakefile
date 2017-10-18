@@ -5,6 +5,7 @@ import sys
 import re
 from textwrap import dedent
 import shutil as sh
+import gzip
 
 import numpy as np
 import pandas as pd
@@ -34,372 +35,167 @@ configfile: '../config/reference_config.yml'
 # Build Sample Table
 ################################################################################
 store = pd.HDFStore('../sra.h5')
-sample_table = store['prealn/queue']
-
-
-##################################################################################################################################################
-
-
-
-
+sample_table = store['prealn/queue'].head(2)
 
 ################################################################################
 # Set up file naming patterns
 ################################################################################
-patterns = {'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'}
-
-# Build target files
-targets = helpers.fill_patterns(patterns, sample_table)
-
-rule targets:
-    input: utils.flatten(targets)
-
-################################################################################
-# FASTQ dump and check for SE or PE
-################################################################################
-
-
-def singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5):
-    """Adds a single-end read to the database.
-
-    Compresses (.gz) and add an entry to the database.
-    """
-    # Compress files and copy over
-    shell(
-            "gzip --best $TMPDIR/{sample}_1.fastq "
-            "&& cp $TMPDIR/{sample}*.gz {odir}/ "
-            "&& rm $TMPDIR/{sample}*.gz"
-        )
-
-    # Save results to Database
-    remap.find_one_and_update({'runs.srr': sample},
-            {
-                '$addToSet': {'runs.$.pre_aln_flags': 'SE'},
-                '$set': {
-                    'runs.$.libsize': {'R1': R1Libsize},
-                    'runs.$.avgReadLen': {'R1': R1avgLen},
-                    'runs.$.md5': {'R1': R1md5},
-                }
-            })
-
-
-def pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5):
-    """Adds a pair-end read to the database.
-
-    Compresses (.gz) and add an entry to the database.
-    """
-    shell(
-            "gzip --best $TMPDIR/{sample}_1.fastq "
-            "&& gzip --best $TMPDIR/{sample}_2.fastq "
-            "&& cp $TMPDIR/{sample}*.gz {odir}/ "
-            "&& rm $TMPDIR/{sample}*.gz"
-        )
-
-    # Save results to Database
-    remap.find_one_and_update({'runs.srr': sample},
-            {
-                '$addToSet': {'runs.$.pre_aln_flags': 'PE'},
-                '$set': {
-                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
-                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
-                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
-                }
-            })
-
-
-def actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5, link=False):
-    """Adds a single-end read to the database, despite it looking like PE.
-
-    Sometimes I have found that the second read is empty or is a barcode or
-    something else. To simplify processing, we figure out which read pair looks
-    the best and then just set it to be R1.
-
-    If R1 is the best, then just don't copy over R2, if R2 is the best (i.e.,
-    link=True) then copy R2 over and symlink it to R1.
-
-    Compresses (.gz) and add an entry to the database.
-    """
-    if link:
-        shell(
-                "gzip --best $TMPDIR/{sample}_2.fastq "
-                "&& cp $TMPDIR/{sample}*.gz {odir}/ "
-                "&& cd {odir} "
-                "&& ln -s {sample}_2.fastq.gz {sample}_1.fastq.gz "
-                "&& rm $TMPDIR/{sample}*.gz "
-                "&& rm $TMPDIR/{sample}*.fastq "
-            )
-        keep = 'keep_R2'
-    else:
-        shell(
-                "gzip --best $TMPDIR/{sample}_1.fastq "
-                "&& cp $TMPDIR/{sample}_1.fastq.gz {odir}/ "
-                "&& rm $TMPDIR/{sample}_1.fastq.gz "
-                "&& rm $TMPDIR/{sample}*.fastq "
-            )
-        keep = 'keep_R1'
-
-    # Save results to Database
-    remap.find_one_and_update({'runs.srr': sample},
-            {
-                '$addToSet': {'runs.$.pre_aln_flags': {'$each': ['SE', keep]}},
-                '$set': {
-                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
-                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
-                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
-                }
-            })
-
-
-def downloadBad(sample, output, R1Libsize, R1avgLen, R1md5, R2Libsize=None, R2avgLen=None, R2md5=None):
-    """Something went wrong.
-
-    There are just some entries that don't download right. Either they are
-    empty or corrupted. We may be able to download them using another
-    mechanism later, so just mark as problematic is move on with life.
-
-    Note I touch a file so that snakemake does not complain, but set the entry
-    as `download_bad` in the database, so this should not be used in the
-    downstream steps.
-    """
-    remap.find_one_and_update({'runs.srr': sample},
-            {
-                '$addToSet': {'runs.$.pre_aln_flags': 'download_bad'},
-                '$set': {
-                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
-                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
-                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
-                }
-            })
-    shell("touch {output}".format(output=output))
-
-
-"""Downloads fastq and checks if there is one or two sets of reads."""
-rule fastq_dump:
-    output:
-        fastq=patterns['fastq'],
-    run:
-        sample = wildcards.sample
-        odir = os.path.dirname(output.fastq)
-        R1 = sample + '_1.fastq'
-        R2 = sample + '_2.fastq'
-
-        # Dump FASTQ
-        shell("fastq-dump -O $TMPDIR -M 0 --split-files {sample}")
-
-        # Pair-end
-        if check_fastq(os.path.join(TMPDIR, R2)):
-            # Get md5sum
-            R1md5 = md5sum(os.path.join(TMPDIR, R1))
-            R2md5 = md5sum(os.path.join(TMPDIR, R2))
-
-            # Calculate libsize and average read length
-            R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
-            R2Libsize, R2avgLen = fastq_stats(os.path.join(TMPDIR, R2))
-
-            # Copy and Add to database
-            if (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
-                if R1Libsize == R2Libsize:
-                    # Both reads look good.
-                    pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
-                else:
-                    # There are an uneven number of reads between R1 and R2.
-                    # Instead of messing with this, just consider SE and use R1.
-                    actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
-            elif (R1Libsize > 1000) & (R1avgLen > 10):
-                # Only R1 looks ok, consider single-end
-                actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
-            elif (R2Libsize > 1000) & (R2avgLen > 10):
-                # Only R2 looks ok, consider single-end, symlink R2 to R1 for proper workflow.
-                actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5, link=True)
-            else:
-                downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
-
-        # Single-end
-        elif check_fastq(os.path.join(TMPDIR, R1)):
-            # Get md5sum
-            R1md5 = md5sum(os.path.join(TMPDIR, R1))
-
-            # Calculate libsize and average read length
-            R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
-
-            # Copy and Add to database
-            singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5)
-        else:
-
-            try:
-                R1md5 = md5sum(os.path.join(TMPDIR, R1))
-            except:
-                R1md5 = None
-
-            try:
-                R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
-            except:
-                R1Libsize, R1avgLen = None, None
-
-            try:
-                R2md5 = md5sum(os.path.join(TMPDIR, R2))
-            except:
-                R2md5 = None
-
-            try:
-                R2Libsize, R2avgLen = fastq_stats(os.path.join(TMPDIR, R2))
-            except:
-                R2Libsize, R2avgLen = None, None
-
-            downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
-
-
-
-
-
-
-
-
-##################################################################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
-# Set up file naming patterns and targets
-################################################################################
-# Build target files
-all_complete = {'files': '../output/prealignment/raw/{srx}/{srr}/{srr}.done'}
-targets = helpers.fill_patterns(all_complete, sample_table)
-
-# Patterns
-fastqs = {
-        'r1': '../output/pre-prealignment/raw/{srx}/{srr}/{srr}_1.fastq.gz',
-        'r2': '../output/pre-prealignment/raw/{srx}/{srr}/{srr}_2.fastq.gz'
-    }
-
 patterns = {
-    'layout': '../output/prealignment/raw/{srx}/{srr}/LAYOUT',
-    'strand': '../output/prealignment/raw/{srx}/{srr}/STRAND',
-    'fastq_screen': {
-        'txt': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.txt',
-        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.done',
+    'fastq': {
+        'r1': 'output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
+        'r2': 'output/samples/{srx}/{srr}/{srr}_2.fastq.gz',
+        'summary': 'output/samples/{srx}/{srr}/{srr}.fastq.tsv',
     },
+    'layout': 'output/samples/{srx}/{srr}/LAYOUT',
+    'fastq_screen': 'output/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt',
     'fastqc': {
-        'html': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastqc.html',
-        'zip': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastqc.zip',
+        'html': 'output/samples/{srx}/{srr}/{srr}_1.fastqc.html',
+        'zip': 'output/samples/{srx}/{srr}/{srr}_1.fastqc.zip',
     },
     'atropos': {
-        'r1': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
+        'r1': 'output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
+        'r2': 'output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
     },
     'hisat2': {
-        'splice_sites': '../output/known_splice_sites_r6-11.txt',
-        'bam': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam',
-        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.done',
+        'splice_sites': 'output/known_splice_sites_r6-11.txt',
+        'bam': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam',
+        'summary': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv',
     },
-    'bai': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.bai',
+    'bai': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.bai',
     'feature_counts': {
-        'counts': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts',
-        'jcounts': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts',
-        'summary': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary',
-        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.done',
+        'counts': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts',
+        'jcounts': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts',
+        'summary': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary',
     },
     'picard': {
         'collectrnaseqmetrics': {
             'metrics': {
-                'unstranded': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.NONE.picard.collectrnaseqmetrics',
-                'first': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
-                'second': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
+                'unstranded': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.NONE.picard.collectrnaseqmetrics',
+                'first': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
+                'second': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
             },
-            'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.collectrnaseqmetrics.done',
         },
         'markduplicates': {
-            'bam': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam',
-            'metrics': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics',
-            'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.done',
+            'bam': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam',
+            'metrics': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics',
         },
     },
-    'samtools_stats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats',
-    'samtools_stats_db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats.done',
-    'samtools_idxstats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats',
-    'samtools_idxstats_db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats.done',
-    'bamtools_stats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats',
+    'strand': 'output/samples/{srx}/{srr}/STRAND',
+    'samtools_stats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats',
+    'samtools_idxstats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats',
+    'bamtools_stats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats',
 }
 
 
-localrules:
-    check_results, bai, fastq_screen_db, hisat2_db,
-    samtools_stats_db, samtools_idxstats_db, featurecounts_db, collectrnaseqmetrics_db,
-    markduplicates_db
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
 
+rule download:
+    input:
+        targets['fastq']['r1'],
+        targets['fastq']['r2'],
+        targets['fastq']['summary'],
+        targets['layout'],
 
 rule targets:
-    input: utils.flatten(targets)
+    input:
+        targets['fastq_screen'],
+        targets['hisat2']['summary'],
+        targets['strand'],
+        targets['feature_counts']['summary'],
+        targets['samtools_stats'],
+        targets['samtools_idxstats'],
+        targets['bamtools_stats']
+
 
 onsuccess:
     print('All Finished')
-    mongo_client.close()
+    store.close()
+
 
 onerror:
     print('Something went wrong, you need to re-run')
-    mongo_client.close()
+    store.close()
 
 
-rule check_results:
-    input:
-#         utils.flatten(patterns['fastqc']) +
-        [
-            patterns['fastq_screen']['db'],
-            patterns['hisat2']['db'],
-            patterns['samtools_stats_db'],
-            patterns['samtools_idxstats_db'],
-            patterns['feature_counts']['db'],
-            patterns['picard']['collectrnaseqmetrics']['db'],
-            patterns['picard']['markduplicates']['db'],
-            patterns['samtools_idxstats'],
-            patterns['bamtools_stats'],
-        ]
-    output: all_complete['files']
+################################################################################
+# FASTQ dump and check for SE or PE
+################################################################################
+"""Downloads fastq and checks if there is one or two sets of reads."""
+rule fastq_dump:
+    output:
+        fq1=patterns['fastq']['r1'],
+        fq2=patterns['fastq']['r2'],
+        flag=patterns['layout'],
+        summary=patterns['fastq']['summary'],
     run:
-        # Update database
-        remap.find_one_and_update(
-            {'runs.srr': wildcards.sample},
-            {'$addToSet': {'runs.$.pre_aln_flags': 'complete'}}
-        )
+        # Get current sample id
+        sample = wildcards.srr
 
-        # Touch dummy file for snakemake
-        Path(output[0]).touch()
+        # Dump FASTQ
+        shell("fastq-dump -O $TMPDIR -M 0 --split-files {sample}")
+
+        # Get summaries for R1
+        t1 = os.path.join(TMPDIR, sample + '_1.fastq')
+        R1md5 = md5sum(t1)
+        R1Libsize, R1avgLen = fastq_stats(t1)
+
+        with open(t1, 'rb') as f_in:
+            with gzip.open(output.fq1, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # Get Summary for R2
+        t2 = os.path.join(TMPDIR, sample + '_2.fastq')
+        if check_fastq(fq2):
+            # Get md5sum
+            R2md5 = md5sum(t2)
+            R2Libsize, R2avgLen = fastq_stats(t2)
+
+            with open(t2, 'rb') as f_in:
+                with gzip.open(output.fq2, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+        else:
+            R2md5 = R2Libsize = R2avgLen = None
+            Path(output.fq2).touch()
+
+        # Save summary
+        df = pd.DataFrame([[R1md5, R1libsize, R1avgLen, R2md5, R2libsize, R2avgLen]],
+                          columns=['md5_R1', 'libsize_R1', 'avgLen_R1', 'md5_R2', 'libsize_R2', 'avgLen_R2'])
+
+        df.to_csv(output.summary, sep='\t')
+
+        # Figure out flags
+        if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & (R2avgLen is None):
+            put_flag(output.flag, 'SE')
+
+        elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
+            if R1Libsize == R2Libsize:
+                # Both reads look good.
+                put_flag(output.flag, 'PE')
+            else:
+                # There are an uneven number of reads between R1 and R2.
+                # Instead of messing with this, just consider SE and use R1.
+                put_flag(output.flag, 'keep_R1')
+
+        elif (R1Libsize > 1000) & (R1avgLen > 10):
+            # Only R1 looks ok, consider single-end
+            put_flag(output.flag, 'keep_R1')
+
+        elif (R2Libsize > 1000) & (R2avgLen > 10):
+            # Only R2 looks ok, consider single-end, symlink R2 to R1 for proper workflow.
+            put_flag(output.flag, 'keep_R2')
+
+        else:
+            fname = os.path.join(os.path.dirname(output.fastq), 'DOWNLOAD_BAD')
+            Path(fname).touch()
 
 
 ################################################################################
 # FASTQ QC
 ################################################################################
-rule fastqc:
-    input: fastqs['r1']
-    output:
-        html=patterns['fastqc']['html'],
-        zip=patterns['fastqc']['zip']
-    params: extra="--format fastq"
-    log: patterns['fastqc']['html'] + '.log'
-    wrapper: wrapper_for('fastqc')
-
-
 rule fastq_screen:
     input:
-        fastq=fastqs['r1'],
+        fastq=patterns['fastq']['r1'],
         dm6=config['references']['dmel']['bowtie2'],
         hg19=config['references']['human']['bowtie2'],
         wolbachia=config['references']['wolbachia']['bowtie2'],
@@ -409,31 +205,11 @@ rule fastq_screen:
         phix=config['references']['phix']['bowtie2'],
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
-    output: txt=patterns['fastq_screen']['txt']
-    log: patterns['fastq_screen']['txt'] + '.log'
-    wrapper: wrapper_for('fastq_screen')
-
-
-rule fastq_screen_db:
-    input:
-        fn=patterns['fastq_screen']['txt']
     output:
-        done=patterns['fastq_screen']['db']
-    run:
-        from ncbi_remap.parser import parse_fastq_screen
-        srr = wildcards.sample
-        df = parse_fastq_screen(srr, input.fn)
-        df2 = {k[1]: v for k, v in df.to_dict('index').items()}
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.fastq_screen': clean_types(df2)
-                }
-            }
-        )
-
-        Path(output.done).touch()
+        txt=patterns['fastq_screen']
+    log: patterns['fastq_screen'] + '.log'
+    wrapper:
+        wrapper_for('fastq_screen')
 
 
 ################################################################################
@@ -443,9 +219,11 @@ def _atropos(wildcards):
     """Determine if the sample is PE or SE"""
     flag = get_flag(patterns['layout'].format(**wildcards))
     if flag == 'PE':
-        return {'R1': expand(fastqs['r1'], **wildcards)[0], 'R2': expand(fastqs['r2'], **wildcards)[0]}
+        return {'R1': expand(patterns['fastq']['r1'], **wildcards)[0], 'R2': expand(patterns['fastq']['r2'], **wildcards)[0]}
+    elif flag == 'keep_R2':
+        return {'R1': expand(patterns['fastq']['r2'], **wildcards)[0]}
     else:
-        return {'R1': expand(fastqs['r1'], **wildcards)[0]}
+        return {'R1': expand(patterns['fastq']['r1'], **wildcards)[0]}
 
 
 def _params_extra_atropos(wildcards):
@@ -458,7 +236,7 @@ def _params_extra_atropos(wildcards):
 
 
 def _params_r2_atropos(wildcards):
-    """Determine strandedness and pass correct settings."""
+    """Determine if the sample is PE or SE"""
     flag = get_flag(patterns['layout'].format(**wildcards))
     if flag == 'PE':
         return expand(patterns['atropos']['r2'], **wildcards)[0] + '.tmp.gz'
@@ -476,258 +254,127 @@ rule atropos:
     log:
         patterns['atropos']['r1'] + '.log'
     threads: 8
-    wrapper: wrapper_for('atropos')
+    wrapper:
+        wrapper_for('atropos')
 
 
 rule atropos_phony:
     input: rules.atropos.output
     output: temp(patterns['atropos']['r2'])
-    shell: """
-    mv {output[0]}.tmp.gz {output[0]}
-    """
+    shell:
+        "mv {output[0]}.tmp.gz {output[0]}"
 
 
 ################################################################################
 # Alignment
 ################################################################################
 rule hisat2_splice_site:
-    input: gtf=config['references']['dmel']['gtf']
+    input:
+        gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
     conda: "../config/extra_env.yaml"
-    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
+    shell:
+        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
 def _hisat2(wildcards):
     flag = get_flag(patterns['layout'].format(**wildcards))
     if flag == 'PE':
         return expand(patterns['atropos']['r1'], **wildcards)[0], expand(patterns['atropos']['r2'], **wildcards)[0]
+    elif flag == 'keep_R2':
+        return expand(patterns['atropos']['r2'], **wildcards)[0]
     else:
         return expand(patterns['atropos']['r1'], **wildcards)[0]
 
 
 rule hisat2:
     input:
+        flag=patterns['layout'],
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=_hisat2
-    output: bam=temp(patterns['hisat2']['bam'])
+        fastq=_hisat2,
+    output:
+        bam=temp(patterns['hisat2']['bam'])
     threads: 8
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
-    wrapper: wrapper_for('hisat2/align')
+    wrapper:
+        wrapper_for('hisat2/align')
 
 
-# TODO: update to use hdf5
-rule hisat2_db:
+rule hisat2_summary:
     input:
         fn=patterns['hisat2']['bam']
-    output:
-        done=patterns['hisat2']['db']
+    output: patterns['hisat2']['summary']
     run:
         from ncbi_remap.parser import parse_hisat2
         srr = wildcards.sample
         df = parse_hisat2(srr, input.fn + '.log')
-        dd = df.to_dict('index')[srr]
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.hisat2': clean_types(dd)
-                }
-            }
-        )
+        df.to_csv(output, sep='\t')
 
         if df.ix[0, 'per_alignment'] < .50:
-            remap.update_one(
-                {'runs.srr': srr},
-                {
-                    '$addToSet': {
-                        'runs.$.pre_aln_flags': 'alignment_bad'
-                    }
-                }
-            )
-
-        Path(output.done).touch()
+            fname = os.path.join(os.path.dirname(output), 'ALIGNMENT_BAD')
+            Path(fname).touch()
 
 
 rule bai:
-    input: bam='{prefix}.bam'
-    output: bai=temp('{prefix}.bam.bai')
+    input:
+        bam='{prefix}.bam'
+    output:
+        bai=temp('{prefix}.bam.bai')
     conda: "../config/extra_env.yaml"
-    shell: "samtools index {input.bam}"
-
-
-################################################################################
-# Feature Counts
-################################################################################
-def _params_featurecounts(wildcards):
-    """Determine strandedness and pass correct settings."""
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        base = '-p -P -C -J '
-    else:
-        base = '-J '
-
-    strand = get_flag(patterns['strand'].format(**wildcards))
-    if strand == 'first_strand':
-        return base + '-s 1'
-    elif strand == 'second_strand':
-        return base + '-s 2'
-    else:
-        return base + '-s 0'
-
-
-rule feature_counts:
-    input:
-        annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam'],
-    output:
-        counts=patterns['feature_counts']['counts'],
-        jcounts=patterns['feature_counts']['jcounts'],
-        summary=patterns['feature_counts']['summary']
-    params: extra=_params_featurecounts
-    threads: 4
-    log: patterns['feature_counts']['counts'] + '.log'
-    wrapper: wrapper_for('featurecounts')
-
-
-# TODO: update to use hdf5
-rule feature_counts_db:
-    input:
-        jcount=patterns['feature_counts']['jcounts'],
-        summary=patterns['feature_counts']['summary']
-    output:
-        done=patterns['feature_counts']['db']
-    run:
-        from ncbi_remap.parser import parse_featureCounts_jcounts, parse_featureCounts_summary
-        srr = wildcards.sample
-        dfJ = parse_featureCounts_jcounts(srr, input.jcount)
-        if dfJ.shape[0] > 0:
-            num_junction_reads = dfJ.loc[~dfJ.PrimaryGene.isnull(), 'count'].sum()
-        else:
-            num_junction_reads = 0
-
-        dfS = parse_featureCounts_summary(srr, input.summary)
-        dd = dfS.to_dict('index')[srr]
-        dd['Assigned_Junction'] = num_junction_reads
-
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.featurecounts': clean_types(dd)
-                }
-            }
-        )
-
-        Path(output.done).touch()
-
-
-################################################################################
-# Stats
-################################################################################
-rule run_stats:
-    input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
-    output:
-        samtools_stats=patterns['samtools_stats'],
-        samtools_idxstats=patterns['samtools_idxstats'],
-        bamtools_stats=patterns['bamtools_stats']
-    conda: '../config/extra_env.yaml'
     shell:
-        'BAM=$(mktemp --suffix=".bam") '
-        '&& cp {input.bam} $BAM '
-        '&& cp {input.bam}.bai $BAM.bai '
-        '&& samtools stats $BAM > {output.samtools_stats} '
-        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
-        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
-        '&& rm $BAM'
+        "samtools index {input.bam}"
 
-
-rule samtools_stats_db:
-    input:
-        fn=patterns['samtools_stats']
-    output:
-        done=patterns['samtools_stats_db']
-    run:
-        from ncbi_remap.parser import parse_samtools_stats
-        srr = wildcards.sample
-        df = parse_samtools_stats(srr, input.fn)
-        dd = df.to_dict('index')[srr]
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.samtools_stats': clean_types(dd)
-                }
-            }
-        )
-
-        Path(output.done).touch()
-
-
-rule samtools_idxstats_db:
-    input:
-        fn=patterns['samtools_idxstats']
-    output:
-        done=patterns['samtools_idxstats_db']
-    run:
-        from ncbi_remap.parser import parse_samtools_idxstats
-        srr = wildcards.sample
-        df = parse_samtools_idxstats(srr, input.fn)
-        df.columns = ['chrom', 'length', 'num_mapped_reads', 'num_unmapped_reads']
-        records = df.to_dict('records')
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.samtools_idxstats': clean_types(records)
-                }
-            }
-        )
-
-        Path(output.done).touch()
 
 ################################################################################
 # PICARD RNA Seq Metrics
 ################################################################################
 rule collectrnaseqmetrics_unstrand:
     input:
-        bam=patterns['hisat2']['bam'],
+        bam=rules.hisat2.output.bam,
         refflat=config['references']['dmel']['refflat']
-    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
+    output:
+        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
     params:
         extra='STRAND=NONE',
         java_args='-Xmx30g'
-    log: patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
-    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+    log:
+        patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
+    wrapper:
+        wrapper_for('picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_first:
     input:
-        bam=patterns['hisat2']['bam'],
+        bam=rules.hisat2.output.bam,
         refflat=config['references']['dmel']['refflat']
-    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
+    output:
+        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
     params:
         extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
         java_args='-Xmx30g'
-    log: patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
-    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+    log:
+        patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
+    wrapper:
+        wrapper_for('picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_second:
     input:
-        bam=patterns['hisat2']['bam'],
+        bam=rules.hisat2.output.bam,
         refflat=config['references']['dmel']['refflat']
-    output: metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
+    output:
+        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
     params:
         extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND',
         java_args='-Xmx30g'
-    log: patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
-    wrapper: wrapper_for('picard/collectrnaseqmetrics')
+    log:
+        patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
+    wrapper:
+        wrapper_for('picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_agg:
@@ -754,37 +401,80 @@ rule collectrnaseqmetrics_agg:
         put_flag(output.flag, flag)
 
 
+################################################################################
+# Feature Counts
+################################################################################
+def _params_featurecounts(wildcards):
+    """Determine if the sample is PE or SE"""
+    flag = get_flag(patterns['layout'].format(**wildcards))
+    if flag == 'PE':
+        base = '-p -P -C -J '
+    else:
+        base = '-J '
+
+    strand = get_flag(patterns['strand'].format(**wildcards))
+    if strand == 'first_strand':
+        return base + '-s 1'
+    elif strand == 'second_strand':
+        return base + '-s 2'
+    else:
+        return base + '-s 0'
+
+
+rule feature_counts:
+    input:
+        annotation=config['references']['dmel']['gtf'],
+        bam=patterns['hisat2']['bam'],
+    output:
+        counts=patterns['feature_counts']['counts'],
+        jcounts=patterns['feature_counts']['jcounts'],
+        summary=patterns['feature_counts']['summary']
+    params:
+        extra=_params_featurecounts
+    threads: 4
+    log:
+        patterns['feature_counts']['counts'] + '.log'
+    wrapper:
+        wrapper_for('featurecounts')
+
+
+################################################################################
+# Stats
+################################################################################
+rule run_stats:
+    input:
+        bam=patterns['hisat2']['bam'],
+        bai=patterns['bai'],
+    output:
+        samtools_stats=patterns['samtools_stats'],
+        samtools_idxstats=patterns['samtools_idxstats'],
+        bamtools_stats=patterns['bamtools_stats']
+    conda: '../config/extra_env.yaml'
+    shell:
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
+
+
+################################################################################
+# PICARD RNA Seq Metrics
+################################################################################
 rule markduplicates:
-    input: bam=patterns['hisat2']['bam']
+    input:
+        bam=rules.hisat2.output.bam
     output:
         bam=temp(patterns['picard']['markduplicates']['bam']),
         metrics=patterns['picard']['markduplicates']['metrics']
     params:
         java_args='-Xmx30g'
-    log: patterns['picard']['markduplicates']['metrics'] + '.log'
-    wrapper: wrapper_for('picard/markduplicates')
+    log:
+        patterns['picard']['markduplicates']['metrics'] + '.log'
+    wrapper:
+        wrapper_for('picard/markduplicates')
 
-
-# TODO: update to use hdf5
-rule markduplicates_db:
-    input:
-        fn=patterns['picard']['markduplicates']['metrics'],
-    output:
-        done=patterns['picard']['markduplicates']['db']
-    run:
-        from ncbi_remap.parser import parse_picard_markduplicate_metrics
-        srr = wildcards.sample
-        df = parse_picard_markduplicate_metrics(srr, input.fn)
-        dd = df.to_dict('index')[srr]
-        remap.update_one(
-            {'runs.srr': srr},
-            {
-                '$set': {
-                    'runs.$.pre_aln_workflow.picard_markduplicates': clean_types(dd)
-                }
-            }
-        )
-
-        Path(output.done).touch()
 
 # vim: set ft=snakemake.python

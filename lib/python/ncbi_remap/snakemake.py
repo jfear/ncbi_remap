@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """Set of helpers for use with snakemake."""
+import os
+import numpy as np
 
 
 def wrapper_for(path):
