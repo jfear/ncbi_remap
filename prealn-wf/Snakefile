@@ -2,6 +2,9 @@
 # vim: set ft=python.snakemake
 import os
 import sys
+import re
+from textwrap import dedent
+import shutil as sh
 
 import numpy as np
 import pandas as pd
@@ -12,23 +15,20 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib/python')
-import ncbi_remap
+from ncbi_remap.io import get_queue
+from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats
+
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '../.prealignment'
+workdir: '.'
 
 # import config
-configfile: '../config/prealignment_config.yaml'
+configfile: '../config/reference_config.yml'
 
-# Connect to mongodb
-with open('../output/.mongodb_host', 'r') as fh:
-    mongo_client = MongoClient(host=fh.read().strip(), port=27022)
-    db = mongo_client['sra2']
-    remap = db['remap']
 
 # Find snakemake wrappers:
 def wrapper_for(path):
@@ -73,110 +73,308 @@ def clean_types(dic):
 ################################################################################
 # Build Sample Table
 ################################################################################
-# Golden 312 test runs (312)
-with open('../data/312_sample_golden_set_2016-06-14.txt', 'r') as fh:
-    golden = [x.strip() for x in fh.readlines()]
+store = pd.HDFStore('../sra.h5')
+sample_table = get_queue(store, flag='prealn')
 
-# All SRRs that the Miegs analyzed (13495)
-with open('../data/13495_runs_analyzed_by_mieg.txt', 'r') as fh:
-    mieg = [x.strip() for x in fh.readlines()]
 
-# modEncode SRRs (2,312)
-modEncode = pd.read_csv('../output/modENCODE_sampletable.tsv', sep='\t').srr.unique().tolist()
+##################################################################################################################################################
 
-# s2 SRRs
-with open('../data/1104_s2_cell_in_mieg.txt', 'r') as fh:
-    s2 = [x.strip() for x in fh.readlines()]
 
-with open('../data/1508_s2_cell_brian_annot.txt', 'r') as fh:
-    s2_2 = [x.strip() for x in fh.readlines()]
 
-# rnaseq wrap up list (163)
-with open('../data/priority.txt', 'r') as fh:
-    priority = [x.strip() for x in fh.readlines()]
 
-samples = remap.aggregate([
-    {'$unwind': '$runs'},
-    {
-        '$match': {
-            '$and': [
-                {'runs.srr': {'$exists': 1}},
-                {'runs.srr': {'$in': modEncode}},
-                {'runs.libsize.R1': {'$exists': 1}},
-                {'runs.pre_aln_flags': {'$ne': 'complete'}},
-                {'runs.pre_aln_flags': {'$ne': 'download_bad'}},
-                {'runs.pre_aln_flags': {'$ne': 'abi_solid'}},
-                {'runs.pre_aln_flags': {'$ne': 'alignment_bad'}},
-                {'runs.pre_aln_flags': {'$ne': 'quality_scores_bad'}},
-            ],
-        }
-    },
-    {'$group': {'_id': {'sample': '$runs.srr', 'experiment': '$_id'}}},
-    {'$project': {'_id': 0, 'experiment': '$_id.experiment', 'sample': '$_id.sample'}},
-    {'$sort': {'sample': 1}},
-    {'$limit': 2000}
-])
 
-sample_table = pd.DataFrame(list(samples))
+################################################################################
+# Set up file naming patterns
+################################################################################
+patterns = {'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz'}
+
+# Build target files
+targets = helpers.fill_patterns(patterns, sample_table)
+
+rule targets:
+    input: utils.flatten(targets)
+
+################################################################################
+# FASTQ dump and check for SE or PE
+################################################################################
+
+
+def singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5):
+    """Adds a single-end read to the database.
+
+    Compresses (.gz) and add an entry to the database.
+    """
+    # Compress files and copy over
+    shell(
+            "gzip --best $TMPDIR/{sample}_1.fastq "
+            "&& cp $TMPDIR/{sample}*.gz {odir}/ "
+            "&& rm $TMPDIR/{sample}*.gz"
+        )
+
+    # Save results to Database
+    remap.find_one_and_update({'runs.srr': sample},
+            {
+                '$addToSet': {'runs.$.pre_aln_flags': 'SE'},
+                '$set': {
+                    'runs.$.libsize': {'R1': R1Libsize},
+                    'runs.$.avgReadLen': {'R1': R1avgLen},
+                    'runs.$.md5': {'R1': R1md5},
+                }
+            })
+
+
+def pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5):
+    """Adds a pair-end read to the database.
+
+    Compresses (.gz) and add an entry to the database.
+    """
+    shell(
+            "gzip --best $TMPDIR/{sample}_1.fastq "
+            "&& gzip --best $TMPDIR/{sample}_2.fastq "
+            "&& cp $TMPDIR/{sample}*.gz {odir}/ "
+            "&& rm $TMPDIR/{sample}*.gz"
+        )
+
+    # Save results to Database
+    remap.find_one_and_update({'runs.srr': sample},
+            {
+                '$addToSet': {'runs.$.pre_aln_flags': 'PE'},
+                '$set': {
+                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
+                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
+                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
+                }
+            })
+
+
+def actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5, link=False):
+    """Adds a single-end read to the database, despite it looking like PE.
+
+    Sometimes I have found that the second read is empty or is a barcode or
+    something else. To simplify processing, we figure out which read pair looks
+    the best and then just set it to be R1.
+
+    If R1 is the best, then just don't copy over R2, if R2 is the best (i.e.,
+    link=True) then copy R2 over and symlink it to R1.
+
+    Compresses (.gz) and add an entry to the database.
+    """
+    if link:
+        shell(
+                "gzip --best $TMPDIR/{sample}_2.fastq "
+                "&& cp $TMPDIR/{sample}*.gz {odir}/ "
+                "&& cd {odir} "
+                "&& ln -s {sample}_2.fastq.gz {sample}_1.fastq.gz "
+                "&& rm $TMPDIR/{sample}*.gz "
+                "&& rm $TMPDIR/{sample}*.fastq "
+            )
+        keep = 'keep_R2'
+    else:
+        shell(
+                "gzip --best $TMPDIR/{sample}_1.fastq "
+                "&& cp $TMPDIR/{sample}_1.fastq.gz {odir}/ "
+                "&& rm $TMPDIR/{sample}_1.fastq.gz "
+                "&& rm $TMPDIR/{sample}*.fastq "
+            )
+        keep = 'keep_R1'
+
+    # Save results to Database
+    remap.find_one_and_update({'runs.srr': sample},
+            {
+                '$addToSet': {'runs.$.pre_aln_flags': {'$each': ['SE', keep]}},
+                '$set': {
+                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
+                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
+                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
+                }
+            })
+
+
+def downloadBad(sample, output, R1Libsize, R1avgLen, R1md5, R2Libsize=None, R2avgLen=None, R2md5=None):
+    """Something went wrong.
+
+    There are just some entries that don't download right. Either they are
+    empty or corrupted. We may be able to download them using another
+    mechanism later, so just mark as problematic is move on with life.
+
+    Note I touch a file so that snakemake does not complain, but set the entry
+    as `download_bad` in the database, so this should not be used in the
+    downstream steps.
+    """
+    remap.find_one_and_update({'runs.srr': sample},
+            {
+                '$addToSet': {'runs.$.pre_aln_flags': 'download_bad'},
+                '$set': {
+                    'runs.$.libsize': {'R1': R1Libsize, 'R2': R2Libsize},
+                    'runs.$.avgReadLen': {'R1': R1avgLen, 'R2': R2avgLen},
+                    'runs.$.md5': {'R1': R1md5, 'R2': R2md5},
+                }
+            })
+    shell("touch {output}".format(output=output))
+
+
+"""Downloads fastq and checks if there is one or two sets of reads."""
+rule fastq_dump:
+    output:
+        fastq=patterns['fastq'],
+    run:
+        sample = wildcards.sample
+        odir = os.path.dirname(output.fastq)
+        R1 = sample + '_1.fastq'
+        R2 = sample + '_2.fastq'
+
+        # Dump FASTQ
+        shell("fastq-dump -O $TMPDIR -M 0 --split-files {sample}")
+
+        # Pair-end
+        if check_fastq(os.path.join(TMPDIR, R2)):
+            # Get md5sum
+            R1md5 = md5sum(os.path.join(TMPDIR, R1))
+            R2md5 = md5sum(os.path.join(TMPDIR, R2))
+
+            # Calculate libsize and average read length
+            R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
+            R2Libsize, R2avgLen = fastq_stats(os.path.join(TMPDIR, R2))
+
+            # Copy and Add to database
+            if (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
+                if R1Libsize == R2Libsize:
+                    # Both reads look good.
+                    pairEnd(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+                else:
+                    # There are an uneven number of reads between R1 and R2.
+                    # Instead of messing with this, just consider SE and use R1.
+                    actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+            elif (R1Libsize > 1000) & (R1avgLen > 10):
+                # Only R1 looks ok, consider single-end
+                actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+            elif (R2Libsize > 1000) & (R2avgLen > 10):
+                # Only R2 looks ok, consider single-end, symlink R2 to R1 for proper workflow.
+                actuallySingle(sample, odir, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5, link=True)
+            else:
+                downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+
+        # Single-end
+        elif check_fastq(os.path.join(TMPDIR, R1)):
+            # Get md5sum
+            R1md5 = md5sum(os.path.join(TMPDIR, R1))
+
+            # Calculate libsize and average read length
+            R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
+
+            # Copy and Add to database
+            singleEnd(sample, odir, R1Libsize, R1avgLen, R1md5)
+        else:
+
+            try:
+                R1md5 = md5sum(os.path.join(TMPDIR, R1))
+            except:
+                R1md5 = None
+
+            try:
+                R1Libsize, R1avgLen = fastq_stats(os.path.join(TMPDIR, R1))
+            except:
+                R1Libsize, R1avgLen = None, None
+
+            try:
+                R2md5 = md5sum(os.path.join(TMPDIR, R2))
+            except:
+                R2md5 = None
+
+            try:
+                R2Libsize, R2avgLen = fastq_stats(os.path.join(TMPDIR, R2))
+            except:
+                R2Libsize, R2avgLen = None, None
+
+            downloadBad(sample, output.fastq, R1Libsize, R1avgLen, R1md5, R2Libsize, R2avgLen, R2md5)
+
+
+
+
+
+
+
+
+##################################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ################################################################################
 # Set up file naming patterns and targets
 ################################################################################
 # Build target files
-all_complete = {'files': '../output/prealignment/raw/{experiment}/{sample}/{sample}.done'}
+all_complete = {'files': '../output/prealignment/raw/{srx}/{srr}/{srr}.done'}
 targets = helpers.fill_patterns(all_complete, sample_table)
 
 # Patterns
 fastqs = {
-        'r1': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
-        'r2': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_2.fastq.gz'
+        'r1': '../output/pre-prealignment/raw/{srx}/{srr}/{srr}_1.fastq.gz',
+        'r2': '../output/pre-prealignment/raw/{srx}/{srr}/{srr}_2.fastq.gz'
     }
 
 patterns = {
     'fastq_screen': {
-        'txt': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq_screen.txt',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastq_screen.done',
+        'txt': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.txt',
+        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastq_screen.done',
     },
     'fastqc': {
-        'html': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastqc.html',
-        'zip': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.fastqc.zip',
+        'html': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastqc.html',
+        'zip': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.fastqc.zip',
     },
     'atropos': {
-        'r1': '../output/prealignment/raw/{experiment}/{sample}/{sample}_1.trim.clean.fastq.gz',
-        'r2': '../output/prealignment/raw/{experiment}/{sample}/{sample}_2.trim.clean.fastq.gz',
+        'r1': '../output/prealignment/raw/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
+        'r2': '../output/prealignment/raw/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
     },
     'hisat2': {
         'splice_sites': '../output/known_splice_sites_r6-11.txt',
-        'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.done',
+        'bam': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam',
+        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.done',
     },
-    'bai': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bai',
+    'bai': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.bai',
     'feature_counts': {
-        'counts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts',
-        'jcounts': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.jcounts',
-        'summary': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.counts.summary',
-        'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.feature_counts.done',
+        'counts': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts',
+        'jcounts': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts',
+        'summary': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary',
+        'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.done',
     },
     'picard': {
         'collectrnaseqmetrics': {
             'metrics': {
-                'unstranded': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.NONE.picard.collectrnaseqmetrics',
-                'first': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
-                'second': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
+                'unstranded': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.NONE.picard.collectrnaseqmetrics',
+                'first': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
+                'second': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics',
             },
-            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.collectrnaseqmetrics.done',
+            'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.collectrnaseqmetrics.done',
         },
         'markduplicates': {
-            'bam': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.bam',
-            'metrics': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.metrics',
-            'db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.picard.markduplicates.done',
+            'bam': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam',
+            'metrics': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics',
+            'db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.done',
         },
     },
-    'samtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats',
-    'samtools_stats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.stats.done',
-    'samtools_idxstats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.idxstats',
-    'samtools_idxstats_db': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.samtools.idxstats.done',
-    'bamtools_stats': '../output/prealignment/raw/{experiment}/{sample}/{sample}.hisat2.bam.bamtools.stats',
+    'samtools_stats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats',
+    'samtools_stats_db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats.done',
+    'samtools_idxstats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats',
+    'samtools_idxstats_db': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats.done',
+    'bamtools_stats': '../output/prealignment/raw/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats',
 }
 
 
@@ -639,3 +837,5 @@ rule markduplicates_db:
         )
 
         Path(output.done).touch()
+
+# vim: set ft=snakemake.python
