@@ -2,22 +2,17 @@
 # vim: set ft=python.snakemake
 import os
 import sys
-import re
-from textwrap import dedent
 import shutil as sh
 import gzip
 
-import numpy as np
 import pandas as pd
-from pymongo import MongoClient
 from pathlib import Path
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib/python')
-from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats
-from ncbi_remap.snakemake import wrapper_for, put_flag, get_flag
+from ncbi_remap.snakemake import wrapper_for, put_flag
 
 
 # Setup tempdir to work with lscratch
@@ -34,8 +29,9 @@ configfile: '../config/reference_config.yml'
 ################################################################################
 # Build Sample Table
 ################################################################################
-store = pd.HDFStore('../sra.h5')
+store = pd.HDFStore('../sra.h5', mode='r')
 sample_table = store['prealn/queue'].head(2)
+store.close()
 
 ################################################################################
 # Set up file naming patterns
@@ -90,110 +86,67 @@ patterns = {
 # Build target files
 targets = helpers.fill_patterns(patterns, sample_table)
 
-rule download:
-    input:
-        targets['fastq']['r1'],
-        targets['fastq']['r2'],
-        targets['fastq']['summary'],
-        targets['layout'],
-
-rule targets:
-    input:
+def keepers(targets):
+    return [
         targets['fastq_screen'],
         targets['hisat2']['summary'],
-        targets['strand'],
         targets['feature_counts']['summary'],
         targets['samtools_stats'],
         targets['samtools_idxstats'],
-        targets['bamtools_stats']
+        targets['bamtools_stats'],
+        targets['picard']['markduplicates']['metrics']
+    ]
 
+rule targets:
+    input: keepers(targets)
+
+
+rule update_queue:
+    run:
+        def check(srx, srr, targets):
+            for fname in utils.flatten(keepers(targets)):
+                if not os.path.exists(fname):
+                    return
+            # TODO add bad alignment check
+            return srx, srr
+
+        done = []
+        for i, row in sample_table.iterrows():
+            srx, srr = row.srx, row.srr
+            targets = helpers.fill_patterns(patterns, row)
+            value = check(srx, srr, targets)
+            if value is not None:
+                done.append(value)
+        print(done)
 
 onsuccess:
     print('All Finished')
-    store.close()
 
 
 onerror:
     print('Something went wrong, you need to re-run')
-    store.close()
 
 
 ################################################################################
 # FASTQ dump and check for SE or PE
 ################################################################################
-"""Downloads fastq and checks if there is one or two sets of reads."""
 rule fastq_dump:
+    """Downloads fastq and checks if there is one or two sets of reads."""
     output:
         fq1=patterns['fastq']['r1'],
         fq2=patterns['fastq']['r2'],
         flag=patterns['layout'],
         summary=patterns['fastq']['summary'],
-    run:
-        # Get current sample id
-        sample = wildcards.srr
-
-        # Dump FASTQ
-        shell("fastq-dump -O $TMPDIR -M 0 --split-files {sample}")
-
-        # Get summaries for R1
-        t1 = os.path.join(TMPDIR, sample + '_1.fastq')
-        R1md5 = md5sum(t1)
-        R1Libsize, R1avgLen = fastq_stats(t1)
-
-        with open(t1, 'rb') as f_in:
-            with gzip.open(output.fq1, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-
-        # Get Summary for R2
-        t2 = os.path.join(TMPDIR, sample + '_2.fastq')
-        if check_fastq(fq2):
-            # Get md5sum
-            R2md5 = md5sum(t2)
-            R2Libsize, R2avgLen = fastq_stats(t2)
-
-            with open(t2, 'rb') as f_in:
-                with gzip.open(output.fq2, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
-        else:
-            R2md5 = R2Libsize = R2avgLen = None
-            Path(output.fq2).touch()
-
-        # Save summary
-        df = pd.DataFrame([[R1md5, R1libsize, R1avgLen, R2md5, R2libsize, R2avgLen]],
-                          columns=['md5_R1', 'libsize_R1', 'avgLen_R1', 'md5_R2', 'libsize_R2', 'avgLen_R2'])
-
-        df.to_csv(output.summary, sep='\t')
-
-        # Figure out flags
-        if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & (R2avgLen is None):
-            put_flag(output.flag, 'SE')
-
-        elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
-            if R1Libsize == R2Libsize:
-                # Both reads look good.
-                put_flag(output.flag, 'PE')
-            else:
-                # There are an uneven number of reads between R1 and R2.
-                # Instead of messing with this, just consider SE and use R1.
-                put_flag(output.flag, 'keep_R1')
-
-        elif (R1Libsize > 1000) & (R1avgLen > 10):
-            # Only R1 looks ok, consider single-end
-            put_flag(output.flag, 'keep_R1')
-
-        elif (R2Libsize > 1000) & (R2avgLen > 10):
-            # Only R2 looks ok, consider single-end, symlink R2 to R1 for proper workflow.
-            put_flag(output.flag, 'keep_R2')
-
-        else:
-            fname = os.path.join(os.path.dirname(output.fastq), 'DOWNLOAD_BAD')
-            Path(fname).touch()
+    log: patterns['fastq']['r1'] + '.log'
+    wrapper:
+        wrapper_for('wrappers/fastq_dump')
 
 
 ################################################################################
 # FASTQ QC
 ################################################################################
 rule fastq_screen:
+    """Check for contamination."""
     input:
         fastq=patterns['fastq']['r1'],
         dm6=config['references']['dmel']['bowtie2'],
@@ -209,90 +162,52 @@ rule fastq_screen:
         txt=patterns['fastq_screen']
     log: patterns['fastq_screen'] + '.log'
     wrapper:
-        wrapper_for('fastq_screen')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
 
 
 ################################################################################
 # FASTQ Pre-process
 ################################################################################
-def _atropos(wildcards):
-    """Determine if the sample is PE or SE"""
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        return {'R1': expand(patterns['fastq']['r1'], **wildcards)[0], 'R2': expand(patterns['fastq']['r2'], **wildcards)[0]}
-    elif flag == 'keep_R2':
-        return {'R1': expand(patterns['fastq']['r2'], **wildcards)[0]}
-    else:
-        return {'R1': expand(patterns['fastq']['r1'], **wildcards)[0]}
-
-
-def _params_extra_atropos(wildcards):
-    """Determine if the sample is PE or SE"""
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        return '-U 0 --minimum-length 25'
-    else:
-        return '--minimum-length 25'
-
-
-def _params_r2_atropos(wildcards):
-    """Determine if the sample is PE or SE"""
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        return expand(patterns['atropos']['r2'], **wildcards)[0] + '.tmp.gz'
-    else:
-        return None
-
-
 rule atropos:
-    input: unpack(_atropos)
+    """Filter reads that are less than 25bp."""
+    input:
+        R1=patterns['fastq']['r1'],
+        R2=patterns['fastq']['r2'],
+        layout=patterns['layout']
     output:
-        R1=temp(patterns['atropos']['r1'])
+        R1=temp(patterns['atropos']['r1']),
+        R2=temp(patterns['atropos']['r2']),
     params:
-        extra=_params_extra_atropos,
-        R2=_params_r2_atropos
+        extra_pe='-U 0 --minimum-length 25',
+        extra_se='--minimum-length 25',
     log:
         patterns['atropos']['r1'] + '.log'
     threads: 8
     wrapper:
-        wrapper_for('atropos')
-
-
-rule atropos_phony:
-    input: rules.atropos.output
-    output: temp(patterns['atropos']['r2'])
-    shell:
-        "mv {output[0]}.tmp.gz {output[0]}"
+        wrapper_for('wrappers/atropos')
 
 
 ################################################################################
 # Alignment
 ################################################################################
 rule hisat2_splice_site:
+    """Generate splicesite information from known annotations."""
     input:
         gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
     conda: "../config/extra_env.yaml"
-    shell:
-        "hisat2_extract_splice_sites.py {input.gtf} > {output}"
-
-
-def _hisat2(wildcards):
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        return expand(patterns['atropos']['r1'], **wildcards)[0], expand(patterns['atropos']['r2'], **wildcards)[0]
-    elif flag == 'keep_R2':
-        return expand(patterns['atropos']['r2'], **wildcards)[0]
-    else:
-        return expand(patterns['atropos']['r1'], **wildcards)[0]
+    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
 rule hisat2:
+    """Basic alignment."""
     input:
         flag=patterns['layout'],
         index=config['references']['dmel']['hisat2'],
         splice_sites=patterns['hisat2']['splice_sites'],
-        fastq=_hisat2,
+        R1=patterns['atropos']['r1'],
+        R2=patterns['atropos']['r2'],
+        layout=patterns['layout']
     output:
         bam=temp(patterns['hisat2']['bam'])
     threads: 8
@@ -301,10 +216,11 @@ rule hisat2:
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper:
-        wrapper_for('hisat2/align')
+        wrapper_for('wrappers/hisat2/align')
 
 
 rule hisat2_summary:
+    """Parse log and flag as bad alignment if <50% aligned."""
     input:
         fn=patterns['hisat2']['bam']
     output: patterns['hisat2']['summary']
@@ -344,7 +260,7 @@ rule collectrnaseqmetrics_unstrand:
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
     wrapper:
-        wrapper_for('picard/collectrnaseqmetrics')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_first:
@@ -359,7 +275,7 @@ rule collectrnaseqmetrics_first:
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     wrapper:
-        wrapper_for('picard/collectrnaseqmetrics')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_second:
@@ -374,7 +290,7 @@ rule collectrnaseqmetrics_second:
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
     wrapper:
-        wrapper_for('picard/collectrnaseqmetrics')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_agg:
@@ -404,38 +320,24 @@ rule collectrnaseqmetrics_agg:
 ################################################################################
 # Feature Counts
 ################################################################################
-def _params_featurecounts(wildcards):
-    """Determine if the sample is PE or SE"""
-    flag = get_flag(patterns['layout'].format(**wildcards))
-    if flag == 'PE':
-        base = '-p -P -C -J '
-    else:
-        base = '-J '
-
-    strand = get_flag(patterns['strand'].format(**wildcards))
-    if strand == 'first_strand':
-        return base + '-s 1'
-    elif strand == 'second_strand':
-        return base + '-s 2'
-    else:
-        return base + '-s 0'
-
-
 rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=patterns['hisat2']['bam'],
+        layout=patterns['layout'],
+        strand=patterns['strand'],
     output:
         counts=patterns['feature_counts']['counts'],
         jcounts=patterns['feature_counts']['jcounts'],
         summary=patterns['feature_counts']['summary']
     params:
-        extra=_params_featurecounts
+        extra_pe = '-p -P -C -J ',
+        extra_se = '-J '
     threads: 4
     log:
         patterns['feature_counts']['counts'] + '.log'
     wrapper:
-        wrapper_for('featurecounts')
+        wrapper_for('wrappers/featurecounts')
 
 
 ################################################################################
@@ -474,7 +376,7 @@ rule markduplicates:
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
     wrapper:
-        wrapper_for('picard/markduplicates')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/markduplicates')
 
 
 # vim: set ft=snakemake.python
