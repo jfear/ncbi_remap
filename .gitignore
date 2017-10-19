@@ -30,3 +30,4 @@ lib/python/test_xml.xml
 *.mongodb*
 *.adapters
 *.h5
+*.log
