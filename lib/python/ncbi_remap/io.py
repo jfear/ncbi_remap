@@ -31,7 +31,7 @@ def build_index(store, key, columns=None):
     store.create_table_index(key, columns=columns, optlevel=9, kind='full')
 
 
-def create_table(store, key, data=None, force=None, **kwargs):
+def add_table(store, key, data=None, force=None, **kwargs):
     """Create a new HDF5 table.
 
     Adds a dataframe to an HDF5 store and creates an index.
@@ -48,13 +48,18 @@ def create_table(store, key, data=None, force=None, **kwargs):
         If True then delete the previous store if it exists.
 
     """
+    defaults = {'columns': 'all'}
+    defaults.update(kwargs)
+
     # If the store exists delete
-    if store.get_storer(key):
-        if force is True:
+    if store.__contains__(key) & (force is True):
             del store[key]
+    elif store.__contains__(key):
+        # Drop if duplicates
+        data = data[~data.isin(store[key]).all(axis=1)].copy()
 
     store.append(key, data, data_columns=True, index=False)
-    build_index(store, key, **kwargs)
+    build_index(store, key, **defaults)
 
 
 def add_id(store, key, srx, srr):
@@ -100,7 +105,7 @@ def remove_id(store, key, srr):
     store.remove(key, query)
 
 
-def remove_chunk(store, key, srrs):
+def remove_chunk(store, key, srrs, **kwargs):
     """Removes an ID to the ids data store.
 
     If the SRR is not in the current collection, then append the srx and srr.
@@ -115,9 +120,13 @@ def remove_chunk(store, key, srrs):
         A list of SRRs to remove.
 
     """
+    defaults = {'columns': 'all'}
+    defaults.update(kwargs)
+
     df = store[key]
     subset = df[~df.srr.isin(srrs)].copy()
-    store[key] = subset
+    store.put(key, subset, format='table')
+    build_index(store, key, **defaults)
 
 
 class remapDesign(object):
