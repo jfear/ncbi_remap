@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
 
+import os
 import numpy as np
 import pandas as pd
 from IPython.display import display
@@ -56,16 +57,17 @@ def add_table(store, key, data=None, force=None, **kwargs):
             del store[key]
     elif store.__contains__(key):
         # Drop if duplicates
-        data = data[~data.isin(store[key]).all(axis=1)].copy()
+        data = data[~data.isin(store[key].to_dict('list')).all(axis=1)].copy()
 
-    store.append(key, data, data_columns=True, index=False)
-    build_index(store, key, **defaults)
+    if data.shape[0] > 0:
+        store.append(key, data, data_columns=True, index=False)
+        build_index(store, key, **defaults)
 
 
-def add_id(store, key, srx, srr):
+def add_id(store, key, **kwargs):
     """Adds an ID to the ids data store.
 
-    If the SRR is not in the current collection, then append the srx and srr.
+    Takes **kwargs and builds a table. Then tries to add the table with ncbi_remap.io.add_table.
 
     Parameters
     ----------
@@ -73,23 +75,21 @@ def add_id(store, key, srx, srr):
         The data store to save to.
     key : str
         The path in the HDF5 store to save data to.
-    srx : str
-        An SRX id.
-    srr : str
-        An SRR id.
 
     """
-    query = 'srr == "{}"'.format(srr)
-    res = store.select(key, query)
-    if res.shape[0] == 0:
-        data = pd.DataFrame([[srx, srr]], columns=['srx', 'srr'])
-        store.append(key, data, data_column=True, index=False)
+    table = pd.Series(kwargs).to_frame().T
+
+    if store.__contains__(key):
+        cols = store[key].columns
+        table = table[cols]
+
+    add_table(store, key, table)
 
 
-def remove_id(store, key, srr):
+def remove_id(store, key, **kwargs):
     """Removes an ID to the ids data store.
 
-    If the SRR is not in the current collection, then append the srx and srr.
+    Builds a query with the current kwargs, if the query matches then the record is removed.
 
     Parameters
     ----------
@@ -97,12 +97,10 @@ def remove_id(store, key, srr):
         The data store to save to.
     key : str
         The path in the HDF5 store to save data to.
-    srr : str
-        An SRR id.
 
     """
-    query = 'srr == "{}"'.format(srr)
-    store.remove(key, query)
+    query = ['{} == {}'.format(k, v) for k, v in kwargs.items()]
+    store.remove(key, ' & '.join(query))
 
 
 def remove_chunk(store, key, srrs, **kwargs):
@@ -127,6 +125,93 @@ def remove_chunk(store, key, srrs, **kwargs):
     subset = df[~df.srr.isin(srrs)].copy()
     store.put(key, subset, format='table')
     build_index(store, key, **defaults)
+
+
+def check_alignment(store, pattern, **kwargs):
+    """Checks for ALIGNMENT_BAD file.
+
+    If there is an ALIGNMENT_BAD file then remove from the queue, add to
+    complete, and add to 'prealn/alignment_bad'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        add_id(store, 'prealn/alignment_bad', **kwargs)
+        add_id(store, 'prealn/complete', **kwargs)
+        return True
+
+
+def check_layout(store, pattern, **kwargs):
+    """Checks LAYOUT file.
+
+    Parses layout file and adds to the corresponding hdf5 lists.
+
+        * 'layout/SE'
+        * 'layout/PE'
+        * 'layout/keep_R1'
+        * 'layout/keep_R2'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if strand == 'SE':
+            key = 'layout/SE'
+        elif strand == 'PE':
+            key = 'layout/PE'
+        elif strand == 'keep_R1':
+            key = 'layout/keep_R1'
+        elif strand == 'keep_R2':
+            key = 'layout/keep_R2'
+        add_id(store, key, **kwargs)
+
+
+def check_strand(store, pattern, **kwargs):
+    """Checks STRAND file.
+
+    Parses strand file and adds to the corresponding hdf5 lists.
+
+        * 'strand/first'
+        * 'strand/second'
+        * 'strand/unstranded'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if strand == 'first_strand':
+            key = 'strand/first'
+        elif strand == 'second_strand':
+            key = 'strand/second'
+        elif strand == 'unstranded':
+            key = 'strand/unstranded'
+        add_id(store, key, **kwargs)
 
 
 class remapDesign(object):

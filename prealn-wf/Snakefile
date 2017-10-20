@@ -2,8 +2,6 @@
 # vim: set ft=python.snakemake
 import os
 import sys
-import shutil as sh
-import gzip
 
 import pandas as pd
 from pathlib import Path
@@ -29,8 +27,9 @@ configfile: '../config/reference_config.yml'
 ################################################################################
 # Build Sample Table
 ################################################################################
-store = pd.HDFStore('../sra.h5', mode='r')
-sample_table = store['prealn/queue'].head(2)
+mystore = '../sra.h5'
+store = pd.HDFStore(mystore, mode='r')
+sample_table = store['prealn/queue'].head(3)
 store.close()
 
 ################################################################################
@@ -56,6 +55,7 @@ patterns = {
         'splice_sites': 'output/known_splice_sites_r6-11.txt',
         'bam': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam',
         'summary': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv',
+        'bad': 'output/samples/{srx}/{srr}/ALIGNMENT_BAD',
     },
     'bai': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.bai',
     'feature_counts': {
@@ -83,8 +83,11 @@ patterns = {
 }
 
 
-# Build target files
+################################################################################
+# Set up Build Targets
+################################################################################
 targets = helpers.fill_patterns(patterns, sample_table)
+
 
 def keepers(targets):
     return [
@@ -97,27 +100,86 @@ def keepers(targets):
         targets['picard']['markduplicates']['metrics']
     ]
 
+
 rule targets:
     input: keepers(targets)
 
 
 rule update_queue:
+    """Updates queue.
+
+    After running targets you need to update the queue. This job itereates over
+    outputs and moves ids around in the queing system.
+    """
     run:
-        def check(srx, srr, targets):
-            for fname in utils.flatten(keepers(targets)):
+        sys.path.insert(0, '../lib/python')
+        from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id, check_layout, check_strand, check_alignment
+
+        def check_outputs(**kwargs):
+            tg = helpers.fill_patterns(patterns, kwargs)
+            for fname in utils.flatten(keepers(tg)):
                 if not os.path.exists(fname):
                     return
-            # TODO add bad alignment check
-            return srx, srr
+            return kwargs
 
+        store = pd.HDFStore(mystore)
         done = []
         for i, row in sample_table.iterrows():
-            srx, srr = row.srx, row.srr
-            targets = helpers.fill_patterns(patterns, row)
-            value = check(srx, srr, targets)
-            if value is not None:
-                done.append(value)
-        print(done)
+            curr = row.to_dict()
+
+            if check_alignment(store, patterns['hisat2']['bad'], **curr):
+                continue
+
+            val = check_outputs(**curr)
+            if val:
+                done.append(val)
+                check_layout(store, patterns['layout'], **curr)
+                check_strand(store, patterns['strand'], **curr)
+
+        df = pd.DataFrame(done)
+
+        # Add to complete, add to alignment queue, remove from prealn queue
+        add_table(store, 'prealn/complete', data=df)
+        add_table(store, 'aln/queue', data=df)
+        remove_chunk(store, 'prealn/queue', df.srr.tolist())
+        store.close()
+
+
+rule print_queue:
+    """Prints the current counts for the queue."""
+    run:
+        store = pd.HDFStore(mystore, mode='r')
+
+        def cnts(key):
+            if store.__contains__(key):
+                return store[key].shape[0]
+            else:
+                return 0
+
+        keys = {
+            "ids": "ids in the system",
+            "prealn/queue": "queued",
+            "prealn/complete": "completed",
+            "prealn/download_bad": "download bad",
+            "prealn/quality_scores_bad": "quality scores bad",
+            "prealn/alignment_bad": "alignment bad",
+            "prealn/abi_solid": "abi solid",
+            "layout/SE": "Single End",
+            "layout/PE": "Pair End",
+            "layout/keep_R1": "Really Single End R1",
+            "layout/keep_R2": "Really Single End R2",
+            "strand/first": "first strand",
+            "strand/second": "second strand",
+            "strand/unstranded": "unstranded",
+        }
+
+        report = '\nCurrent Queue Summary\n'
+        for k, v in keys.items():
+            report += '{:,}\t\t\t{}\n'.format(cnts(k), v)
+
+        print(report)
+        store.close()
+
 
 onsuccess:
     print('All Finished')
@@ -223,15 +285,16 @@ rule hisat2_summary:
     """Parse log and flag as bad alignment if <50% aligned."""
     input:
         fn=patterns['hisat2']['bam']
-    output: patterns['hisat2']['summary']
+    output:
+        tsv=patterns['hisat2']['summary']
     run:
         from ncbi_remap.parser import parse_hisat2
-        srr = wildcards.sample
+        srr = wildcards.srr
         df = parse_hisat2(srr, input.fn + '.log')
-        df.to_csv(output, sep='\t')
+        df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.ix[0, 'per_alignment'] < .50:
-            fname = os.path.join(os.path.dirname(output), 'ALIGNMENT_BAD')
+            fname = patterns['hisat2']['bad'].format(**wildcards)
             Path(fname).touch()
 
 
@@ -302,7 +365,7 @@ rule collectrnaseqmetrics_agg:
         flag=patterns['strand']
     run:
         from ncbi_remap.parser import parse_picardCollect_summary
-        srr = wildcards.sample
+        srr = wildcards.srr
         dfU = parse_picardCollect_summary(srr, input.unstranded)
         dfF = parse_picardCollect_summary(srr, input.first)
         dfS = parse_picardCollect_summary(srr, input.second)
