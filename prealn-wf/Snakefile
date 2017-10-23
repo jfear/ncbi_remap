@@ -156,25 +156,26 @@ rule print_queue:
             else:
                 return 0
 
-        keys = {
-            "ids": "ids in the system",
-            "prealn/queue": "queued",
-            "prealn/complete": "completed",
-            "prealn/download_bad": "download bad",
-            "prealn/quality_scores_bad": "quality scores bad",
-            "prealn/alignment_bad": "alignment bad",
-            "prealn/abi_solid": "abi solid",
-            "layout/SE": "Single End",
-            "layout/PE": "Pair End",
-            "layout/keep_R1": "Really Single End R1",
-            "layout/keep_R2": "Really Single End R2",
-            "strand/first": "first strand",
-            "strand/second": "second strand",
-            "strand/unstranded": "unstranded",
-        }
+        pairs = [
+            {"ids": "ids in the system"},
+            {"prealn/queue": "queued"},
+            {"prealn/complete": "completed"},
+            {"prealn/download_bad": "download bad"},
+            {"prealn/quality_scores_bad": "quality scores bad"},
+            {"prealn/alignment_bad": "alignment bad"},
+            {"prealn/abi_solid": "abi solid"},
+            {"layout/SE": "Single End"},
+            {"layout/PE": "Pair End"},
+            {"layout/keep_R1": "Really Single End R1"},
+            {"layout/keep_R2": "Really Single End R2"},
+            {"strand/first": "first strand"},
+            {"strand/second": "second strand"},
+            {"strand/unstranded": "unstranded"},
+        ]
 
         report = '\nCurrent Queue Summary\n'
-        for k, v in keys.items():
+        for pair in pairs:
+            k, v = list(pair.items())[0]
             report += '{:,}\t\t\t{}\n'.format(cnts(k), v)
 
         print(report)
