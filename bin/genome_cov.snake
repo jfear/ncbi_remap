@@ -98,7 +98,7 @@ rule bamCoverage:
         bai=patterns['bai'],
     output: temp(patterns['bedGraph'])
     params:
-        extra='--binSize 1'
+        extra='--binSize 1 --outFileFormat bedgraph'
     threads: 8
     wrapper:
         wrapper_for('deeptools/bamCoverage')

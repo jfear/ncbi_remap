@@ -8,8 +8,8 @@ __default__:
 bamCoverage:
     mem: "32g"
 
-merge:
-  mem: "20g"
+expMerge:
+  mem: "100g"
   time: "24:00:00"
 
 hisat2:
