@@ -43,10 +43,6 @@ patterns = {
     },
     'layout': 'output/samples/{srx}/{srr}/LAYOUT',
     'fastq_screen': 'output/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt',
-    'fastqc': {
-        'html': 'output/samples/{srx}/{srr}/{srr}_1.fastqc.html',
-        'zip': 'output/samples/{srx}/{srr}/{srr}_1.fastqc.zip',
-    },
     'atropos': {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
         'r2': 'output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
