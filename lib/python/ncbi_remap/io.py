@@ -1,91 +1,217 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
 
+import os
 import numpy as np
 import pandas as pd
 from IPython.display import display
-import qgrid
 
 
 def build_index(store, key, columns=None):
+    """Index a HDF5 table.
+
+    Builds an index for an HDF5 table.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    columns : str or list, optional
+        If 'all' then it will index using all data columns in the store. If a
+        list of column headers is given then it will use those columns for
+        indexing.
+
+    """
     if columns is None:
         columns = []
+    elif columns == 'all':
+        columns = store[key].columns.tolist()
+
     store.create_table_index(key, columns=columns, optlevel=9, kind='full')
 
 
-def get_queue(store, flag='prealn'):
-    """Provide a list of of SRX/SRR that need run.
+def add_table(store, key, data=None, force=None, **kwargs):
+    """Create a new HDF5 table.
+
+    Adds a dataframe to an HDF5 store and creates an index.
 
     Parameters
     ----------
-    store : pd.HDFStore
-        Data store with a key of 'ids'
-    flag : str
-        Indicates which flags to use for the query. Options are
-        ['prealn', 'aln'].
-
-    Returns
-    -------
-    return : pd.DataFrame
-        A frame with srx and srr columns.
-
-    """
-    if flag == 'prealn':
-        query = 'flag_pre_aln_complete == False & columns=[srx, srr]'
-    elif flag == 'aln':
-        query = 'flag_aln_complete == False & columns=[srx, srr]'
-
-    return store.select('ids', query)
-
-
-def update_flag(store, key='ids', query=None, flag=None, value=None):
-    """Update a Flag's value in an HDF5 store.
-
-    Parameters
-    ----------
-    store : pd.HDFStore
-        A data store which has values you want to change.
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
     key : str
-        The key in the store to adjust. Assumes this is an appendable table.
-
-    query : str or dict
-        If str it uses pd.HDFStore query language to pull out the record and
-        update it. If a dict in the form of {'query_key1': ['values'],
-        'query_key2': ['values']} where the key is a column named in the store
-        and the values are values in that column. When using a dict the entire
-        store is replaced and reindexed.
-    flag : str
-        The name of the column whoses values you want to change.
-    value : str bool
-        The value you want to set in the data store.
+        The path in the HDF5 store to save data to.
+    data : pd.DataFrame
+        The data to store.
+    force : bool
+        If True then delete the previous store if it exists.
 
     """
-    if flag is None:
-        raise TypeError('flag must be a column in the dataframe returned from the store.')
+    defaults = {'columns': 'all'}
+    defaults.update(kwargs)
 
-    if isinstance(query, str):
-        df = store.select(key, query)
-        df[flag] = value
+    # If the store exists delete
+    if store.__contains__(key) & (force is True):
+            del store[key]
+    elif store.__contains__(key):
+        # Drop if duplicates
+        data = data[~data.isin(store[key].to_dict('list')).all(axis=1)].copy()
 
-        # Replace value in the store
-        store.remove(key, query)
+    if data.shape[0] > 0:
+        store.append(key, data, data_columns=True, index=False)
+        build_index(store, key, **defaults)
 
-    elif isinstance(query, dict):
-        df = store[key]
-        del store[key]
 
-        # Build boolean array from keys in dict
-        mask = np.array([True] * df.shape[0])
-        for k, v in query.items():
-            mask &= df[k].isin(v)
+def add_id(store, key, **kwargs):
+    """Adds an ID to the ids data store.
 
-        df[mask] = value
+    Takes **kwargs and builds a table. Then tries to add the table with ncbi_remap.io.add_table.
 
-    else:
-        raise TypeError('query must be a pd.HDFStore query string or a dictionary of {column: value}')
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
 
-    store.append(key, df, data_columns=True, index=False)
-    build_index(store, 'ids', columns=['srx', 'srr'])
+    """
+    table = pd.Series(kwargs).to_frame().T
+
+    if store.__contains__(key):
+        cols = store[key].columns
+        table = table[cols]
+
+    add_table(store, key, table)
+
+
+def remove_id(store, key, **kwargs):
+    """Removes an ID to the ids data store.
+
+    Builds a query with the current kwargs, if the query matches then the record is removed.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+
+    """
+    query = ['{} == {}'.format(k, v) for k, v in kwargs.items()]
+    store.remove(key, ' & '.join(query))
+
+
+def remove_chunk(store, key, srrs, **kwargs):
+    """Removes an ID to the ids data store.
+
+    If the SRR is not in the current collection, then append the srx and srr.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    key : str
+        The path in the HDF5 store to save data to.
+    srrs : list
+        A list of SRRs to remove.
+
+    """
+    defaults = {'columns': 'all'}
+    defaults.update(kwargs)
+
+    df = store[key]
+    subset = df[~df.srr.isin(srrs)].copy()
+    store.put(key, subset, format='table')
+    build_index(store, key, **defaults)
+
+
+def check_alignment(store, pattern, **kwargs):
+    """Checks for ALIGNMENT_BAD file.
+
+    If there is an ALIGNMENT_BAD file then remove from the queue, add to
+    complete, and add to 'prealn/alignment_bad'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        add_id(store, 'prealn/alignment_bad', **kwargs)
+        add_id(store, 'prealn/complete', **kwargs)
+        return True
+
+
+def check_layout(store, pattern, **kwargs):
+    """Checks LAYOUT file.
+
+    Parses layout file and adds to the corresponding hdf5 lists.
+
+        * 'layout/SE'
+        * 'layout/PE'
+        * 'layout/keep_R1'
+        * 'layout/keep_R2'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if strand == 'SE':
+            key = 'layout/SE'
+        elif strand == 'PE':
+            key = 'layout/PE'
+        elif strand == 'keep_R1':
+            key = 'layout/keep_R1'
+        elif strand == 'keep_R2':
+            key = 'layout/keep_R2'
+        add_id(store, key, **kwargs)
+
+
+def check_strand(store, pattern, **kwargs):
+    """Checks STRAND file.
+
+    Parses strand file and adds to the corresponding hdf5 lists.
+
+        * 'strand/first'
+        * 'strand/second'
+        * 'strand/unstranded'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if strand == 'first_strand':
+            key = 'strand/first'
+        elif strand == 'second_strand':
+            key = 'strand/second'
+        elif strand == 'unstranded':
+            key = 'strand/unstranded'
+        add_id(store, key, **kwargs)
 
 
 class remapDesign(object):

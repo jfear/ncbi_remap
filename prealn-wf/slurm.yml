@@ -5,6 +5,10 @@ __default__:
     gres: "lscratch:50"
     partition: 'norm'
 
+fastq_dump:
+  mem: "8g"
+  gres: "lscratch:200"
+
 atropos:
   mem: "32g"
   gres: "lscratch:200"
@@ -16,22 +20,22 @@ feature_counts:
     mem: "8g"
 
 markduplicates:
-    mem: "34g"
+    mem: "32g"
     time: "48:00:00"
 
 collectrnaseqmetrics_unstrand:
-    mem: "34g"
+    mem: "32g"
     time: "48:00:00"
 
 collectrnaseqmetrics_first:
-    mem: "34g"
+    mem: "32g"
     time: "48:00:00"
 
 collectrnaseqmetrics_second:
-    mem: "34g"
+    mem: "32g"
     time: "48:00:00"
 
 hisat2:
-    mem: "34g"
+    mem: "32g"
     time: "24:00:00"
     gres: "lscratch:250"
