@@ -1,0 +1,17 @@
+axes.labelsize: 14.3
+axes.titlesize: 15.6
+figure.figsize: 10.4, 7.15
+grid.linewidth: 1.3
+legend.fontsize: 13.0
+lines.linewidth: 2.275
+lines.markeredgewidth: 0.0
+lines.markersize: 9.1
+patch.linewidth: 0.39
+xtick.labelsize: 13.0
+xtick.major.pad: 9.1
+xtick.major.width: 1.3
+xtick.minor.width: 0.65
+ytick.labelsize: 13.0
+ytick.major.pad: 9.1
+ytick.major.width: 1.3
+ytick.minor.width: 0.65
