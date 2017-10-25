@@ -243,7 +243,7 @@ rule atropos:
         patterns['atropos']['r1'] + '.log'
     threads: 8
     wrapper:
-        wrapper_for('wrappers/atropos')
+        wrapper_for('../wrappers/atropos')
 
 
 ################################################################################
@@ -397,7 +397,7 @@ rule feature_counts:
     log:
         patterns['feature_counts']['counts'] + '.log'
     wrapper:
-        wrapper_for('wrappers/featurecounts')
+        wrapper_for('../wrappers/featurecounts')
 
 
 ################################################################################
