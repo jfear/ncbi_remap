@@ -52,18 +52,18 @@ patterns = {
     'hisat2': {
         'splice_sites': '../prealn-wf/output/known_splice_sites_r6-11.txt',
         'bam': 'output/samples/{srx}/{srr}/{srr}.fq.bam',
-        'summary': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv',
+        'summary': 'output/samples/{srx}/{srr}/{srr}.fq.bam.tsv',
         'bad': 'output/samples/{srx}/{srr}/ALIGNMENT_BAD',
     },
-    'bai': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.bai',
+    'bai': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bai',
     'feature_counts': {
-        'counts': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts',
-        'jcounts': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts',
-        'summary': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary',
+        'counts': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts',
+        'jcounts': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts.jcounts',
+        'summary': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts.summary',
     },
-    'samtools_stats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats',
-    'samtools_idxstats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats',
-    'bamtools_stats': 'output/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats',
+    'samtools_stats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.samtools.stats',
+    'samtools_idxstats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.samtools.idxstats',
+    'bamtools_stats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bamtools.stats',
     'bamCoverage': 'output/samples/{srx}/{srr}/{srr}.fq.{strand}.bw',
 
     # SRX Level Files
