@@ -5,7 +5,7 @@ __default__:
     partition: 'norm'
 
 atropos:
-  mem: "36g"
+  mem: "16g"
   gres: "lscratch:200"
 
 hisat2:
