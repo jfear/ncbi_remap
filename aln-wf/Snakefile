@@ -31,7 +31,7 @@ configfile: '../config/reference_config.yml'
 ################################################################################
 mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
-sample_table = store['aln/queue']
+sample_table = store['aln/queue'].head(2)
 store.close()
 
 ################################################################################
@@ -44,6 +44,7 @@ patterns = {
         'summary': '../prealn-wf/output/samples/{srx}/{srr}/{srr}.fastq.tsv',
     },
     'layout': '../prealn-wf/output/samples/{srx}/{srr}/LAYOUT',
+    'strand': '../prealn-wf/output/samples/{srx}/{srr}/STRAND',
     'atropos': {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
         'r2': 'output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
@@ -252,9 +253,9 @@ rule hisat2_summary:
 
 rule bai:
     input:
-        bam='{prefix}.bam'
+        bam=patterns['hisat2']['bam']
     output:
-        bai=temp('{prefix}.bam.bai')
+        bai=temp(patterns['bai'])
     conda: "../config/extra_env.yaml"
     shell:
         "samtools index {input.bam}"
