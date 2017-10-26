@@ -4,6 +4,9 @@ __default__:
     gres: "lscratch:80"
     partition: 'norm'
 
+bai:
+  mem: "1g"
+
 atropos:
   mem: "16g"
   gres: "lscratch:200"

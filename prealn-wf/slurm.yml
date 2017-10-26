@@ -5,6 +5,9 @@ __default__:
     gres: "lscratch:50"
     partition: 'norm'
 
+bai:
+  mem: "1g"
+
 fastq_dump:
   mem: "8g"
   gres: "lscratch:200"

@@ -3,7 +3,10 @@ __default__:
     mem: "8g"
     time: "11:00:00"
     gres: "lscratch:80"
-    partition: 'niddk,norm'
+    partition: 'norm,niddk'
+
+bai:
+  mem: "1g"
 
 bamCoverage:
     mem: "32g"
