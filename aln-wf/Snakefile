@@ -31,8 +31,12 @@ configfile: '../config/reference_config.yml'
 ################################################################################
 mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
-sample_table = store['aln/queue'].head(2)
+srxs = store['aln/queue'].srx.unique()[:1000]
+mask = store['aln/queue'].srx.isin(srxs)
+sample_table = store['aln/queue'][mask]
 store.close()
+
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 
 ################################################################################
 # Set up file naming patterns and targets
@@ -73,10 +77,10 @@ patterns = {
     # MISC Files
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
+
 ################################################################################
 # Set up Build Targets
 ################################################################################
-sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 targets = helpers.fill_patterns(patterns, sample_table)
 
 
@@ -87,8 +91,8 @@ def keepers(targets):
         targets['samtools_stats'],
         targets['samtools_idxstats'],
         targets['bamtools_stats'],
-#         targets['expFeatureCounts'],
-#         targets['expBamCoverage'],
+        targets['expFeatureCounts'],
+        targets['expBamCoverage'],
     ]
 
 
@@ -351,7 +355,7 @@ rule bamCoverage:
         extra=_param_bamCoverage
     threads: 8
     wrapper:
-        wrapper_for('deeptools/bamCoverage')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
 
 def _convertBedGraphToBigWig(wildcards):
@@ -380,7 +384,7 @@ rule convertBedGraphToBigWig:
 # Merge Experiment BigWigs
 ################################################################################
 def _input_expMerge(wildcards):
-    sTable = sample_table[(sample_table['experiment'] == wildcards.experiment) & (sample_table['strand'] == wildcards.strand)].copy()
+    sTable = sample_table[(sample_table['srx'] == wildcards.srx) & (sample_table['strand'] == wildcards.strand)].copy()
     return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bamCoverage']), sTable))
 
 
