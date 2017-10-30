@@ -205,9 +205,9 @@ def check_strand(store, pattern, **kwargs):
     """
     with open(pattern.format(**kwargs)) as fh:
         strand = fh.read().strip()
-        if strand == 'first_strand':
+        if (strand == 'first_strand') | (strand == 'same_strand'):
             key = 'strand/first'
-        elif strand == 'second_strand':
+        elif (strand == 'second_strand') | (strand == 'opposite_strand'):
             key = 'strand/second'
         elif strand == 'unstranded':
             key = 'strand/unstranded'
