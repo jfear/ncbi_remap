@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from pymongo import MongoClient
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
@@ -339,7 +338,12 @@ rule run_stats:
 ################################################################################
 def _param_bamCoverage(wildcards):
     """Get strand information from wildcards."""
-    base = '--outFileFormat bedgraph --binSize 1 '
+    base = ('--outFileFormat bedgraph '
+            '--binSize 1 '
+            '--normalizeTo1x 129000000 '
+            '--ignoreForNormalization chrX '
+            )
+
     if wildcards.strand == 'first':
         return base + '--filterRNAstrand forward'
     elif wildcards.strand == 'second':
