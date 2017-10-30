@@ -17,7 +17,7 @@ hisat2:
     gres: "lscratch:250"
 
 featurecounts:
-    mem: "8g"
+    mem: "1g"
 
 bamCoverage:
     mem: "32g"
