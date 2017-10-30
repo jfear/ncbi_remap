@@ -83,6 +83,8 @@ rule hisat2:
         fastq=patterns['fastq'],
     output: bam=patterns['bam']
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 16
     params:
         hisat2_extra='--max-intronlen 300000 ',
         samtools_view_extra="--threads 6 -q 20",
@@ -92,11 +94,13 @@ rule hisat2:
         wrapper_for('../lcdb-wf/wrappers/wrappers/hisat2/align')
 
 
-rule index:
+rule bai:
     input:
         bam=patterns['bam']
     output:
         bai=patterns['bai']
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/samtools/index')
 
@@ -111,6 +115,8 @@ rule bamCoverage:
     params:
         extra='--binSize 1 --outFileFormat bedgraph'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 3
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
@@ -125,5 +131,7 @@ rule merge:
     output:
         bedgraph=patterns['merged']
     conda: '../config/extra_env.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 2
     shell:
         "unionBedGraphs -g {input.genome} -empty -i {input.bedgraphs} > {output.bedgraph}"
