@@ -9,27 +9,28 @@ from snakemake.io import regex
 
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
-from lcdblib.pandas.utils import cartesian_product
 
 sys.path.insert(0, '../lib/python')
-import ncbi_remap
+from ncbi_remap.snakemake import wrapper_for, put_flag
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
-workdir: '../.genome_cov'
+workdir: '.'
 
 # import config
-configfile: '../config/prealignment_config.yaml'
+configfile: '../config/reference_config.yml'
 
 
 ################################################################################
 # Build Sample Table
 ################################################################################
-sample_table = pd.read_csv('../output/wgs_samples.tsv', sep='\t')
-sample_table.rename(columns={'srx': 'experiment', 'srr': 'sample'}, inplace=True)
+sample_table = pd.read_csv('wgs_samples.tsv', sep='\t')
+
+# Grab a random set of 30 samples
+sample_table = sample_table.sample(n=30, random_state=42).copy()
 
 ################################################################################
 # Set up file naming patterns and targets
@@ -37,32 +38,41 @@ sample_table.rename(columns={'srx': 'experiment', 'srr': 'sample'}, inplace=True
 
 # Patterns
 patterns = {
-    'fastq': '../output/pre-prealignment/raw/{experiment}/{sample}/{sample}_1.fastq.gz',
-    'bam': '/scratch/fearjm/{experiment}/{sample}.fq.bam',
-    'bai': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bai',
-    'bedGraph': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bedgraph',
-    'bigWig': '/scratch/fearjm/{experiment}/{sample}.fq.bam.bw',
-    'bamCoverage': '../output/bigwigs/genome_cov.bedgraph',
+    'fastq': '../prealn-wf/output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
+    'bam': 'output/samples/{srx}/{srr}.fq.bam',
+    'bai': 'output/samples/{srx}/{srr}.fq.bam.bai',
+    'bedGraph': 'output/samples/{srx}/{srr}.fq.bam.bedgraph',
+    'merged': 'output/genome_cov.bedgraph',
+
     # MISC Files
+    'chromSizes': '../output/dm6.chrom.sizes',
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
 
 
-# Build target files
+################################################################################
+# Set up Build Targets
+################################################################################
 targets = helpers.fill_patterns(patterns, sample_table)
 
+def keepers(targets):
+    return [
+       targets['merged']
+    ]
+
+
 rule targets:
-    input:
-       targets['bamCoverage'],
+    input: keepers(targets)
 
 
-################################################################################
-# Fuctions
-################################################################################
-# Find snakemake wrappers:
-def wrapper_for(path):
-    URI = '../lcdb-wf/wrappers/wrappers'
-    return 'file:' + os.path.join(URI, path)
+onsuccess:
+    print('All Finished')
+
+
+onerror:
+    print('Something went wrong, you need to re-run')
+
+
 
 ################################################################################
 # Alignment
@@ -71,23 +81,24 @@ rule hisat2:
     input:
         index=config['references']['dmel']['hisat2'],
         fastq=patterns['fastq'],
-    output: bam=temp(patterns['bam'])
+    output: bam=patterns['bam']
     threads: 8
     params:
+        hisat2_extra='--max-intronlen 300000 ',
         samtools_view_extra="--threads 6 -q 20",
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['bam'] + '.log'
     wrapper:
-        wrapper_for('hisat2/align')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/hisat2/align')
 
 
 rule index:
     input:
         bam=patterns['bam']
     output:
-        bai=temp(patterns['bai'])
+        bai=patterns['bai']
     wrapper:
-        wrapper_for('samtools/index')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/samtools/index')
 
 ################################################################################
 # Make Individual BedGraphs
@@ -96,37 +107,23 @@ rule bamCoverage:
     input:
         bam=patterns['bam'],
         bai=patterns['bai'],
-    output: temp(patterns['bedGraph'])
+    output: patterns['bedGraph']
     params:
         extra='--binSize 1 --outFileFormat bedgraph'
     threads: 8
     wrapper:
-        wrapper_for('deeptools/bamCoverage')
+        wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
 
-rule convertBedGraphToBigWig:
+################################################################################
+# Merge BedGraphs
+################################################################################
+rule merge:
     input:
-        bedgraph=patterns['bedGraph'],
-        chromSizes=config['references']['dmel']['chromSizes']
+        bedgraphs=targets['bedGraph'],
+        genome=targets['chromSizes']
     output:
-        bigwig=temp(patterns['bigWig'])
+        bedgraph=patterns['merged']
     conda: '../config/extra_env.yaml'
     shell:
-        'export LC_COLLATE=C; '
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
-        '&& rm $tmpBg '
-
-
-################################################################################
-# Merge Experiment BigWigs
-################################################################################
-rule expMerge:
-    input: targets['bigWig']
-    output:
-        bedgraph=patterns['bamCoverage']
-    conda: '../config/extra_env.yaml'
-    shell:
-        'bigWigMerge {input} {output.bedgraph}'
-
+        "unionBedGraphs -g {input.genome} -empty -i {input.bedgraphs} > {output.bedgraph}"
