@@ -1,6 +1,5 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-    mem: "1g"
     time: "11:00:00"
     gres: "lscratch:50"
     partition: 'norm'
@@ -9,29 +8,20 @@ fastq_dump:
   gres: "lscratch:200"
 
 atropos:
-  mem: "10g"
   gres: "lscratch:200"
 
-fastq_screen:
-    mem: "3g"
-
 markduplicates:
-    mem: "32g"
     time: "48:00:00"
 
 collectrnaseqmetrics_unstrand:
-    mem: "16g"
     time: "48:00:00"
 
 collectrnaseqmetrics_first:
-    mem: "16g"
     time: "48:00:00"
 
 collectrnaseqmetrics_second:
-    mem: "16g"
     time: "48:00:00"
 
 hisat2:
-    mem: "32g"
     time: "24:00:00"
     gres: "lscratch:250"

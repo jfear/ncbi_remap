@@ -29,7 +29,9 @@ configfile: '../config/reference_config.yml'
 ################################################################################
 mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
-sample_table = store['prealn/queue'].head(3)
+srxs = store['prealn/queue'].srx.unique()[:1000]
+mask = store['prealn/queue'].srx.isin(srxs)
+sample_table = store['prealn/queue'][mask]
 store.close()
 
 ################################################################################
@@ -197,6 +199,8 @@ rule fastq_dump:
         flag=patterns['layout'],
         summary=patterns['fastq']['summary'],
     log: patterns['fastq']['r1'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     wrapper:
         wrapper_for('wrappers/fastq_dump')
 
@@ -220,6 +224,8 @@ rule fastq_screen:
     output:
         txt=patterns['fastq_screen']
     log: patterns['fastq_screen'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 3
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
 
@@ -242,6 +248,8 @@ rule atropos:
     log:
         patterns['atropos']['r1'] + '.log'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 2
     wrapper:
         wrapper_for('../wrappers/atropos')
 
@@ -255,6 +263,8 @@ rule hisat2_splice_site:
         gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
     conda: "../config/extra_env.yaml"
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
@@ -270,6 +280,8 @@ rule hisat2:
     output:
         bam=temp(patterns['hisat2']['bam'])
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 16
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
@@ -284,6 +296,8 @@ rule hisat2_summary:
         fn=patterns['hisat2']['bam']
     output:
         tsv=patterns['hisat2']['summary']
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_hisat2
         srr = wildcards.srr
@@ -301,6 +315,8 @@ rule bai:
     output:
         bai=temp('{prefix}.bam.bai')
     conda: "../config/extra_env.yaml"
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     shell:
         "samtools index {input.bam}"
 
@@ -319,6 +335,8 @@ rule collectrnaseqmetrics_unstrand:
         java_args='-Xmx30g'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
@@ -334,6 +352,8 @@ rule collectrnaseqmetrics_first:
         java_args='-Xmx30g'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
@@ -349,6 +369,8 @@ rule collectrnaseqmetrics_second:
         java_args='-Xmx30g'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
 
@@ -360,6 +382,8 @@ rule collectrnaseqmetrics_agg:
         second=patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
     output:
         flag=patterns['strand']
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_picardCollect_summary
         srr = wildcards.srr
@@ -394,6 +418,8 @@ rule feature_counts:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
     threads: 4
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     log:
         patterns['feature_counts']['counts'] + '.log'
     wrapper:
@@ -412,6 +438,8 @@ rule run_stats:
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
     conda: '../config/extra_env.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
@@ -435,6 +463,8 @@ rule markduplicates:
         java_args='-Xmx30g'
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 20
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/picard/markduplicates')
 
