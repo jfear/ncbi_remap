@@ -42,10 +42,10 @@ patterns = {
     'bam': 'output/samples/{srx}/{srr}.fq.bam',
     'bai': 'output/samples/{srx}/{srr}.fq.bam.bai',
     'bedGraph': 'output/samples/{srx}/{srr}.fq.bam.bedgraph',
-    'bigWig': 'output/samples/{srx}/{srr}.fq.bam.bw',
-    'bamCoverage': 'output/genome_cov.bedgraph',
+    'merged': 'output/genome_cov.bedgraph',
 
     # MISC Files
+    'chromSizes': '../output/dm6.chrom.sizes',
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
 
@@ -57,12 +57,21 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 def keepers(targets):
     return [
-       targets['bedGraph']
+       targets['merged']
     ]
 
 
 rule targets:
     input: keepers(targets)
+
+
+onsuccess:
+    print('All Finished')
+
+
+onerror:
+    print('Something went wrong, you need to re-run')
+
 
 
 ################################################################################
@@ -106,28 +115,15 @@ rule bamCoverage:
         wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
 
-rule convertBedGraphToBigWig:
+################################################################################
+# Merge BedGraphs
+################################################################################
+rule merge:
     input:
-        bedgraph=patterns['bedGraph'],
-        chromSizes=config['references']['dmel']['chromSizes']
+        bedgraphs=targets['bedGraph'],
+        genome=targets['chromSizes']
     output:
-        bigwig=patterns['bigWig']
+        bedgraph=patterns['merged']
     conda: '../config/extra_env.yaml'
     shell:
-        'export LC_COLLATE=C; '
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
-        '&& rm $tmpBg '
-
-
-################################################################################
-# Merge Experiment BigWigs
-################################################################################
-rule expMerge:
-    input: targets['bigWig']
-    output:
-        bedgraph=patterns['bamCoverage']
-    conda: '../config/extra_env.yaml'
-    shell:
-        'bigWigMerge {input} {output.bedgraph}'
+        "unionBedGraphs -g {input.genome} -empty -i {input.bedgraphs} > {output.bedgraph}"
