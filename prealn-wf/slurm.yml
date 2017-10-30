@@ -6,7 +6,6 @@ __default__:
     partition: 'norm'
 
 fastq_dump:
-  mem: "8g"
   gres: "lscratch:200"
 
 atropos:
