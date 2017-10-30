@@ -12,9 +12,6 @@ atropos:
   mem: "10g"
   gres: "lscratch:200"
 
-fastq_screen:
-    mem: "8g"
-
 feature_counts:
     mem: "1g"
 
