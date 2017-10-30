@@ -13,7 +13,7 @@ fastq_dump:
   gres: "lscratch:200"
 
 atropos:
-  mem: "32g"
+  mem: "10g"
   gres: "lscratch:200"
 
 fastq_screen:

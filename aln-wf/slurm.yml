@@ -8,7 +8,7 @@ bai:
   mem: "1g"
 
 atropos:
-  mem: "16g"
+  mem: "10g"
   gres: "lscratch:200"
 
 hisat2:
