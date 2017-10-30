@@ -14,4 +14,4 @@ hisat2:
     gres: "lscratch:250"
 
 bamCoverage:
-    mem: "32g"
+    mem: "16g"
