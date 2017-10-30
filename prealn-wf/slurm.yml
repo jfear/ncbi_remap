@@ -15,9 +15,6 @@ atropos:
 fastq_screen:
     mem: "3g"
 
-feature_counts:
-    mem: "1g"
-
 markduplicates:
     mem: "32g"
     time: "48:00:00"

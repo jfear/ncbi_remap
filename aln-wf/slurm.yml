@@ -13,8 +13,5 @@ hisat2:
     time: "24:00:00"
     gres: "lscratch:250"
 
-featurecounts:
-    mem: "1g"
-
 bamCoverage:
     mem: "32g"
