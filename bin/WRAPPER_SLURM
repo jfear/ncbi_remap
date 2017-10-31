@@ -3,7 +3,7 @@
 #SBATCH --partition="niddk,norm"
 #SBATCH --cpus-per-task=2
 #SBATCH --time=120:00:00
-#SBATCH --mem=3G
+#SBATCH --mem=1G
 #SBATCH --output=../slurm_logs/slurm-%j.out
 #SBATCH --error=../slurm_logs/slurm-%j.out
 source activate ncbi_remap
@@ -20,9 +20,8 @@ if [[ ! -e $WORKDIR/slurm_logs ]]; then mkdir -p $WORKDIR/slurm_logs; fi
     -p \
     --rerun-incomplete \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 800 \
+    -j 1000 \
     -k \
-    --resources mem_gb=1 \
     --restart-times 4 \
     --verbose \
     --use-conda \
