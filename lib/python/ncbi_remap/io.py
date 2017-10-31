@@ -57,7 +57,12 @@ def add_table(store, key, data=None, force=None, **kwargs):
             del store[key]
     elif store.__contains__(key):
         # Drop if duplicates
-        data = data[~data.isin(store[key].to_dict('list')).all(axis=1)].copy()
+        if 'srr' in data.columns:
+            data = data[~data.srr.isin(store[key].srr)].copy()
+        elif 'srx' in data.columns:
+            data = data[~data.srx.isin(store[key].srx)].copy()
+        else:
+            data = data[~data.isin(store[key].to_dict('list')).all(axis=1)].copy()
 
     if data.shape[0] > 0:
         store.append(key, data, data_columns=True, index=False)
