@@ -88,6 +88,17 @@ def parse_files(files, pattern, parser, **kwargs):
 
 
 # Parsing functions
+def parse_fastq_summary(sample, file):
+    """Parser for fastq summary table.
+
+    Returns
+    -------
+    pandas.DataFrame: A single row dataframe.
+    """
+    df = pd.read_csv(file, sep='\t')
+    df.index = [sample]
+    return df
+
 
 def parse_fastq_screen(sample, file):
     """Parser for fastq screen.
