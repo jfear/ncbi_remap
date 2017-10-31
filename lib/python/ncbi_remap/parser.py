@@ -135,7 +135,7 @@ def parse_fastq_screen(sample, file):
             df = pd.DataFrame(parsed, columns=header)
             udf = df.set_index(['sample', 'reference', 'type']).unstack()
             udf.columns = udf.columns.droplevel()
-            return udf
+            return udf.reset_index().set_index('sample')
 
 
 def parse_picardCollect_summary(sample, file):
@@ -196,8 +196,8 @@ def parse_featureCounts_counts(sample, file):
     df = pd.read_csv(file, sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
     df['sample'] = sample
-    df.set_index(['sample', 'FBgn'], inplace=True)
-    return df['count']
+    df.set_index('sample', inplace=True)
+    return df[['FBgn', 'count']]
 
 
 def parse_featureCounts_jcounts(sample, file):
