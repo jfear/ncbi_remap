@@ -154,6 +154,7 @@ def parse_picardCollect_summary(sample, file):
         else:
             df = pd.read_csv(StringIO(parsed), sep='\t')
             df.index = [sample]
+            df.replace('?', np.nan, inplace=True)
             return df
 
 
