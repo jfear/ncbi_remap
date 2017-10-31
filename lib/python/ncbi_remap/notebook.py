@@ -135,7 +135,7 @@ class Nb(object):
             cache_dir = os.path.join('cache', nb_name)
 
         # Figure out current project and config folder
-        prj = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+        prj = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
         cfg = os.path.join(prj, 'config')
 
         # set defaults
