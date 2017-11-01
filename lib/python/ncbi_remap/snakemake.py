@@ -80,7 +80,7 @@ def agg(store, key, func, pattern, df):
 
     """
     if store.get_node(key):
-        done = store[key].srr.tolist()
+        done = store.select_column(key, 'srr').unique().tolist()
     else:
         done = []
 
