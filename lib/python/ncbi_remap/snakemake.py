@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Set of helpers for use with snakemake."""
 import sys
+from itertools import zip_longest
 
 import pandas as pd
 from dask import delayed, compute
@@ -42,9 +43,17 @@ def agg(store, key, func, pattern, df):
 
     if dfs:
         ddf = pd.concat(compute(*dfs), ignore_index=True)
-        try:
-            add_table(store, key, data=ddf, columns=['srx', 'srr'])
-        except ValueError as e:
-            print(ddf.head(), ddf.tail())
-            raise e
+
+
+def grouper(iterable, n, fillvalue=None):
+    """Collect data into fixed-length chunks.
+
+    This function is from the itertools recipes section.
+    https://docs.python.org/3/library/itertools.html#itertools-recipes
+
+    """
+    args = [iter(iterable)] * n
+    return zip_longest(*args, fillvalue=fillvalue)
+
+
 
