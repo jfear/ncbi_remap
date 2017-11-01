@@ -92,6 +92,7 @@ def agg(store, key, func, pattern, df):
 
     if dfs:
         ddf = pd.concat(compute(*dfs), ignore_index=True)
+        add_table(store, key, data=ddf, columns=['srx', 'srr'])
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -105,4 +106,47 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
+def agg_big(store, key, func, pattern, df, n=100):
+    """Aggregator for larger tables that won't all fit in memory.
 
+    Some of the tables that I am trying to aggregate have thousands of rows. If
+    I try to import too many at one time I run out of memory. This adds a
+    grouper step that only imports 100 tables at 1 time.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        Data store to save results.
+    key : str
+        Node in the data store to save results.
+    func : .parser.parser_*
+        A parser function that returns a dataframe.
+    pattern : str
+        A file name pattern that can be filled with row.
+    df : pd.DataFrame
+        A sample table containing samples to parse.
+    n : int
+        Size of group to import at one time.
+
+    Returns
+    -------
+    None
+
+    """
+
+    if store.get_node(key):
+        done = store.select_column(key, 'srr').unique().tolist()
+    else:
+        done = []
+
+    dfs = []
+    for i, row in df.iterrows():
+        if row.srr in done:
+            continue
+
+        dfs.append(delayed(combine)(func, pattern, row))
+
+    if dfs:
+        for dd in grouper(dfs, n):
+            ddf = pd.concat(compute(*dd), ignore_index=True)
+            add_table(store, key, data=ddf, columns=['srx', 'srr'])
