@@ -13,16 +13,45 @@ def wrapper_for(path):
 
 
 def put_flag(fname, flag):
+    """Export flag from file.
+
+    This is a little helper script to write a flag to a file.
+
+    """
     with open(fname, 'w') as fh:
         fh.write(flag)
 
 
 def get_flag(fname):
+    """Import flag from file.
+
+    This is a little helper script to import a flag stored in a file.
+
+    """
     with open(fname) as fh:
         return fh.read().strip()
 
 
 def combine(func, pattern, row):
+    """Parse input file using parser function.
+
+    Uses a parser function to return a data frame.
+
+    Parameters
+    ----------
+    func : .parser.parser_*
+        A parser function that returns a dataframe.
+    pattern : str
+        A file name pattern that can be filled with row.
+    row : pd.Series
+        A row from a sample table.
+
+    Returns
+    -------
+    pd.DataFrame
+        parse dataframe.
+
+    """
     df = func(row.srr, pattern.format(**row.to_dict()))
     df.index.name = 'srr'
     df['srx'] = row.srx
@@ -30,6 +59,26 @@ def combine(func, pattern, row):
 
 
 def agg(store, key, func, pattern, df):
+    """Aggregator to import tables and dump into a hdf5 store.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        Data store to save results.
+    key : str
+        Node in the data store to save results.
+    func : .parser.parser_*
+        A parser function that returns a dataframe.
+    pattern : str
+        A file name pattern that can be filled with row.
+    df : pd.DataFrame
+        A sample table containing samples to parse.
+
+    Returns
+    -------
+    None
+
+    """
     if store.get_node(key):
         done = store[key].srr.tolist()
     else:
