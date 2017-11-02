@@ -12,7 +12,7 @@ from .plotting import add_styles
 
 class Nb(object):
     def __init__(self, nb_name=None, project_dir=None, config_dir=None, fig_dir=None, table_dir=None,
-                 cache=None, formats=None, styles=None, watermark=None, **kwargs):
+                 cache=None, formats=None, styles=None, styles_wide=None, watermark=None, **kwargs):
         """Helper method for working consistently in notebook.
 
         Stores a set a bunch of useful attributes. Turns on a bunch of commonly
@@ -37,6 +37,8 @@ class Nb(object):
             Default list of formats to use for plotting. For example 'png' or ['png', 'svg'].
         styles : str or list
             Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
+        styles_wide : str or list
+            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
         watermark : bool
             If true turn on watermarking.
         **kwargs
@@ -60,6 +62,8 @@ class Nb(object):
             Default list of formats to use for plotting. For example 'png' or ['png', 'svg'].
         styles : str or list
             Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
+        styles_wide : str or list
+            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
         date : str
             Current date, generated upon creation.
 
@@ -72,6 +76,7 @@ class Nb(object):
         self.cache = cache
         self.formats = formats
         self.styles = styles
+        self.styles_wide = styles_wide
         self.date = datetime.now().strftime("%Y-%m-%d")
 
         # Add any key word args
@@ -148,6 +153,7 @@ class Nb(object):
             'cache': os.path.join(prj, 'output', cache_dir),
             'formats': ['png', 'pdf'],
             'styles': ['notebook', 'paper', 'talk', 'poster'],
+            'styles_wide': ['notebook-wide', 'paper-wide', 'talk-wide', 'poster-wide'],
             'watermark': watermark
         }
 
