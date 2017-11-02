@@ -28,6 +28,7 @@ configfile: '../config/reference_config.yml'
 # Build Sample Table
 ################################################################################
 mystore = '../sra.h5'
+mystore_large = '../sra_large.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['prealn/queue'].srx.unique()[:1000]
 mask = store['prealn/queue'].srx.isin(srxs)
@@ -103,6 +104,17 @@ rule targets:
     input: keepers(targets)
 
 
+onsuccess:
+    print('All Finished')
+
+
+onerror:
+    print('Something went wrong, you need to re-run')
+
+
+################################################################################
+# Summary Rules
+################################################################################
 rule update_queue:
     """Updates queue.
 
@@ -180,12 +192,93 @@ rule print_queue:
         store.close()
 
 
-onsuccess:
-    print('All Finished')
+rule aggregate:
+    """Aggregate outputs from different tools."""
+    threads: 8
+    run:
+        from ncbi_remap.logging import logger
+        from ncbi_remap.io import add_table
+        from ncbi_remap.snakemake import agg, agg_big
+        from ncbi_remap.parser import parse_fastq_summary, parse_fastq_screen, parse_hisat2, \
+            parse_featureCounts_summary, parse_picardCollect_summary, parse_picard_markduplicate_metrics, \
+            parse_samtools_stats, parse_bamtools_stats
 
+        store = pd.HDFStore(mystore)
+        completed = store['prealn/complete'].copy()
+        PE = store['layout/PE'].copy()
 
-onerror:
-    print('Something went wrong, you need to re-run')
+        # fastq summary
+        logger.info('Parsing Fastq Summary')
+        agg(store, 'prealn/workflow/fastq', parse_fastq_summary, patterns['fastq']['summary'], completed)
+
+        # fastq_screen
+        logger.info('Parsing Fastq Screen')
+        agg(store, 'prealn/workflow/fastq_screen', parse_fastq_screen, patterns['fastq_screen'], completed)
+
+        # Hisat2
+        logger.info('Parsing Hisat2')
+        agg(store, 'prealn/workflow/hisat2/PE', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed[completed.srr.isin(PE.srr)])
+        agg(store, 'prealn/workflow/hisat2/SE', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed[~completed.srr.isin(PE.srr)])
+
+        # stats
+        logger.info('Parsing Other Stats')
+        logger.info('Parsing Other Stats - Samtools Stats')
+        agg(store, 'prealn/workflow/samtools_stats', parse_samtools_stats, patterns['samtools_stats'], completed)
+
+        logger.info('Parsing Other Stats - Bamtools Stats')
+        agg(store, 'prealn/workflow/bamtools_stats', parse_bamtools_stats, patterns['bamtools_stats'], completed)
+
+        # MarkDuplicates
+        logger.info('Parsing Mark Duplicates')
+        agg(store, 'prealn/workflow/markduplicates', parse_picard_markduplicate_metrics,
+            patterns['picard']['markduplicates']['metrics'], completed)
+
+        # CollectRNASeqMetrics
+        logger.info('Parsing Collect RNA-Seq Metrics')
+        logger.info('Parsing Collect RNA-Seq Metrics - First')
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/first', parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['first'], completed)
+
+        logger.info('Parsing Collect RNA-Seq Metrics - Second')
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/second', parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['second'], completed)
+
+        logger.info('Parsing Collect RNA-Seq Metrics - Unstranded')
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/unstranded', parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'], completed)
+
+        # Feature Counts
+        logger.info('Parsing Feature Counts')
+        logger.info('Parsing Feature Counts - Summary')
+        agg(store, 'prealn/workflow/feature_counts/summary', parse_featureCounts_summary, patterns['feature_counts']['summary'], completed)
+
+        store.close()
+
+rule aggregate_large:
+    """Aggregate large tables into a hdf store."""
+    run:
+        from ncbi_remap.logging import logger
+        from ncbi_remap.snakemake import agg_big
+        from ncbi_remap.parser import parse_featureCounts_counts, parse_featureCounts_jcounts, parse_samtools_idxstats
+
+        # Get list of completed
+        store = pd.HDFStore(mystore)
+        completed = store['prealn/complete'].copy()
+        store.close()
+
+        # large datasets
+        store = pd.HDFStore(mystore_large)
+        logger.info('Parsing Large Datasets')
+        logger.info('Parsing Other Stats - Samtools Index Stats')
+        agg_big(store, 'prealn/workflow/samtools_idxstats', parse_samtools_idxstats, patterns['samtools_idxstats'], completed)
+
+        logger.info('Parsing Feature Counts - Counts')
+        agg_big(store, 'prealn/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['feature_counts']['counts'], completed)
+
+        logger.info('Parsing Feature Counts - Junction Counts')
+        agg_big(store, 'prealn/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['feature_counts']['jcounts'], completed)
+
+        store.close()
 
 
 ################################################################################
