@@ -4,9 +4,11 @@ import sys
 from itertools import zip_longest
 
 import pandas as pd
+import dask
 from dask import delayed, compute
 
 from .io import add_table
+from .logging import logger
 
 def wrapper_for(path):
     return 'file:' + path
@@ -106,12 +108,12 @@ def grouper(iterable, n, fillvalue=None):
     return zip_longest(*args, fillvalue=fillvalue)
 
 
-def agg_big(store, key, func, pattern, df, n=100):
+def agg_big(store, key, func, pattern, df):
     """Aggregator for larger tables that won't all fit in memory.
 
-    Some of the tables that I am trying to aggregate have thousands of rows. If
-    I try to import too many at one time I run out of memory. This adds a
-    grouper step that only imports 100 tables at 1 time.
+    Some of the tables that I am trying to aggregate have thousands of rows. I
+    think it makes most sense to store these as individual tables in an hdf5. I
+    can then use dask to import the tables.
 
     Parameters
     ----------
@@ -125,8 +127,6 @@ def agg_big(store, key, func, pattern, df, n=100):
         A file name pattern that can be filled with row.
     df : pd.DataFrame
         A sample table containing samples to parse.
-    n : int
-        Size of group to import at one time.
 
     Returns
     -------
@@ -144,9 +144,6 @@ def agg_big(store, key, func, pattern, df, n=100):
         if row.srr in done:
             continue
 
-        dfs.append(delayed(combine)(func, pattern, row))
-
-    if dfs:
-        for dd in grouper(dfs, n):
-            ddf = pd.concat(compute(*dd), ignore_index=True)
-            add_table(store, key, data=ddf, columns=['srx', 'srr'])
+        dat = combine(func, pattern, row)
+        key2 = key + '/' + row.srx + '/' + row.srr
+        add_table(store, key2, data=dat, columns=['srx', 'srr'])
