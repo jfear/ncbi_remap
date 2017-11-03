@@ -137,3 +137,4 @@ zeromq=4.1.5
 zlib=1.2.8
 openpyxl >=2.4.0
 intermine ==1.09.09
+graphviz ==2.38.0
