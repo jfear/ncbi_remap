@@ -172,7 +172,7 @@ def strandedness(store, cutoff=.75, filter_srrs=None, keep_srrs=None):
     return f, s, u
 
 
-def mappability(store, cutoff=30, filter_srrs=None, keep_srrs=None):
+def mappability(store, cutoff=.50, filter_srrs=None, keep_srrs=None):
     """Output lists of sample that meet mappability criteria.
 
     Parameters
@@ -191,18 +191,18 @@ def mappability(store, cutoff=30, filter_srrs=None, keep_srrs=None):
 
     """
 
-    se = store['prealn/workflow/hisat2/SE'][['srx', 'srr', 'num_reads', 'num_uniquely_aligned']]
-    se['prop_unique_aligned'] = se['num_uniquely_aligned'] / se['num_reads']
+    se = store['prealn/workflow/hisat2/SE'][['srx', 'srr', 'num_reads', 'num_unaligned']]
+    se['prop_unaligned'] = se['num_unaligned'] / se['num_reads']
 
-    pe = store['prealn/workflow/hisat2/PE'][['srx', 'srr', 'num_reads', 'num_concordant_reads_uniquely_aligned']]
-    pe['prop_unique_aligned'] = pe['num_concordant_reads_uniquely_aligned'] / pe['num_reads']
+    pe = store['prealn/workflow/hisat2/PE'][['srx', 'srr', 'num_reads', 'num_concordant_reads_unaligned']]
+    pe['prop_unaligned'] = pe['num_concordant_reads_unaligned'] / pe['num_reads']
 
-    df = pd.concat([se[['srx', 'srr', 'prop_unique_aligned']], pe[['srx', 'srr', 'prop_unique_aligned']]])
+    df = pd.concat([se[['srx', 'srr', 'prop_unaligned']], pe[['srx', 'srr', 'prop_unaligned']]])
 
     df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
 
-    return df.loc[df['prop_unique_aligned'] >= cutoff, ['srx', 'srr']]
+    return df.loc[df['prop_unaligned'] <= cutoff, ['srx', 'srr']]
 
 
 def contamination(store, cutoff=50, filter_srrs=None, keep_srrs=None):
