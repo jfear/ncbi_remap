@@ -70,6 +70,27 @@ def libsize(store, cutoff=1e5, filter_srrs=None, keep_srrs=None):
     return df.loc[df['libsize'] >= cutoff, ['srx', 'srr']]
 
 
+def libsize_cnts(store, filter_srrs=None, keep_srrs=None):
+    """Output lists of sample that meet libsize criteria.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        HDF5 data store.
+    filter_srrs : list-like
+        A list-like of SRRs to remove.
+
+    Returns
+    -------
+    tuple of floats
+       (minimum, median, max) of libsize.
+
+    """
+    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = keep_rows(df, 'srr', keep_srrs)
+    df['libsize'] = df[['libsize_R1', 'libsize_R2']].max(axis=1)
+    return df.libsize.min(), df.libsize.median(), df.libsize.max()
+
 
 def readlen(store, cutoff=30, filter_srrs=None, keep_srrs=None):
     """Output lists of sample that meet libsize criteria.
