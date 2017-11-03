@@ -65,8 +65,10 @@ def libsize(store, cutoff=1e5, filter_srrs=None, keep_srrs=None):
     """
     df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
+    df['libsize'] = df[['libsize_R1', 'libsize_R2']].max(axis=1)
 
-    return df.loc[df['libsize_R1'] >= cutoff, ['srx', 'srr']]
+    return df.loc[df['libsize'] >= cutoff, ['srx', 'srr']]
+
 
 
 def readlen(store, cutoff=30, filter_srrs=None, keep_srrs=None):
