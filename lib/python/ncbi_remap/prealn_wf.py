@@ -1,6 +1,14 @@
 """Output lists of samples meeting different criteria."""
 import pandas as pd
 
+# Constants
+LIBSIZE_CUTOFF = 1e5      # 100,000 reads
+READLEN_CUTOFF = 30       # 30 bp
+STRAND_CUTOFF1 = 0.75     # 75% stranded reads
+STRAND_CUTOFF2 = 0.95     # 95% stranded reads
+UNALIGN_CUTOFF = 0.50     # 50% Reads Unaligned
+CONTAMINATION_CUTOFF = 40 # 50% reads mapping to DM6
+
 
 def remove_rows(df, column, values):
     if values is None:
