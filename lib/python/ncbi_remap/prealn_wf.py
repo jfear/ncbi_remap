@@ -117,6 +117,29 @@ def readlen(store, cutoff=30, filter_srrs=None, keep_srrs=None):
     return df.loc[df['len'] >= cutoff, ['srx', 'srr']]
 
 
+def readlen_cnts(store, filter_srrs=None, keep_srrs=None):
+    """Output lists of sample that meet libsize criteria.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        HDF5 data store.
+    filter_srrs : list-like
+        A list-like of SRRs to remove.
+
+    Returns
+    -------
+    tuple of floats
+       (minimum, median, max) of libsize.
+
+    """
+    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = keep_rows(df, 'srr', keep_srrs)
+    df['len'] = df[['avgLen_R1', 'avgLen_R2']].max(axis=1)
+
+    return df.len.min(), df.len.median(), df.len.max()
+
+
 def strandedness(store, cutoff=.75, filter_srrs=None, keep_srrs=None):
     """Output lists of sample strandedness.
 
