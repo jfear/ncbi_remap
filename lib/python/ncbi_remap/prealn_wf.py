@@ -112,7 +112,7 @@ def readlen(store, cutoff=30, filter_srrs=None, keep_srrs=None):
     """
     df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
-    df['len'] = df[['libsize_R1', 'libsize_R2']].max(axis=1)
+    df['len'] = df[['avgLen_R1', 'avgLen_R2']].max(axis=1)
 
     return df.loc[df['len'] >= cutoff, ['srx', 'srr']]
 
