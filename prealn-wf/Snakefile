@@ -254,6 +254,7 @@ rule aggregate:
 
         store.close()
 
+
 rule aggregate_large:
     """Aggregate large tables into a hdf store."""
     run:

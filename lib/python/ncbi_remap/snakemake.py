@@ -134,16 +134,10 @@ def agg_big(store, key, func, pattern, df):
 
     """
 
-    if store.get_node(key):
-        done = store.select_column(key, 'srr').unique().tolist()
-    else:
-        done = []
-
-    dfs = []
     for i, row in df.iterrows():
-        if row.srr in done:
+        key2 = key + '/' + row.srx + '/' + row.srr
+        if store.get_node(key2):
             continue
 
         dat = combine(func, pattern, row)
-        key2 = key + '/' + row.srx + '/' + row.srr
         add_table(store, key2, data=dat, columns=['srx', 'srr'])
