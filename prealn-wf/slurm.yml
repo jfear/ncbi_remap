@@ -7,7 +7,11 @@ __default__:
 fastq_dump:
   gres: "lscratch:200"
 
+fastq_screen:
+    gres: "lscratch:200"
+
 atropos:
+  time: "24:00:00"
   gres: "lscratch:200"
 
 markduplicates:
