@@ -135,7 +135,7 @@ def agg_big(store, key, func, pattern, df):
     """
 
     for i, row in df.iterrows():
-        key2 = key + '/' + row.srx + '/' + row.srr
+        key2 = key + '/' + row.srx[:6] + '/' + row.srx + '/' + row.srr
         if store.get_node(key2):
             continue
 
