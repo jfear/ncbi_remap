@@ -299,16 +299,32 @@ def calculate_multi_corr_method2(df, method, cutoff=0.9):
         Where the tuples are (srx, srr1:srr2, correlation).
 
     """
+    # Figure out what samples are correlated above cutoff.
     corr = df.corr(method=method)
     np.fill_diagonal(corr.values, 0)
     stacked = corr.stack()
     filtered = stacked[stacked >= cutoff].index.get_level_values(1).unique()
+
     if filtered.shape[0] > 1:
+        # Remove "bad" samples and recalculate correlation.
         corr = df[filtered].corr(method=method)
+
+        # If we still have bad correlation then just call it bad.
+        if corr.min().min() < cutoff - (cutoff * .1):
+            return [(df.index.name, None, None)]
+
+        # Remove duplicates, i.e. get ride of lower triangle of correlation matrix
+        np.fill_diagonal(corr.values, 0)
+        corr = pd.DataFrame(np.triu(corr.values), columns=corr.columns, index=corr.index)
+
+        # Stack and format for output
         stacked = corr.stack().to_frame()
         stacked.columns = ['corr']
+        stacked = stacked[stacked['corr'] > 0].copy()
         stacked['srrs'] = stacked.apply(lambda x: ':'.join(x.name), axis=1)
-        stacked.index = stacked.index.droplevel(0)
+        stacked['srx'] = df.index.name
+        stacked.reset_index(inplace=True)
+        stacked.set_index('srx', inplace=True)
         return stacked[['srrs', 'corr']].to_records().tolist()
     else:
         return [(df.index.name, None, None)]
