@@ -36,9 +36,7 @@ from ncbi_remap.snakemake import put_flag
 TMPDIR = os.environ['TMPDIR']
 
 log = snakemake.log_fmt_shell()
-input = snakemake.input
 output = snakemake.output
-params = snakemake.params
 wildcards = snakemake.wildcards
 
 # Get current sample id
@@ -81,6 +79,11 @@ if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & (R2avgLen is Non
     # R2 does not exists so SE
     put_flag(output.flag, 'SE')
 
+elif (R2Libsize is None)  & (R2avgLen is None):
+    # SE but R1 looks bad, flag as download bad
+    fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
+    Path(fname).touch()
+
 elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
     if R1Libsize == R2Libsize:
         # Both reads look good so PE
@@ -100,5 +103,5 @@ elif (R2Libsize > 1000) & (R2avgLen > 10):
 
 else:
     # R1 and R2 look bad, flag as download bad
-    fname = os.path.join(os.path.dirname(output.fastq), 'DOWNLOAD_BAD')
+    fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
     Path(fname).touch()
