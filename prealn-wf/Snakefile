@@ -104,6 +104,11 @@ rule targets:
     input: keepers(targets)
 
 
+rule download:
+    """Only download the FASTQs."""
+    input: targets['fastq']['r1']
+
+
 onsuccess:
     print('All Finished')
 
@@ -554,7 +559,7 @@ rule markduplicates:
         bam=temp(patterns['picard']['markduplicates']['bam']),
         metrics=patterns['picard']['markduplicates']['metrics']
     params:
-        java_args='-Xmx30g'
+        java_args='-Xmx{snakemake.resources.mem_gb}g'
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
     resources:
