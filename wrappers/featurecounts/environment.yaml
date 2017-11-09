@@ -1,4 +1,5 @@
 channels:
   - bioconda
 dependencies:
+  - python ==3.5
   - subread ==1.5.2
