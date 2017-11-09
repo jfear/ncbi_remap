@@ -132,6 +132,11 @@ def remove_chunk(store, key, srrs, **kwargs):
     build_index(store, key, **defaults)
 
 
+def add_data_columns(store, key, **kwargs):
+    dat = store[key].copy()
+    add_table(store, key, data=dat, force=True, **kwargs)
+
+
 def check_alignment(store, pattern, **kwargs):
     """Checks for ALIGNMENT_BAD file.
 
