@@ -34,7 +34,7 @@ out_R1 = outputs.R1
 out_R2 = outputs.R2
 
 
-if (in_R2 is not None) and (out_R2 is not None):
+if (in_R1 is not None) & (in_R2 is not None):
     # Run paired end if both in_R1 and in_R2 are provided
     shell(
         "atropos trim "
