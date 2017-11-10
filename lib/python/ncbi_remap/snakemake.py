@@ -54,13 +54,10 @@ def combine(func, pattern, row):
         parse dataframe.
 
     """
-    df = func(row.srr, pattern.format(**row.to_dict()))
-    df.index.name = 'srr'
-    df['srx'] = row.srx
-    return df.reset_index().set_index(['srx', 'srr']).reset_index()
+    return func(row.srx, row.srr, pattern.format(**row.to_dict()))
 
 
-def agg(store, key, func, pattern, df):
+def agg(store, key, func, pattern, df, large=False):
     """Aggregator to import tables and dump into a hdf5 store.
 
     Parameters
@@ -90,11 +87,15 @@ def agg(store, key, func, pattern, df):
     for i, row in df.iterrows():
         if row.srr in done:
             continue
-        dfs.append(delayed(combine)(func, pattern, row))
+        if not large:
+            dfs.append(combine(func, pattern, row))
+        else:
+            dd = combine(func, pattern, row)
+            store.append(key, dd)
 
     if dfs:
-        ddf = pd.concat(compute(*dfs), ignore_index=True)
-        add_table(store, key, data=ddf, columns=['srx', 'srr'])
+        ddf = pd.concat(dfs)
+        store.append(key, ddf)
 
 
 def grouper(iterable, n, fillvalue=None):
