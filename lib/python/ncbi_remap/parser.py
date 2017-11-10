@@ -136,7 +136,7 @@ def parse_fastq_screen(srx, srr, file):
             df = pd.DataFrame(parsed, columns=header)
             udf = df.set_index(['srx', 'srr', 'reference', 'type']).unstack()
             udf.columns = udf.columns.droplevel()
-            return udf.reset_index().set_index(['srx', 'srr'])
+            return udf.reset_index().set_index(['srx', 'srr', 'reference'])
 
 
 def parse_picardCollect_summary(srx, srr, file):
@@ -191,8 +191,8 @@ def parse_featureCounts_counts(srx, srr, file):
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
     df['srx'] = srx
     df['srr'] = srr
-    df.set_index(['srx', 'srr'], inplace=True)
-    return df[['FBgn', 'count']]
+    df.set_index(['srx', 'srr', 'FBgn'], inplace=True)
+    return df['count']
 
 
 def parse_featureCounts_jcounts(srx, srr, file):
@@ -265,7 +265,7 @@ def parse_samtools_idxstats(srx, srr, file):
     df.columns = ['chrom', 'length', '# mapped reads', '# unmapped reads']
     df['srx'] = srx
     df['srr'] = srr
-    df.set_index(['srx', 'srr'], inplace=True)
+    df.set_index(['srx', 'srr', 'chrom'], inplace=True)
     return df
 
 
