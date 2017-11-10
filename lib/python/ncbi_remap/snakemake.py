@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 """Set of helpers for use with snakemake."""
-import sys
+import os
+from pathlib import Path
 from itertools import zip_longest
 
 import pandas as pd
-import dask
-from dask import delayed, compute
-
-from .io import add_table
+from .io import add_id, remove_id
 from .logging import logger
 
 def wrapper_for(path):
@@ -32,6 +30,122 @@ def get_flag(fname):
     """
     with open(fname) as fh:
         return fh.read().strip()
+
+
+def check_download(store, pattern, **kwargs):
+    """Checks FASTQ logs determine if bad DB entry.
+
+    There are some SRRs that are no longer accessible in the SRA database. I
+    get an error in the fastq-dump log that I want to translate into the
+    DOWNLOAD_BAD flag.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    logName = Path(pattern.format(**kwargs))
+    flagBad = Path(logName.parent, 'DOWNLOAD_BAD')
+    if logName.exists():
+        dat = logName.read_text()
+        if 'failed to resolve accession' in dat:
+            flagBad.touch()
+
+    if flagBad.exists():
+        remove_id(store, 'prealn/queue', **kwargs)
+        add_id(store, 'prealn/download_bad', **kwargs)
+        return True
+
+
+def check_alignment(store, pattern, **kwargs):
+    """Checks for ALIGNMENT_BAD file.
+
+    If there is an ALIGNMENT_BAD file then remove from the queue, add to
+    complete, and add to 'prealn/alignment_bad'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        add_id(store, 'prealn/alignment_bad', **kwargs)
+        return True
+
+
+def check_layout(store, pattern, **kwargs):
+    """Checks LAYOUT file.
+
+    Parses layout file and adds to the corresponding hdf5 lists.
+
+        * 'layout/SE'
+        * 'layout/PE'
+        * 'layout/keep_R1'
+        * 'layout/keep_R2'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if strand == 'SE':
+            key = 'layout/SE'
+        elif strand == 'PE':
+            key = 'layout/PE'
+        elif strand == 'keep_R1':
+            key = 'layout/keep_R1'
+        elif strand == 'keep_R2':
+            key = 'layout/keep_R2'
+        add_id(store, key, **kwargs)
+
+
+def check_strand(store, pattern, **kwargs):
+    """Checks STRAND file.
+
+    Parses strand file and adds to the corresponding hdf5 lists.
+
+        * 'strand/first'
+        * 'strand/second'
+        * 'strand/unstranded'
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    with open(pattern.format(**kwargs)) as fh:
+        strand = fh.read().strip()
+        if (strand == 'first_strand') | (strand == 'same_strand'):
+            key = 'strand/first'
+        elif (strand == 'second_strand') | (strand == 'opposite_strand'):
+            key = 'strand/second'
+        elif strand == 'unstranded':
+            key = 'strand/unstranded'
+        add_id(store, key, **kwargs)
 
 
 def combine(func, pattern, row):
@@ -72,6 +186,8 @@ def agg(store, key, func, pattern, df, large=False):
         A file name pattern that can be filled with row.
     df : pd.DataFrame
         A sample table containing samples to parse.
+    large : bool
+        If True import datasets one at time because they are large.
 
     Returns
     -------
@@ -84,14 +200,17 @@ def agg(store, key, func, pattern, df, large=False):
         done = []
 
     dfs = []
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
         if row.srr in done:
             continue
-        if not large:
-            dfs.append(combine(func, pattern, row))
-        else:
-            dd = combine(func, pattern, row)
-            store.append(key, dd)
+        try:
+            if not large:
+                dfs.append(combine(func, pattern, row))
+            else:
+                dd = combine(func, pattern, row)
+                store.append(key, dd)
+        except ValueError:
+            logger.error('Error parsing {}->{}'.format(row.srx, row.srr))
 
     if dfs:
         ddf = pd.concat(dfs)
@@ -108,37 +227,3 @@ def grouper(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
 
-
-def agg_big(store, key, func, pattern, df):
-    """Aggregator for larger tables that won't all fit in memory.
-
-    Some of the tables that I am trying to aggregate have thousands of rows. I
-    think it makes most sense to store these as individual tables in an hdf5. I
-    can then use dask to import the tables.
-
-    Parameters
-    ----------
-    store : pd.HDFStore
-        Data store to save results.
-    key : str
-        Node in the data store to save results.
-    func : .parser.parser_*
-        A parser function that returns a dataframe.
-    pattern : str
-        A file name pattern that can be filled with row.
-    df : pd.DataFrame
-        A sample table containing samples to parse.
-
-    Returns
-    -------
-    None
-
-    """
-
-    for i, row in df.iterrows():
-        key2 = key + '/' + row.srx[:6] + '/' + row.srx + '/' + row.srr
-        if store.get_node(key2):
-            continue
-
-        dat = combine(func, pattern, row)
-        add_table(store, key2, data=dat, columns=['srx', 'srr'])
