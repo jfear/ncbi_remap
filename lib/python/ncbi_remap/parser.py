@@ -256,6 +256,7 @@ def parse_picard_markduplicate_metrics(srx, srr, file):
     df['srx'] = srx
     df['srr'] = srr
     df.set_index(['srx', 'srr'], inplace=True)
+    df.replace('?', np.nan, inplace=True)
     return df
 
 
