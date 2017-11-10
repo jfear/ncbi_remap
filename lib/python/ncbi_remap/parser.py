@@ -55,7 +55,7 @@ def get_files(files, pattern):
 
     Returns
     -------
-    generator: (sample_id, file name)
+    generator: (srx, srr, file name)
     """
 
     file_pattern = get_file_regex(pattern)
@@ -63,7 +63,7 @@ def get_files(files, pattern):
         m = re.match(file_pattern, file)
         if m:
             d = m.groupdict()
-            yield (d['sample'], file)
+            yield (d['srx'], d['srr'], file)
 
 
 def parse_files(files, pattern, parser, **kwargs):
@@ -88,7 +88,7 @@ def parse_files(files, pattern, parser, **kwargs):
 
 
 # Parsing functions
-def parse_fastq_summary(sample, file):
+def parse_fastq_summary(srx, srr, file):
     """Parser for fastq summary table.
 
     Returns
@@ -96,11 +96,12 @@ def parse_fastq_summary(sample, file):
     pandas.DataFrame: A single row dataframe.
     """
     df = pd.read_csv(file, sep='\t')
-    df.index = [sample]
+    df.index = [srx, srr]
+    df.index.name = ['srx', 'srr']
     return df
 
 
-def parse_fastq_screen(sample, file):
+def parse_fastq_screen(srx, srr, file):
     """Parser for fastq screen.
 
     Adapted from multiqc.
@@ -110,35 +111,35 @@ def parse_fastq_screen(sample, file):
     pandas.DataFrame: A single row dataframe.
     """
     with open(file, 'r') as fh:
-        header = ['sample', 'reference', 'type', 'value']
+        header = ['srx', 'srr', 'reference', 'type', 'value']
         parsed = []
 
         for l in fh:
             fqs = re.search(r"^(\S+)\s+(\d+)\s+(\d+)\s+-?([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)\s+(\d+)\s+([\d\.]+)$", l)
             if fqs:
                 org = fqs.group(1)
-                parsed.append((sample, org, 'reads_processed_count', int(fqs.group(2))))
-                parsed.append((sample, org, 'unmapped_count', int(fqs.group(3))))
-                parsed.append((sample, org, 'unmapped_percent', float(fqs.group(4))))
-                parsed.append((sample, org, 'one_hit_one_library_count', int(fqs.group(5))))
-                parsed.append((sample, org, 'one_hit_one_library_percent', float(fqs.group(6))))
-                parsed.append((sample, org, 'multiple_hits_one_library_count', int(fqs.group(7))))
-                parsed.append((sample, org, 'multiple_hits_one_library_percent', float(fqs.group(8))))
-                parsed.append((sample, org, 'one_hit_multiple_libraries_count', int(fqs.group(9))))
-                parsed.append((sample, org, 'one_hit_multiple_libraries_percent', float(fqs.group(10))))
-                parsed.append((sample, org, 'multiple_hits_multiple_libraries_count', int(fqs.group(11))))
-                parsed.append((sample, org, 'multiple_hits_multiple_libraries_percent', float(fqs.group(12))))
+                parsed.append((srx, srr, org, 'reads_processed_count', int(fqs.group(2))))
+                parsed.append((srx, srr, org, 'unmapped_count', int(fqs.group(3))))
+                parsed.append((srx, srr, org, 'unmapped_percent', float(fqs.group(4))))
+                parsed.append((srx, srr, org, 'one_hit_one_library_count', int(fqs.group(5))))
+                parsed.append((srx, srr, org, 'one_hit_one_library_percent', float(fqs.group(6))))
+                parsed.append((srx, srr, org, 'multiple_hits_one_library_count', int(fqs.group(7))))
+                parsed.append((srx, srr, org, 'multiple_hits_one_library_percent', float(fqs.group(8))))
+                parsed.append((srx, srr, org, 'one_hit_multiple_libraries_count', int(fqs.group(9))))
+                parsed.append((srx, srr, org, 'one_hit_multiple_libraries_percent', float(fqs.group(10))))
+                parsed.append((srx, srr, org, 'multiple_hits_multiple_libraries_count', int(fqs.group(11))))
+                parsed.append((srx, srr, org, 'multiple_hits_multiple_libraries_percent', float(fqs.group(12))))
 
         if len(parsed) == 0:
             return None
         else:
             df = pd.DataFrame(parsed, columns=header)
-            udf = df.set_index(['sample', 'reference', 'type']).unstack()
+            udf = df.set_index(['srx', 'srr', 'reference', 'type']).unstack()
             udf.columns = udf.columns.droplevel()
-            return udf.reset_index().set_index('sample')
+            return udf.reset_index().set_index(['srx', 'srr'])
 
 
-def parse_picardCollect_summary(sample, file):
+def parse_picardCollect_summary(srx, srr, file):
     """Parser for picard collectRNAMetrics summary."""
     with open(file, 'r') as fh:
         for l in fh:
@@ -153,12 +154,13 @@ def parse_picardCollect_summary(sample, file):
             return None
         else:
             df = pd.read_csv(StringIO(parsed), sep='\t')
-            df.index = [sample]
+            df.index = [srx, srr]
+            df.index.name = ['srx', 'srr']
             df.replace('?', np.nan, inplace=True)
             return df
 
 
-def parse_picardCollect_hist(sample, file):
+def parse_picardCollect_hist(srx, srr, file):
     """Parser for picard collectRNAMetrics summary."""
     parsed = ''
     with open(file, 'r') as fh:
@@ -178,39 +180,32 @@ def parse_picardCollect_hist(sample, file):
             return None
         else:
             df = pd.read_csv(StringIO(parsed), sep='\t', index_col=0).T
-            df.index = [sample]
+            df.index = [srx, srr]
+            df.index.name = ['srx', 'srr']
             return df
 
 
-def parse_dupradar(sample, file):
-    """Parser for dupradar."""
-    df = pd.read_csv(file, sep='\t', index_col=0)
-    df.columns = ['FBgn', 'geneLength', 'allCountsMulti', 'filteredCountsMulti', 'dupRateMulti',
-                  'dupsPerIdMulti', 'RPKMulti', 'RPKMMulti', 'allCounts', 'filteredCounts',
-                  'dupRate', 'dupsPerId', 'RPK', 'RPKM', 'mhRate']
-    df['sample'] = sample
-    return df.set_index(['sample', 'FBgn'])
-
-
-def parse_featureCounts_counts(sample, file):
+def parse_featureCounts_counts(srx, srr, file):
     """Parser for subread feature counts."""
     df = pd.read_csv(file, sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
-    df['sample'] = sample
-    df.set_index('sample', inplace=True)
+    df['srx'] = srx
+    df['srr'] = srr
+    df.set_index(['srx', 'srr'], inplace=True)
     return df[['FBgn', 'count']]
 
 
-def parse_featureCounts_jcounts(sample, file):
+def parse_featureCounts_jcounts(srx, srr, file):
     """Parser for subread feature jcounts."""
     header = ['PrimaryGene', 'SecondaryGenes', 'Site1_chr', 'Site1_location', 'Site1_strand', 'Site2_chr', 'Site2_location', 'Site2_strand', 'count']
     df = pd.read_csv(file, sep='\t', header=None, names=header, skiprows=1)
-    df['sample'] = sample
-    df.set_index('sample', inplace=True)
+    df['srx'] = srx
+    df['srr'] = srr
+    df.set_index(['srx', 'srr'], inplace=True)
     return df
 
 
-def parse_featureCounts_summary(sample, file):
+def parse_featureCounts_summary(srx, srr, file):
     """Parse rseqc bam stat."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
@@ -221,10 +216,12 @@ def parse_featureCounts_summary(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[srx, srr])
+            df.index.name = ['srx', 'srr']
+            return df
 
 
-def parse_bamtools_stats(sample, file):
+def parse_bamtools_stats(srx, srr, file):
     """Parse bamtools stats."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
@@ -235,7 +232,8 @@ def parse_bamtools_stats(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[srx, srr])
+            df.index.name = ['srx', 'srr']
             df['Percent Mapped'] = df['Mapped reads'] / df['Total reads'] * 100
             df['Percent Forward'] = df['Forward strand'] / df['Total reads'] * 100
             df['Percent Reverse'] = df['Reverse strand'] / df['Total reads'] * 100
@@ -245,7 +243,7 @@ def parse_bamtools_stats(sample, file):
             return df
 
 
-def parse_picard_markduplicate_metrics(sample, file):
+def parse_picard_markduplicate_metrics(srx, srr, file):
     """Parser for picard markduplicates."""
     with open(file, 'r') as fh:
         for l in fh:
@@ -254,19 +252,23 @@ def parse_picard_markduplicate_metrics(sample, file):
                 dat += next(fh)
                 break
     df = pd.read_csv(StringIO(dat), sep='\t', comment='#')
-    df['sample'] = sample
-    return df.set_index('sample')
+    df['srx'] = srx
+    df['srr'] = srr
+    df.set_index(['srx', 'srr'], inplace=True)
+    return df
 
 
-def parse_samtools_idxstats(sample, file):
+def parse_samtools_idxstats(srx, srr, file):
     """Parser for samtools idxstats."""
     df = pd.read_csv(file, sep='\t', header=None)
     df.columns = ['chrom', 'length', '# mapped reads', '# unmapped reads']
-    df['sample'] = sample
-    return df.set_index('sample')
+    df['srx'] = srx
+    df['srr'] = srr
+    df.set_index(['srx', 'srr'], inplace=True)
+    return df
 
 
-def parse_samtools_stats(sample, file):
+def parse_samtools_stats(srx, srr, file):
     """Parse rseqc samtools stats."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
@@ -285,26 +287,32 @@ def parse_samtools_stats(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[srx, srr])
+            df.index.name = ['srx', 'srr']
+            return df
 
 
-def parse_md5(sample, file):
+def parse_md5(srx, srr, file):
     """Parser for md5sum."""
     df = pd.read_csv(file, sep='\s+', header=None)
     df.columns = ['md5', 'file']
-    df['sample'] = sample
+    df['srx'] = srx
+    df['srr'] = srr
+    df.set_index(['srx', 'srr'], inplace=True)
     df.drop('file', axis=1, inplace=True)
-    return df.set_index('sample')
+    return df
 
 
-def parse_libsize(sample, file):
+def parse_libsize(srx, srr, file):
     """Parser for md5sum."""
     with open(file, 'r') as fh:
         lsize = int(fh.read().strip())
-        return pd.DataFrame({'libsize': lsize}, index=[sample])
+        df = pd.DataFrame({'libsize': lsize}, index=[srx, srr])
+        df.index.name = ['srx', 'srr']
+        return df
 
 
-def parse_atropos(sample, file):
+def parse_atropos(srx, srr, file):
     """Parse atropos."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
@@ -346,13 +354,15 @@ def parse_atropos(sample, file):
                             pass
                         cnts[block] = pd.read_table(StringIO(cnts[block]))
                         cnts[block]['adapter'] = block
-                        cnts[block]['sample'] = sample
-                        cnts[block].set_index(['sample', 'adapter', 'length'], inplace=True)
+                        cnts[block]['srx'] = srx
+                        cnts[block]['srr'] = srr
+                        cnts[block].set_index(['srx', 'srr', 'adapter', 'length'], inplace=True)
 
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[srx, srr])
+            df.index.name = ['srx', 'srr']
 
             if [x for x in df.columns if 'Read 1' in x]:
                 # PE
@@ -366,7 +376,7 @@ def parse_atropos(sample, file):
             return df, pd.concat(cnts.values())
 
 
-def parse_hisat2(sample, file):
+def parse_hisat2(srx, srr, file):
     """Parse hisat2."""
     with open(file, 'r') as fh:
         parsed = OrderedDict()
@@ -403,7 +413,9 @@ def parse_hisat2(sample, file):
         if len(parsed) == 0:
             return None
         else:
-            return pd.DataFrame(parsed, index=[sample])
+            df = pd.DataFrame(parsed, index=[srx, srr])
+            df.index.name = ['srx', 'srr']
+            return df
 
 
 def split_ranges(df):
@@ -431,15 +443,17 @@ def split_ranges(df):
     return df
 
 
-def parse_fastqc(sample, file, field=''):
+def parse_fastqc(srx, srr, file, field=''):
     """Parse fastqc zip file.
 
     Takes a zip file and makes a FastQC object.
 
     Parameters
     ----------
-    sample: str
-        Sample name which will be added as row index.
+    srx: str
+        SRX name which will be added as row index.
+    srr: str
+        SRR name which will be added as row index.
     file: str
         Path to the fastqc zip file.
     field: str
@@ -453,104 +467,114 @@ def parse_fastqc(sample, file, field=''):
 
     """
     if field:
-        return FastQC.parse_from_zip(sample, file)[field]
+        return FastQC.parse_from_zip(srx, srr, file)[field]
     else:
-        return FastQC.parse_from_zip(sample, file)
+        return FastQC.parse_from_zip(srx, srr, file)
 
 
-def parse_fastqc_per_seq_quality(sample, file):
+def parse_fastqc_per_seq_quality(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Per sequence quality scores')
+    fqc = parse_fastqc(srx, srr, file, field='Per sequence quality scores')
     df = fqc.df
     wide = df.T
-    wide['sample'] = sample
-    return wide.set_index('sample')
+    wide['srx'] = srx
+    wide['srr'] = srr
+    return wide.set_index(['srx', 'srr'])
 
 
-def parse_fastqc_per_base_seq_quality(sample, file):
+def parse_fastqc_per_base_seq_quality(srx, srr, file):
     """Parse fastqc base quality"""
-    fqc = parse_fastqc(sample, file, field='Per base sequence quality')
+    fqc = parse_fastqc(srx, srr, file, field='Per base sequence quality')
     df = fqc.df['Mean'].copy().to_frame()
     splitRanges = split_ranges(df)
-    splitRanges['sample'] = sample
-    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+    splitRanges['srx'] = srx
+    splitRanges['srr'] = srr
+    return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_adapter_content(sample, file):
+def parse_fastqc_adapter_content(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Adapter Content')
+    fqc = parse_fastqc(srx, srr, file, field='Adapter Content')
     df = fqc.df
     splitRanges = split_ranges(df)
-    splitRanges['sample'] = sample
-    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+    splitRanges['srx'] = srx
+    splitRanges['srr'] = srr
+    return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_per_base_seq_content(sample, file):
+def parse_fastqc_per_base_seq_content(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Per base sequence content')
+    fqc = parse_fastqc(srx, srr, file, field='Per base sequence content')
     df = fqc.df
-    splitRanges = split_ranges(df)
-    splitRanges['sample'] = sample
-    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+    splitRanges['srx'] = srx
+    splitRanges['srr'] = srr
+    return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_sequence_length(sample, file):
+def parse_fastqc_sequence_length(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Sequence Length Distribution')
+    fqc = parse_fastqc(srx, srr, file, field='Sequence Length Distribution')
     df = fqc.df
-    df['sample'] = sample
-    return df.set_index(append=True, keys='sample').swaplevel()
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_overrepresented_seq(sample, file):
+def parse_fastqc_overrepresented_seq(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Overrepresented sequences')
+    fqc = parse_fastqc(srx, srr, file, field='Overrepresented sequences')
     df = fqc.df
-    df['sample'] = sample
-    return df.set_index(append=True, keys='sample').swaplevel()
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_basic_stats(sample, file):
+def parse_fastqc_basic_stats(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Basic Statistics')
+    fqc = parse_fastqc(srx, srr, file, field='Basic Statistics')
     df = fqc.df.T
-    df['sample'] = sample
-    return df.set_index('sample')
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(['srx', 'srr'])
 
 
-def parse_fastqc_kmer_content(sample, file):
+def parse_fastqc_kmer_content(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Kmer Content')
+    fqc = parse_fastqc(srx, srr, file, field='Kmer Content')
     df = fqc.df
     df.reset_index(inplace=True)
     df.set_index('Max Obs/Exp Position', inplace=True)
     splitRanges = split_ranges(df)
     splitRanges.index.name = 'Max Obs/Exp Position'
     splitRanges.reset_index(inplace=True)
-    splitRanges['sample'] = sample
-    return splitRanges.sort_values(['Sequence', 'Max Obs/Exp Position']).set_index(['sample', 'Sequence'])
+    splitRanges['srx'] = srx
+    splitRanges['srr'] = srr
+    return splitRanges.sort_values(['Sequence', 'Max Obs/Exp Position']).set_index(['srx', 'srr', 'Sequence'])
 
 
-def parse_fastqc_per_base_n_content(sample, file):
+def parse_fastqc_per_base_n_content(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Per base N content')
+    fqc = parse_fastqc(srx, srr, file, field='Per base N content')
     df = fqc.df
     splitRanges = split_ranges(df)
-    splitRanges['sample'] = sample
-    return splitRanges.set_index(append=True, keys='sample').swaplevel()
+    splitRanges['srx'] = srx
+    splitRanges['srr'] = srr
+    return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_per_seq_gc_content(sample, file):
+def parse_fastqc_per_seq_gc_content(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Per sequence GC content')
+    fqc = parse_fastqc(srx, srr, file, field='Per sequence GC content')
     df = fqc.df
-    df['sample'] = sample
-    return df.set_index(append=True, keys='sample').swaplevel()
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_seq_dup_level(sample, file):
+def parse_fastqc_seq_dup_level(srx, srr, file):
     """Parse fastqc."""
-    fqc = parse_fastqc(sample, file, field='Sequence Duplication Levels')
+    fqc = parse_fastqc(srx, srr, file, field='Sequence Duplication Levels')
     df = fqc.df
-    df['sample'] = sample
-    return df.set_index(append=True, keys='sample').swaplevel()
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
