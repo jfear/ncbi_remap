@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
-
-import os
-import numpy as np
 import pandas as pd
 from IPython.display import display
 
@@ -54,7 +51,7 @@ def add_table(store, key, data=None, force=None, **kwargs):
 
     # If the store exists delete
     if store.__contains__(key) & (force is True):
-            del store[key]
+        del store[key]
     elif store.__contains__(key):
         # Drop if duplicates
         if 'srr' in data.columns:
@@ -135,93 +132,6 @@ def remove_chunk(store, key, srrs, **kwargs):
 def add_data_columns(store, key, **kwargs):
     dat = store[key].copy()
     add_table(store, key, data=dat, force=True, **kwargs)
-
-
-def check_alignment(store, pattern, **kwargs):
-    """Checks for ALIGNMENT_BAD file.
-
-    If there is an ALIGNMENT_BAD file then remove from the queue, add to
-    complete, and add to 'prealn/alignment_bad'.
-
-    Parameters
-    ----------
-    store : pd.io.pytables.HDFStore
-        The data store to save to.
-    patter : str
-        File naming pattern for the ALIGNEMNT_BAD file.
-    **kwargs
-        Keywords needed to fill the pattern.
-
-    """
-    ab = pattern.format(**kwargs)
-    if os.path.exists(ab):
-        remove_id(store, 'prealn/queue', **kwargs)
-        add_id(store, 'prealn/alignment_bad', **kwargs)
-        add_id(store, 'prealn/complete', **kwargs)
-        return True
-
-
-def check_layout(store, pattern, **kwargs):
-    """Checks LAYOUT file.
-
-    Parses layout file and adds to the corresponding hdf5 lists.
-
-        * 'layout/SE'
-        * 'layout/PE'
-        * 'layout/keep_R1'
-        * 'layout/keep_R2'
-
-    Parameters
-    ----------
-    store : pd.io.pytables.HDFStore
-        The data store to save to.
-    patter : str
-        File naming pattern for the ALIGNEMNT_BAD file.
-    **kwargs
-        Keywords needed to fill the pattern.
-
-    """
-    with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if strand == 'SE':
-            key = 'layout/SE'
-        elif strand == 'PE':
-            key = 'layout/PE'
-        elif strand == 'keep_R1':
-            key = 'layout/keep_R1'
-        elif strand == 'keep_R2':
-            key = 'layout/keep_R2'
-        add_id(store, key, **kwargs)
-
-
-def check_strand(store, pattern, **kwargs):
-    """Checks STRAND file.
-
-    Parses strand file and adds to the corresponding hdf5 lists.
-
-        * 'strand/first'
-        * 'strand/second'
-        * 'strand/unstranded'
-
-    Parameters
-    ----------
-    store : pd.io.pytables.HDFStore
-        The data store to save to.
-    patter : str
-        File naming pattern for the ALIGNEMNT_BAD file.
-    **kwargs
-        Keywords needed to fill the pattern.
-
-    """
-    with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if (strand == 'first_strand') | (strand == 'same_strand'):
-            key = 'strand/first'
-        elif (strand == 'second_strand') | (strand == 'opposite_strand'):
-            key = 'strand/second'
-        elif strand == 'unstranded':
-            key = 'strand/unstranded'
-        add_id(store, key, **kwargs)
 
 
 class remapDesign(object):
