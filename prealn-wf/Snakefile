@@ -128,7 +128,8 @@ rule update_queue:
     """
     run:
         sys.path.insert(0, '../lib/python')
-        from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id, check_layout, check_strand, check_alignment
+        from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
+        from ncbi_remap.snakemake import check_download, check_alignment, check_layout, check_strand
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
@@ -141,6 +142,9 @@ rule update_queue:
         done = []
         for i, row in sample_table.iterrows():
             curr = row.to_dict()
+
+            if check_download(store, patterns['fastq']['r1'] + '.log', **curr):
+                continue
 
             if check_alignment(store, patterns['hisat2']['bad'], **curr):
                 continue
@@ -203,14 +207,15 @@ rule aggregate:
     run:
         from ncbi_remap.logging import logger
         from ncbi_remap.io import add_table
-        from ncbi_remap.snakemake import agg, agg_big
-        from ncbi_remap.parser import parse_fastq_summary, parse_fastq_screen, parse_hisat2, \
-            parse_featureCounts_summary, parse_picardCollect_summary, parse_picard_markduplicate_metrics, \
-            parse_samtools_stats, parse_bamtools_stats
+        from ncbi_remap.snakemake import agg
+        from ncbi_remap.parser import (
+            parse_fastq_summary, parse_fastq_screen, parse_hisat2, parse_featureCounts_summary,
+            parse_picardCollect_summary, parse_picard_markduplicate_metrics, parse_samtools_stats,
+            parse_bamtools_stats, parse_featureCounts_counts, parse_featureCounts_jcounts, parse_samtools_idxstats
+        )
 
         store = pd.HDFStore(mystore)
         completed = store['prealn/complete'].copy()
-        PE = store['layout/PE'].copy()
 
         # fastq summary
         logger.info('Parsing Fastq Summary')
@@ -222,8 +227,7 @@ rule aggregate:
 
         # Hisat2
         logger.info('Parsing Hisat2')
-        agg(store, 'prealn/workflow/hisat2/PE', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed[completed.srr.isin(PE.srr)])
-        agg(store, 'prealn/workflow/hisat2/SE', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed[~completed.srr.isin(PE.srr)])
+        agg(store, 'prealn/workflow/hisat2', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed)
 
         # stats
         logger.info('Parsing Other Stats')
@@ -257,32 +261,15 @@ rule aggregate:
         logger.info('Parsing Feature Counts - Summary')
         agg(store, 'prealn/workflow/feature_counts/summary', parse_featureCounts_summary, patterns['feature_counts']['summary'], completed)
 
-        store.close()
-
-
-rule aggregate_large:
-    """Aggregate large tables into a hdf store."""
-    run:
-        from ncbi_remap.logging import logger
-        from ncbi_remap.snakemake import agg_big
-        from ncbi_remap.parser import parse_featureCounts_counts, parse_featureCounts_jcounts, parse_samtools_idxstats
-
-        # Get list of completed
-        store = pd.HDFStore(mystore)
-        completed = store['prealn/complete'].copy()
-        store.close()
-
-        # large datasets
-        store = pd.HDFStore(mystore_large)
         logger.info('Parsing Large Datasets')
         logger.info('Parsing Other Stats - Samtools Index Stats')
-        agg_big(store, 'prealn/workflow/samtools_idxstats', parse_samtools_idxstats, patterns['samtools_idxstats'], completed)
+        agg(store, 'prealn/workflow/samtools_idxstats', parse_samtools_idxstats, patterns['samtools_idxstats'], completed, large=True)
 
         logger.info('Parsing Feature Counts - Counts')
-        agg_big(store, 'prealn/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['feature_counts']['counts'], completed)
+        agg(store, 'prealn/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['feature_counts']['counts'], completed, large=True)
 
         logger.info('Parsing Feature Counts - Junction Counts')
-        agg_big(store, 'prealn/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['feature_counts']['jcounts'], completed)
+        agg(store, 'prealn/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['feature_counts']['jcounts'], completed, large=True)
 
         store.close()
 
@@ -383,7 +370,7 @@ rule hisat2:
       mem_gb=lambda wildcards, attempt: attempt * 16
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
-        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     wrapper:
         wrapper_for('wrappers/hisat2/align')
@@ -399,8 +386,9 @@ rule hisat2_summary:
       mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_hisat2
+        srx = wildcards.srx
         srr = wildcards.srr
-        df = parse_hisat2(srr, input.fn + '.log')
+        df = parse_hisat2(srx, srr, input.fn + '.log')
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.ix[0, 'per_alignment'] < .50:
@@ -485,10 +473,11 @@ rule collectrnaseqmetrics_agg:
       mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_picardCollect_summary
+        srx = wildcards.srx
         srr = wildcards.srr
-        dfU = parse_picardCollect_summary(srr, input.unstranded)
-        dfF = parse_picardCollect_summary(srr, input.first)
-        dfS = parse_picardCollect_summary(srr, input.second)
+        dfU = parse_picardCollect_summary(srx, srr, input.unstranded)
+        dfF = parse_picardCollect_summary(srx, srr, input.first)
+        dfS = parse_picardCollect_summary(srx, srr, input.second)
 
         if dfF.PCT_CORRECT_STRAND_READS.values[0] >= .75:
             flag = 'same_strand'
@@ -518,7 +507,7 @@ rule feature_counts:
         extra_se = '-J '
     threads: 4
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 4
     log:
         patterns['feature_counts']['counts'] + '.log'
     wrapper:
@@ -559,7 +548,7 @@ rule markduplicates:
         bam=temp(patterns['picard']['markduplicates']['bam']),
         metrics=patterns['picard']['markduplicates']['metrics']
     params:
-        java_args='-Xmx{snakemake.resources.mem_gb}g'
+        java_args='-Xmx{resources.mem_gb}g'
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
     resources:
