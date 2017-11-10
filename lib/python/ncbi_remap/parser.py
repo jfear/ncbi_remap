@@ -379,7 +379,20 @@ def parse_atropos(srx, srr, file):
 def parse_hisat2(srx, srr, file):
     """Parse hisat2."""
     with open(file, 'r') as fh:
-        parsed = OrderedDict()
+        parsed = OrderedDict([
+            ('num_reads', np.nan),
+            ('num_reads_paired', np.nan),
+            ('num_reads_unpaired', np.nan),
+            ('num_concordant_reads_unaligned', np.nan),
+            ('num_concordant_reads_uniquely_aligned', np.nan),
+            ('num_concordant_multimappers', np.nan),
+            ('num_discordant_reads_aligned', np.nan),
+            ('num_unaligned', np.nan),
+            ('num_uniquely_aligned', np.nan),
+            ('num_multimappers', np.nan),
+            ('per_alignment', np.nan)
+        ])
+
         header = {
             'reads; of these:': 'num_reads',
             'were paired; of these:': 'num_reads_paired',
@@ -405,17 +418,15 @@ def parse_hisat2(srx, srr, file):
                 value = fqs.group(1)
                 if name in header:
                     head = header[name]
-                    if head == 'per_alignment':
-                        parsed[head] = float(value)
-                    else:
-                        parsed[head] = int(value)
+                    parsed[head] = float(value)
 
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[srx, srr])
-            df.index.names = ['srx', 'srr']
-            return df
+            df = pd.DataFrame(parsed, index=[0])
+            df['srx'] = srx
+            df['srr'] = srr
+            return df.set_index(['srx', 'srr'])
 
 
 def split_ranges(df):
