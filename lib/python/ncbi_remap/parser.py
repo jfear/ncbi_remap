@@ -96,9 +96,9 @@ def parse_fastq_summary(srx, srr, file):
     pandas.DataFrame: A single row dataframe.
     """
     df = pd.read_csv(file, sep='\t')
-    df.index = [srx, srr]
-    df.index.names = ['srx', 'srr']
-    return df
+    df['srx'] = srx
+    df['srr'] = srr
+    return df.set_index(['srx', 'srr'])
 
 
 def parse_fastq_screen(srx, srr, file):
@@ -154,10 +154,10 @@ def parse_picardCollect_summary(srx, srr, file):
             return None
         else:
             df = pd.read_csv(StringIO(parsed), sep='\t')
-            df.index = [srx, srr]
-            df.index.names = ['srx', 'srr']
+            df['srx'] = srx
+            df['srr'] = srr
             df.replace('?', np.nan, inplace=True)
-            return df
+            return df.set_index(['srx', 'srr'])
 
 
 def parse_picardCollect_hist(srx, srr, file):
@@ -180,9 +180,9 @@ def parse_picardCollect_hist(srx, srr, file):
             return None
         else:
             df = pd.read_csv(StringIO(parsed), sep='\t', index_col=0).T
-            df.index = [srx, srr]
-            df.index.names = ['srx', 'srr']
-            return df
+            df['srx'] = srx
+            df['srr'] = srr
+            return df.set_index(['srx', 'srr'])
 
 
 def parse_featureCounts_counts(srx, srr, file):
@@ -201,8 +201,7 @@ def parse_featureCounts_jcounts(srx, srr, file):
     df = pd.read_csv(file, sep='\t', header=None, names=header, skiprows=1)
     df['srx'] = srx
     df['srr'] = srr
-    df.set_index(['srx', 'srr'], inplace=True)
-    return df
+    return df.set_index(['srx', 'srr']).drop('SecondaryGenes', axis=1)
 
 
 def parse_featureCounts_summary(srx, srr, file):
@@ -216,9 +215,10 @@ def parse_featureCounts_summary(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[srx, srr])
-            df.index.names = ['srx', 'srr']
-            return df
+            df = pd.DataFrame(parsed, index=[0])
+            df['srx'] = srx
+            df['srr'] = srr
+            return df.set_index(['srx', 'srr'])
 
 
 def parse_bamtools_stats(srx, srr, file):
@@ -232,15 +232,16 @@ def parse_bamtools_stats(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[srx, srr])
-            df.index.names = ['srx', 'srr']
+            df = pd.DataFrame(parsed, index=[0])
+            df['srx'] = srx
+            df['srr'] = srr
             df['Percent Mapped'] = df['Mapped reads'] / df['Total reads'] * 100
             df['Percent Forward'] = df['Forward strand'] / df['Total reads'] * 100
             df['Percent Reverse'] = df['Reverse strand'] / df['Total reads'] * 100
             df['Percent Failed QC'] = df['Failed QC'] / df['Total reads'] * 100
             df['Percent Duplicates'] = df['Duplicates'] / df['Total reads'] * 100
             df['Percent Paired-end'] = df['Paired-end reads'] / df['Total reads'] * 100
-            return df
+            return df.set_index(['srx', 'srr'])
 
 
 def parse_picard_markduplicate_metrics(srx, srr, file):
@@ -287,9 +288,10 @@ def parse_samtools_stats(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[srx, srr])
-            df.index.names = ['srx', 'srr']
-            return df
+            df = pd.DataFrame(parsed, index=[0])
+            df['srx'] = srx
+            df['srr'] = srr
+            return df.set_index(['srx', 'srr'])
 
 
 def parse_md5(srx, srr, file):
@@ -307,9 +309,10 @@ def parse_libsize(srx, srr, file):
     """Parser for md5sum."""
     with open(file, 'r') as fh:
         lsize = int(fh.read().strip())
-        df = pd.DataFrame({'libsize': lsize}, index=[srx, srr])
-        df.index.names = ['srx', 'srr']
-        return df
+        df = pd.DataFrame({'libsize': lsize}, index=[0])
+        df['srx'] = srx
+        df['srr'] = srr
+        return df.set_index(['srx', 'srr'])
 
 
 def parse_atropos(srx, srr, file):
@@ -361,8 +364,10 @@ def parse_atropos(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.DataFrame(parsed, index=[srx, srr])
-            df.index.names = ['srx', 'srr']
+            df = pd.DataFrame(parsed, index=[0])
+            df['srx'] = srx
+            df['srr'] = srr
+            df.set_index(['srx', 'srr'], inplace=True)
 
             if [x for x in df.columns if 'Read 1' in x]:
                 # PE
@@ -450,7 +455,7 @@ def split_ranges(df):
             rows.append(row)
 
     df = pd.concat(rows, axis=1).T
-    df.index.names = 'base'
+    df.index.name = 'base'
     return df
 
 
@@ -556,7 +561,7 @@ def parse_fastqc_kmer_content(srx, srr, file):
     df.reset_index(inplace=True)
     df.set_index('Max Obs/Exp Position', inplace=True)
     splitRanges = split_ranges(df)
-    splitRanges.index.names = 'Max Obs/Exp Position'
+    splitRanges.index.name = 'Max Obs/Exp Position'
     splitRanges.reset_index(inplace=True)
     splitRanges['srx'] = srx
     splitRanges['srr'] = srr
