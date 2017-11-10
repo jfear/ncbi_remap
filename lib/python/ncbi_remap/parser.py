@@ -1,9 +1,10 @@
 import os
 import re
 from io import StringIO
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
 
 from lcdblib.parse.fastqc import FastQC
 
