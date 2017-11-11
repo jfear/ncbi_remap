@@ -194,10 +194,14 @@ def agg(store, key, func, pattern, df, large=False):
     None
 
     """
+    done = []
     if store.get_node(key):
-        done = store.select_column(key, 'srr').unique().tolist()
-    else:
-        done = []
+        done = set()        # change to set to keep memory down.
+        # Iterate over chunks and grab srrs that are already there.
+        for chunk in store.select(key, chunksize=1e5):
+            idx = chunk.index.names.index('srr')
+            done |= set(chunk.index.levels[idx])
+        done = list(done)
 
     dfs = []
     for _, row in df.iterrows():
