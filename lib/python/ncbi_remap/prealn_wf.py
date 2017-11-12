@@ -166,8 +166,8 @@ def strandedness(store, cutoff=.75, filter_srrs=None, keep_srrs=None):
     first = remove_rows(store['prealn/workflow/collectrnaseqmetrics/first'], 'srr', filter_srrs)
     second = remove_rows(store['prealn/workflow/collectrnaseqmetrics/second'], 'srr', filter_srrs)
 
-    first = keep_rows(first, 'srr', filter_srrs)
-    second = keep_rows(second, 'srr', filter_srrs)
+    first = keep_rows(first, 'srr', keep_srrs)
+    second = keep_rows(second, 'srr', keep_srrs)
 
     f = first.loc[first['PCT_CORRECT_STRAND_READS'] >= cutoff, ['srx', 'srr']]
     s = second.loc[second['PCT_CORRECT_STRAND_READS'] >= cutoff, ['srx', 'srr']]
@@ -237,13 +237,15 @@ def contamination(store, cutoff=50, filter_srrs=None, keep_srrs=None):
 
     return df.loc[df['dm6'] >= cutoff, ['srx', 'srr']]
 
-def calculate_multi_corr_method1(df, method):
+def calculate_multi_corr_method1(df, srx, method):
     """Calculate correlation to the median.
 
     Parameters
     ----------
     df : pd.DataFrame
         Data frame with genes as rows and samples as columns.
+    srx : str
+        SRA experiment accession (SRX).
     method : str
         Which method to use for calculating correlation. ['spearman' or 'pearson']
 
@@ -263,12 +265,12 @@ def calculate_multi_corr_method1(df, method):
     # Calcualte median values
     med = df.median(axis=1)
     for col in df.columns:
-        corrs.append([df.index.name, ':'.join([col, 'median']), corr_func(df[col], med).correlation])
+        corrs.append([srx, ':'.join([col, 'median']), corr_func(df[col], med).correlation])
 
     return corrs
 
 
-def calculate_multi_corr_method2(df, method, cutoff=0.9):
+def calculate_multi_corr_method2(df, srx, method, cutoff=0.9):
     """Use pairwise correlations with cutoff.
 
     Uses pairwise correlations along with a cutoff to identify samples that
@@ -288,6 +290,8 @@ def calculate_multi_corr_method2(df, method, cutoff=0.9):
     ----------
     df : pd.DataFrame
         Data frame with genes as rows and samples as columns.
+    srx : str
+        SRA experiment accession (SRX).
     method : str
         Which method to use for calculating correlation. ['spearman' or 'pearson']
     cutoff : float
@@ -322,20 +326,20 @@ def calculate_multi_corr_method2(df, method, cutoff=0.9):
         stacked.columns = ['corr']
         stacked = stacked[stacked['corr'] > 0].copy()
         stacked['srrs'] = stacked.apply(lambda x: ':'.join(x.name), axis=1)
-        stacked['srx'] = df.index.name
-        stacked.reset_index(inplace=True)
+        stacked['srx'] = srx
+        stacked.reset_index(drop=True, inplace=True)
         stacked.set_index('srx', inplace=True)
         return stacked[['srrs', 'corr']].to_records().tolist()
     else:
-        return [(df.index.name, None, None)]
+        return [(srx, None, None)]
 
 
-def calculate_corr_among_srr(store_lg, srx, method='spearman', show_warn=True, multi='m1', **kwargs):
+def calculate_corr_among_srr(store, srx, method='spearman', show_warn=True, multi='m1', **kwargs):
     """Calculate correlation among SRR for an SRX.
 
     Parameters
     ----------
-    store_lg : pd.HDFStore
+    store : pd.HDFStore
         HDFStore with feature_counts in it.
     srx : str
         SRA experiment accession (SRX).
@@ -359,43 +363,48 @@ def calculate_corr_among_srr(store_lg, srx, method='spearman', show_warn=True, m
 
     """
     # Import data
-    df = get_feature_counts(store_lg, srx, show_warn=show_warn)
+    df = get_feature_counts(store, srx, show_warn=show_warn)
+
+    # If no data then return None
+    if df is None:
+        return [(srx, None, None)]
+
+    # Remove SRX from column index
+    if isinstance(df.columns[0], tuple):
+        df.columns = df.columns.droplevel(0)
 
     # Calculate correlation
-    corrs = []
-    if df is None:
-        corrs.append((srx, None, None))
+    if df.shape[1] == 1:
+        return [(srx, ':'.join([df.columns[0], 'None']), None)]
 
-    elif len(df.columns) == 1:
-        corrs.append((srx, ':'.join([df.columns[0], 'None']), None))
+    elif df.shape[1] == 2:
+        return [(srx, ':'.join(df.columns), df.corr(method=method).values[0, 1])]
 
-    elif len(df.columns) == 2:
-        corrs.append((srx, ':'.join(df.columns), df.corr(method=method).values[0, 1]))
-
-    elif len(df.columns) > 2:
+    elif df.shape[1] > 2:
+        corrs = []
         if multi == 'm2':
             cutoff = kwargs.get('cutoff', 0.9)
-            corrs.extend(calculate_multi_corr_method2(df, method, cutoff=cutoff))
+            corrs.extend(calculate_multi_corr_method2(df, srx, method, cutoff=cutoff))
         else:
-            corrs.extend(calculate_multi_corr_method1(df, method))
-    else:
-        if show_warn:
-            logger.warn('Something wrong with {}'.format(srx))
+            corrs.extend(calculate_multi_corr_method1(df, srx, method))
+        return corrs
 
-        corrs.append((srx, None, None))
+    # Something is wrong output warning and return None
+    if show_warn:
+        logger.warn('Something wrong with {}'.format(srx))
 
-    return corrs
+    return [(srx, None, None)]
 
 
-def get_feature_counts(store_lg, srx, show_warn=True):
-    """Import feature counts tables for all SRR for a given SRX.
+def get_feature_counts(store, srx, show_warn=True):
+    """Import feature counts tables for all SRR for a given SRX(s).
 
     Parameters
     ----------
-    store_lg : pd.HDFStore
+    store : pd.HDFStore
         HDFStore with feature_counts in it.
-    srx : str
-        SRA experiment accession (SRX).
+    srx : str or list
+        SRA experiment accession(s) (SRX).
     show_warn : bool
         If true then show warnings. If False then hide warnings.
 
@@ -405,36 +414,13 @@ def get_feature_counts(store_lg, srx, show_warn=True):
         If there are data then it outputs a pd.DataFrame, otherwise it returns None.
 
     """
-    # Check that SRX node exists
-    loc = srx[:6]
-    key = 'prealn/workflow/feature_counts/counts/{loc}/{srx}'
-    if not store_lg.__contains__(key.format(loc=loc, srx=srx)):
+
+    # Get data.
+    df = store.select('prealn/workflow/feature_counts/counts', 'srx == srx').unstack().T
+
+    if (df.shape == (0, 0)):
         if show_warn:
-            logger.warn('Missing SRX: {}'.format(srx))
+            logger.warn('Missing Feature Counts: {}'.format(srx))
         return None
 
-    # Get SRRs for SRX
-    node = store_lg.get_node(key.format(loc=loc, srx=srx))
-    srrs = list(node._v_children.keys())
-
-    # import data frames
-    dfs = []
-    for srr in srrs:
-        key2 = key + '/{srr}'
-        try:
-            df = store_lg.select(key=key2.format(loc=loc, srx=srx, srr=srr))
-            df = df[['FBgn', 'count']].set_index('FBgn').copy()
-            df.columns = [srr]
-            df.index.name = srx
-            dfs.append(df)
-        except KeyError:
-            if show_warn:
-                logger.warn('Missing SRR: {}->{}'.format(srx, srr))
-
-    if len(dfs) > 1:
-        return pd.concat(dfs, axis=1)
-    elif len(dfs) == 1:
-        return dfs[0]
-    else:
-        return None
-
+    return df
