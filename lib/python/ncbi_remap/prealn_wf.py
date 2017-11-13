@@ -66,7 +66,9 @@ def libsize(store, cutoff=1e5, filter_srrs=None, keep_srrs=None):
         List of samples that meet criteria
 
     """
-    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = store['prealn/workflow/fastq'].copy()
+    df.reset_index(inplace=True)
+    df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
     df['libsize'] = df[['libsize_R1', 'libsize_R2']].max(axis=1)
 
@@ -89,7 +91,9 @@ def libsize_cnts(store, filter_srrs=None, keep_srrs=None):
        (minimum, median, max) of libsize.
 
     """
-    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = store['prealn/workflow/fastq'].copy()
+    df.reset_index(inplace=True)
+    df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
     df['libsize'] = df[['libsize_R1', 'libsize_R2']].max(axis=1)
     return df.libsize.min(), df.libsize.median(), df.libsize.max()
@@ -113,7 +117,9 @@ def readlen(store, cutoff=30, filter_srrs=None, keep_srrs=None):
         List of samples that meet criteria
 
     """
-    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = store['prealn/workflow/fastq'].copy()
+    df.reset_index(inplace=True)
+    df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
     df['len'] = df[['avgLen_R1', 'avgLen_R2']].max(axis=1)
 
@@ -136,7 +142,9 @@ def readlen_cnts(store, filter_srrs=None, keep_srrs=None):
        (minimum, median, mode, max) of libsize.
 
     """
-    df = remove_rows(store['prealn/workflow/fastq'], 'srr', filter_srrs)
+    df = store['prealn/workflow/fastq'].copy()
+    df.reset_index(inplace=True)
+    df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
     df['len'] = df[['avgLen_R1', 'avgLen_R2']].max(axis=1)
 
@@ -163,8 +171,13 @@ def strandedness(store, cutoff=.75, filter_srrs=None, keep_srrs=None):
         Tuple with (first_stranded, second_stranded, unstranded).
 
     """
-    first = remove_rows(store['prealn/workflow/collectrnaseqmetrics/first'], 'srr', filter_srrs)
-    second = remove_rows(store['prealn/workflow/collectrnaseqmetrics/second'], 'srr', filter_srrs)
+    first = store['prealn/workflow/collectrnaseqmetrics/first'].copy()
+    first.reset_index(inplace=True)
+    second = store['prealn/workflow/collectrnaseqmetrics/second'].copy()
+    second.reset_index(inplace=True)
+
+    first = remove_rows(first, 'srr', filter_srrs)
+    second = remove_rows(second, 'srr', filter_srrs)
 
     first = keep_rows(first, 'srr', keep_srrs)
     second = keep_rows(second, 'srr', keep_srrs)
@@ -194,13 +207,16 @@ def mappability(store, cutoff=.50, filter_srrs=None, keep_srrs=None):
 
     """
 
-    se = store['prealn/workflow/hisat2/SE'][['srx', 'srr', 'num_reads', 'num_unaligned']]
+    se = store['prealn/workflow/hisat2'][['num_reads', 'num_reads_unpaired', 'num_unaligned']].copy()
+    se.dropna(inplace=True)
     se['prop_unaligned'] = se['num_unaligned'] / se['num_reads']
 
-    pe = store['prealn/workflow/hisat2/PE'][['srx', 'srr', 'num_reads', 'num_concordant_reads_unaligned']]
+    pe = store['prealn/workflow/hisat2'][['num_reads', 'num_reads_paired', 'num_concordant_reads_unaligned']].copy()
+    pe.dropna(inplace=True)
     pe['prop_unaligned'] = pe['num_concordant_reads_unaligned'] / pe['num_reads']
 
-    df = pd.concat([se[['srx', 'srr', 'prop_unaligned']], pe[['srx', 'srr', 'prop_unaligned']]])
+    df = pd.concat([se, pe])
+    df.reset_index(inplace=True)
 
     df = remove_rows(df, 'srr', filter_srrs)
     df = keep_rows(df, 'srr', keep_srrs)
@@ -227,7 +243,8 @@ def contamination(store, cutoff=50, filter_srrs=None, keep_srrs=None):
 
     """
 
-    df = store['prealn/workflow/fastq_screen']
+    df = store['prealn/workflow/fastq_screen'].copy()
+    df.reset_index(inplace=True)
     df = df[['srx', 'srr', 'reference', 'one_hit_one_library_percent']].set_index(['srx', 'srr', 'reference']).unstack()
     df.columns = df.columns.droplevel(0)
     df.reset_index(inplace=True)
