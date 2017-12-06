@@ -91,6 +91,8 @@ targets = helpers.fill_patterns(patterns, sample_table)
 def keepers(targets):
     return [
         targets['fastq_screen'],
+        targets['layout'],
+        targets['strand'],
         targets['hisat2']['summary'],
         targets['feature_counts']['summary'],
         targets['samtools_stats'],
@@ -150,7 +152,7 @@ rule update_queue:
                 continue
 
             val = check_outputs(**curr)
-            if val:
+            if val is not None:
                 done.append(val)
                 check_layout(store, patterns['layout'], **curr)
                 check_strand(store, patterns['strand'], **curr)
@@ -419,13 +421,12 @@ rule collectrnaseqmetrics_unstrand:
         metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
     params:
         extra='STRAND=NONE',
-        java_args='-Xmx30g'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12
     wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
+        wrapper_for('wrappers/picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_first:
@@ -547,14 +548,12 @@ rule markduplicates:
     output:
         bam=temp(patterns['picard']['markduplicates']['bam']),
         metrics=patterns['picard']['markduplicates']['metrics']
-    params:
-        java_args='-Xmx{resources.mem_gb}g'
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 20
     wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/markduplicates')
+        wrapper_for('wrappers/picard/markduplicates')
 
 
 # vim: set ft=snakemake.python
