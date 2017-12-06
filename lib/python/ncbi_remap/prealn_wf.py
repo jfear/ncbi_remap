@@ -184,7 +184,7 @@ def strandedness(store, cutoff=.75, filter_srrs=None, keep_srrs=None):
 
     f = first.loc[first['PCT_CORRECT_STRAND_READS'] >= cutoff, ['srx', 'srr']]
     s = second.loc[second['PCT_CORRECT_STRAND_READS'] >= cutoff, ['srx', 'srr']]
-    u = first[~(first.srr.isin(f.srr) | first.srr.isin(s.srr))]
+    u = first.loc[~(first.srr.isin(f.srr) | first.srr.isin(s.srr)), ['srx', 'srr']]
     return f, s, u
 
 
