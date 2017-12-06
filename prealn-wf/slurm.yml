@@ -5,6 +5,7 @@ __default__:
     partition: 'norm'
 
 fastq_dump:
+  time: "48:00:00"
   gres: "lscratch:200"
 
 fastq_screen:
