@@ -9,7 +9,7 @@
 *DS_Store*
 
 # Snakemake and Slurm
-*.snakemake
+*/.snakemake
 */slurm_logs
 *slurm-*.out
 
@@ -18,15 +18,15 @@ data
 output
 scratch
 figs
-*cachedir
+*/cachedir
 wip
 references
 _build
 .*
 
 # Files
-notebook/*/*.html
-lib/python/test_xml.xml
+notebook/*.html
+lib/test_xml.xml
 *.mongodb*
 *.adapters
 *.h5

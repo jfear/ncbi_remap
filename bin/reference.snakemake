@@ -1,0 +1,7 @@
+"""Quick snakemake workflow to build a truncated set of references for testing."""
+
+
+rule pull_2l:
+    input: '/data/LCDB/lcdb-references/dm6/fasta/dm6_r6-11.fasta'
+    output: '/data/LCDB/lcdb-references/dm6/fasta/dm6_r6-11.fasta'
+
