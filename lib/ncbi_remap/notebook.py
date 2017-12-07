@@ -118,7 +118,7 @@ class Nb(object):
         sns.set_context('notebook')
 
     @classmethod
-    def setup_notebook(cls, nb_name=None, config_name='common.yml', watermark=True):
+    def setup_notebook(cls, nb_name=None, config_name='common.yaml', watermark=True):
         """Helper function to consistently setup notebooks.
 
         Functions detects working folder and sets up a ncbi_remap.notebook.Nb
@@ -159,7 +159,7 @@ class Nb(object):
 
 
         # Import external config
-        fname = os.path.join(cfg, 'common.yml')
+        fname = os.path.join(cfg, 'common.yaml')
         with open(fname) as fh:
             config = load(fh)
         defaults.update(config)

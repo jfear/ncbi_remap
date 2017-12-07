@@ -11,11 +11,11 @@
 # Load ipycache extension
 %reload_ext ipycache
 from ipycache import CacheMagics
-CacheMagics.cachedir = '../cachedir'
+CacheMagics.cachedir = 'cachedir'
 
 # Add project library to path
 import sys
-sys.path.insert(0, '../../lib/python')
+sys.path.insert(0, '../lib/python')
 
 # The usual suspects
 import os
