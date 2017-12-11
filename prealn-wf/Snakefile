@@ -9,7 +9,7 @@ from pathlib import Path
 from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
-sys.path.insert(0, '../lib/python')
+sys.path.insert(0, '../lib')
 from ncbi_remap.snakemake import wrapper_for, put_flag
 
 
@@ -21,18 +21,17 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 # import config
-configfile: '../config/reference_config.yml'
+configfile: '../config/reference_config.yaml'
 
 
 ################################################################################
 # Build Sample Table
 ################################################################################
 mystore = '../sra.h5'
-mystore_large = '../sra_large.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['prealn/queue'].srx.unique()[:1000]
 mask = store['prealn/queue'].srx.isin(srxs)
-sample_table = store['prealn/queue'][mask]
+sample_table = store['prealn/queue'][mask].copy()
 store.close()
 
 ################################################################################
@@ -129,7 +128,7 @@ rule update_queue:
     outputs and moves ids around in the queing system.
     """
     run:
-        sys.path.insert(0, '../lib/python')
+        sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
         from ncbi_remap.snakemake import check_download, check_alignment, check_layout, check_strand
 
@@ -207,6 +206,7 @@ rule aggregate:
     """Aggregate outputs from different tools."""
     threads: 8
     run:
+        sys.path.insert(0, '../lib')
         from ncbi_remap.logging import logger
         from ncbi_remap.io import add_table
         from ncbi_remap.snakemake import agg

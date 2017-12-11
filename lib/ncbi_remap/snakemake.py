@@ -208,11 +208,14 @@ def agg(store, key, func, pattern, df, large=False):
         if row.srr in done:
             continue
         try:
-            if not large:
-                dfs.append(combine(func, pattern, row))
-            else:
+            if large:
                 dd = combine(func, pattern, row)
                 store.append(key, dd)
+            else:
+                dat = combine(func, pattern, row)
+                if dat is None:
+                    continue
+                dfs.append(dat)
         except ValueError:
             logger.error('Error parsing {}->{}'.format(row.srx, row.srr))
 
