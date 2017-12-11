@@ -1,7 +1,9 @@
 """Output lists of samples meeting different criteria."""
+from itertools import combinations, product
 import numpy as np
 import pandas as pd
 import scipy
+import scipy.stats
 from .logging import logger
 
 # Constants
@@ -254,105 +256,11 @@ def contamination(store, cutoff=50, filter_srrs=None, keep_srrs=None):
 
     return df.loc[df['dm6'] >= cutoff, ['srx', 'srr']]
 
-def calculate_multi_corr_method1(df, srx, method):
-    """Calculate correlation to the median.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Data frame with genes as rows and samples as columns.
-    srx : str
-        SRA experiment accession (SRX).
-    method : str
-        Which method to use for calculating correlation. ['spearman' or 'pearson']
+def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', TH=1, show_warn=True, **kwargs):
+    """Calculate reproducibility among SRR for an SRX.
 
-    Returns
-    -------
-    list of tuples
-        Where the tuples are (srx, srr1:median, correlation).
-
-    """
-    corrs = []
-    # Correlation function
-    if method == 'spearman':
-        corr_func = scipy.stats.spearmanr
-    else:
-        corr_func = scipy.stats.pearsonr
-
-    # Calcualte median values
-    med = df.median(axis=1)
-    for col in df.columns:
-        corrs.append([srx, ':'.join([col, 'median']), corr_func(df[col], med).correlation])
-
-    return corrs
-
-
-def calculate_multi_corr_method2(df, srx, method, cutoff=0.9):
-    """Use pairwise correlations with cutoff.
-
-    Uses pairwise correlations along with a cutoff to identify samples that
-    have outliers.
-
-    1) Calculates all pairwise correlations
-    2) Removes pairwise correlations that are less than cutoff
-    3) Re-calculates pairwise correlations among remaining samples.
-    4) Returns list of tuples with (srx, srr1:srr2, correlation) for the
-    remaining srrs.
-
-    Note: A sample is kept if it has a correlation with any other sample above
-    cutoff. It is possible that if there are two groups of samples that are not
-    related, all of the samples would be kept.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Data frame with genes as rows and samples as columns.
-    srx : str
-        SRA experiment accession (SRX).
-    method : str
-        Which method to use for calculating correlation. ['spearman' or 'pearson']
-    cutoff : float
-        Cutoff to use to filter low correlated samples.
-
-    Returns
-    -------
-    list of tuples
-        Where the tuples are (srx, srr1:srr2, correlation).
-
-    """
-    # Figure out what samples are correlated above cutoff.
-    corr = df.corr(method=method)
-    np.fill_diagonal(corr.values, 0)
-    stacked = corr.stack()
-    filtered = stacked[stacked >= cutoff].index.get_level_values(1).unique()
-
-    if filtered.shape[0] > 1:
-        # Remove "bad" samples and recalculate correlation.
-        corr = df[filtered].corr(method=method)
-
-        # If we still have bad correlation then just call it bad.
-        if corr.min().min() < cutoff - (cutoff * .1):
-            return [(df.index.name, None, None)]
-
-        # Remove duplicates, i.e. get ride of lower triangle of correlation matrix
-        np.fill_diagonal(corr.values, 0)
-        corr = pd.DataFrame(np.triu(corr.values), columns=corr.columns, index=corr.index)
-
-        # Stack and format for output
-        stacked = corr.stack().to_frame()
-        stacked.columns = ['corr']
-        stacked = stacked[stacked['corr'] > 0].copy()
-        stacked['srrs'] = stacked.apply(lambda x: ':'.join(x.name), axis=1)
-        stacked['srx'] = srx
-        stacked.reset_index(drop=True, inplace=True)
-        stacked.set_index('srx', inplace=True)
-        return stacked[['srrs', 'corr']].to_records().tolist()
-    else:
-        return [(srx, None, None)]
-
-
-def calculate_corr_among_srr(store, srx, method='spearman', show_warn=True, multi='m1', **kwargs):
-    """Calculate correlation among SRR for an SRX.
+    This can either be the correlation or the SERE.
 
     Parameters
     ----------
@@ -361,12 +269,15 @@ def calculate_corr_among_srr(store, srx, method='spearman', show_warn=True, mult
     srx : str
         SRA experiment accession (SRX).
     method : str
-        Method to use for calculating correlation, either 'pearson' or 'spearman'.
+        Method to use for calculating reproducibility. Option: 'pearson',
+        'spearman', 'sere'.
+    multi : str
+        If 'median' then use the correlation with the median. Else do pairwise
+        correlations.
+    TH : int
+        Minimum number of reads for a gene to be considered expressed.
     show_warn : bool
         If true then show warnings. If False then hide warnings.
-    multi : str
-        If 'm1' then use the correlation with the median. If 'm2' then use
-        pairwise correlations.
     kwargs
         Additional kwargs which will be passed to calculate_multi_corr_method1
         and 2.
@@ -390,21 +301,16 @@ def calculate_corr_among_srr(store, srx, method='spearman', show_warn=True, mult
     if isinstance(df.columns[0], tuple):
         df.columns = df.columns.droplevel(0)
 
-    # Calculate correlation
+    # If only one column then return None
     if df.shape[1] == 1:
         return [(srx, ':'.join([df.columns[0], 'None']), None)]
 
-    elif df.shape[1] == 2:
-        return [(srx, ':'.join(df.columns), df.corr(method=method).values[0, 1])]
+    # more than two columns then output score
+    if method == 'sere':
+        return [(srx, pair, score) for pair, score in sere_iter(df, TH=TH)]
 
-    elif df.shape[1] > 2:
-        corrs = []
-        if multi == 'm2':
-            cutoff = kwargs.get('cutoff', 0.9)
-            corrs.extend(calculate_multi_corr_method2(df, srx, method, cutoff=cutoff))
-        else:
-            corrs.extend(calculate_multi_corr_method1(df, srx, method))
-        return corrs
+    if method == 'spearman' or method == 'pearson':
+        return [(srx, pair, score) for pair, score in corr_iter(df, TH=TH, method=method, multi=multi)]
 
     # Something is wrong output warning and return None
     if show_warn:
@@ -441,3 +347,155 @@ def get_feature_counts(store, srx, show_warn=True):
         return None
 
     return df
+
+
+def corr_iter(df, method='spearman', multi='median', TH=1):
+    """Generator function to provide list of correlations.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with counts.
+    method : str
+        Method to use for calculating reproducibility. Option: 'pearson',
+        'spearman'.
+    multi : str
+        If 'median' then use the correlation with the median. Else do pairwise
+        correlations.
+    TH : int
+        Minimum number of reads for a gene to be considered expressed.
+
+    Yields
+    ------
+    tuples
+        Yields a tuples where each tuple contains (srr1:srr2, correlation).
+        Where srr1:srr2 is the comparison for which correlation was calculated.
+
+    """
+    # Filter out low expressing genes
+    mask = df.sum(axis = 1) > TH
+    _df = df[mask].copy()
+    columns = _df.columns
+
+    if multi == 'median':
+        _df['med'] = _df.median(axis=1)
+        combos = product(columns, ['med'])
+    else:
+        combos = combinations(columns, 2)
+
+    if method =='spearman':
+        func = scipy.stats.spearmanr
+    elif method == 'pearson':
+        func = scipy.stats.pearsonr
+
+    for x1, x2 in combos:
+        score = func(_df[x1], _df[x2])[0]
+        yield '{}:{}'.format(x1, x2), score
+
+
+def sere_score(df, TH=1):
+    """Calculate SERE (Single-paramter quality control and sample comparison for RNA-Seq).
+
+    A method to compare RNA-seq samples and estimates reproducibility.
+    Replicates should have a SERE value of near 1. This code is adapted from an
+    R version [here](https://github.com/eigenv/SERE/blob/master/sere.R). Which is based on the paper:
+
+    Schulze, Stefan K., Rahul Kanwar, Meike Gölzenleuchter, Terry M. Therneau,
+    and Andreas S. Beutler. 2012. “SERE: Single-Parameter Quality Control and
+    Sample Comparison for RNA-Seq.” BMC Genomics 13 (October):524.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with raw RNA-seq counts.
+    TH : int
+        Minimum number of reads for a gene to be considered expressed.
+
+    Returns
+    -------
+    float
+        SERE score.
+    """
+    num_samples = df.shape[1]
+
+    total_counts = df.sum().sum()
+    sample_counts = df.sum()
+    row_counts = df.sum(axis=1)
+
+    # Filter out non-expressed genes
+    mask = row_counts > TH
+    row_counts = row_counts[mask]
+    df = df[mask]
+
+    num_genes = df.shape[0]
+
+    # Make expected count table
+    def _estimate(idx):
+        return row_counts * sample_counts.iloc[idx] / total_counts
+
+    expected_counts = pd.concat([_estimate(x) for x in range(num_samples)], axis=1)
+    expected_counts.columns = df.columns
+
+    # sere score
+    dispersion = ((df - expected_counts) ** 2 / expected_counts).sum().sum()
+    sere = np.sqrt(dispersion / (num_genes * (num_samples - 1)))
+
+    return sere
+
+
+def sere_matrix(df, TH=1):
+    """Calculate pairwise SERE.
+
+    Uses SERE to estimate reproducibility for all pairwise combinations.
+    This code is adapted from an R version
+    [here](https://github.com/eigenv/SERE/blob/master/sere.R).
+
+    Parameters
+    -----------
+    df : pd.DataFrame
+        DataFrame with raw RNA-seq counts.
+    TH : int
+        Minimum number of reads for a gene to be considered expressed.
+
+    Returns
+    -------
+    pd.DataFrame
+        Matrix of SERE scores for all pairwise comparisons.
+
+    """
+    number_samples = df.shape[1]
+    columns = df.columns
+
+    # Distance matrix
+    distance = np.full((num_samples, num_samples), np.nan)
+    for i in range(num_samples):
+        for j in range(i, num_samples):
+            distance.iloc[i, j] = sere_score(df.loc[:, [i, j]], TH)
+            distance.iloc[j, i] = distance.iloc[i, j]
+
+    return pd.DataFrame(distance, index=columns, columns=columns)
+
+
+def sere_iter(df, TH=1):
+    """Generator function to provide list of SERE scores.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame with counts.
+    TH : int
+        Minimum number of reads for a gene to be considered expressed.
+
+    Yields
+    ------
+    tuples
+        Yields a tuples where each tuple contains (srr1:srr2, SERE).
+        Where srr1:srr2 is the comparison for which SERE was calculated.
+
+    """
+    columns = df.columns
+    combos = combinations(columns, 2)
+    for x1, x2 in combos:
+        score = sere_score(df[[x1, x2]], TH=TH)
+        yield '{}:{}'.format(x1, x2), score
+
