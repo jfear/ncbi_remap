@@ -14,6 +14,7 @@ STRAND_CUTOFF1 = 0.75     # 75% stranded reads
 STRAND_CUTOFF2 = 0.95     # 95% stranded reads
 UNALIGN_CUTOFF = 0.50     # 50% Reads Unaligned
 CONTAMINATION_CUTOFF = 40 # 50% reads mapping to DM6
+SPEARMAN_CUTOFF = .95  # Minimum spearman r
 
 
 def remove_rows(df, column, values):
