@@ -96,7 +96,14 @@ def parse_fastq_summary(srx, srr, file):
     -------
     pandas.DataFrame: A single row dataframe.
     """
-    df = pd.read_csv(file, sep='\t')
+    dtypes = {
+        'libsize_R1': np.float64,
+        'avgLen_R1': np.float64,
+        'libsize_R2': np.float64,
+        'avgLen_R2': np.float64,
+    }
+
+    df = pd.read_csv(file, sep='\t', dtype=dtypes)
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(['srx', 'srr'])
@@ -142,6 +149,38 @@ def parse_fastq_screen(srx, srr, file):
 
 def parse_picardCollect_summary(srx, srr, file):
     """Parser for picard collectRNAMetrics summary."""
+    dtypes = {
+        'CODING_BASES': np.int64,
+        'CORRECT_STRAND_READS': np.int64,
+        'IGNORED_READS': np.int64,
+        'INCORRECT_STRAND_READS': np.int64,
+        'INTERGENIC_BASES': np.int64,
+        'INTRONIC_BASES': np.int64,
+        'LIBRARY': np.float64,
+        'MEDIAN_3PRIME_BIAS': np.float64,
+        'MEDIAN_5PRIME_BIAS': np.float64,
+        'MEDIAN_5PRIME_TO_3PRIME_BIAS': np.float64,
+        'MEDIAN_CV_COVERAGE': np.float64,
+        'NUM_R1_TRANSCRIPT_STRAND_READS': np.float64,
+        'NUM_R2_TRANSCRIPT_STRAND_READS': np.float64,
+        'NUM_UNEXPLAINED_READS': np.float64,
+        'PCT_CODING_BASES': np.float64,
+        'PCT_CORRECT_STRAND_READS': np.float64,
+        'PCT_INTERGENIC_BASES': np.float64,
+        'PCT_INTRONIC_BASES': np.float64,
+        'PCT_MRNA_BASES': np.float64,
+        'PCT_R1_TRANSCRIPT_STRAND_READS': np.float64,
+        'PCT_R2_TRANSCRIPT_STRAND_READS': np.float64,
+        'PCT_RIBOSOMAL_BASES': np.float64,
+        'PCT_USABLE_BASES': np.float64,
+        'PCT_UTR_BASES': np.float64,
+        'PF_ALIGNED_BASES': np.int64,
+        'PF_BASES': np.int64,
+        'READ_GROUP': np.float64,
+        'RIBOSOMAL_BASES': np.float64,
+        'SAMPLE': np.float64,
+        'UTR_BASES': np.int64,
+    }
     with open(file, 'r') as fh:
         for l in fh:
             if l.startswith('#'):
@@ -154,7 +193,7 @@ def parse_picardCollect_summary(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.read_csv(StringIO(parsed), sep='\t')
+            df = pd.read_csv(StringIO(parsed), sep='\t', dtype=dtypes)
             df['srx'] = srx
             df['srr'] = srr
             df.replace('?', np.nan, inplace=True)

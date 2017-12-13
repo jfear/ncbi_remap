@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Project level imports
-sys.path.insert(0, '../../lib/python')
+sys.path.insert(0, '../lib/python')
 from ncbi_remap.notebook import Nb
 from ncbi_remap.plotting import make_figs
 
@@ -22,4 +22,4 @@ from joblib import Memory
 memory = Memory(cachedir=nbconfig.cache, verbose=0)
 
 # Connect to data store
-store = pd.HDFStore('../../sra.h5', mode='r')
+store = pd.HDFStore('../sra.h5', mode='r')
