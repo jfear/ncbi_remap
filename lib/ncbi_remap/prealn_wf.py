@@ -5,6 +5,7 @@ import pandas as pd
 import scipy
 import scipy.stats
 from .logging import logger
+from .normalization import cpm
 
 # Constants
 LIBSIZE_CUTOFF = 1e5      # 100,000 reads
@@ -279,7 +280,7 @@ def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', T
     show_warn : bool
         If true then show warnings. If False then hide warnings.
     kwargs
-        Additional kwargs which will be passed to calculate_multi_corr_method1
+        Additional kwargs which will be passed to either sere_iter or corr_iter
         and 2.
 
     Returns
@@ -307,10 +308,10 @@ def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', T
 
     # more than two columns then output score
     if method == 'sere':
-        return [(srx, pair, score) for pair, score in sere_iter(df, TH=TH)]
+        return [(srx, pair, score) for pair, score in sere_iter(df, TH=TH, **kwargs)]
 
     if method == 'spearman' or method == 'pearson':
-        return [(srx, pair, score) for pair, score in corr_iter(df, TH=TH, method=method, multi=multi)]
+        return [(srx, pair, score) for pair, score in corr_iter(df, TH=TH, method=method, multi=multi, **kwargs)]
 
     # Something is wrong output warning and return None
     if show_warn:
@@ -349,7 +350,7 @@ def get_feature_counts(store, srx, show_warn=True):
     return df
 
 
-def corr_iter(df, method='spearman', multi='median', TH=1):
+def corr_iter(df, method='spearman', multi='median', TH=1, normalize=False, normalize_kw=None, **kwargs):
     """Generator function to provide list of correlations.
 
     Parameters
@@ -364,6 +365,10 @@ def corr_iter(df, method='spearman', multi='median', TH=1):
         correlations.
     TH : int
         Minimum number of reads for a gene to be considered expressed.
+    normalize : None or function
+        Normalization function to use.
+    normalize_kw : None or dict
+        kwargs to pass to the normalization function.
 
     Yields
     ------
@@ -372,17 +377,29 @@ def corr_iter(df, method='spearman', multi='median', TH=1):
         Where srr1:srr2 is the comparison for which correlation was calculated.
 
     """
-    # Filter out low expressing genes
-    mask = df.sum(axis = 1) > TH
-    _df = df[mask].copy()
+    # Normalize
+    if normalize_kw is None:
+        normalize_kw = {}
+
+    if normalize:
+        _df = normalize(df, **normalize_kw)
+    else:
+        _df = df.copy()
+
     columns = _df.columns
 
+    # Filter out low expressing genes
+    mask = _df.sum(axis = 1) > TH
+    _df = _df[mask]
+
+    # Either compare to median or pairwise.
     if multi == 'median':
         _df['med'] = _df.median(axis=1)
         combos = product(columns, ['med'])
     else:
         combos = combinations(columns, 2)
 
+    # Which correlation to calculate
     if method =='spearman':
         func = scipy.stats.spearmanr
     elif method == 'pearson':
@@ -476,7 +493,7 @@ def sere_matrix(df, TH=1):
     return pd.DataFrame(distance, index=columns, columns=columns)
 
 
-def sere_iter(df, TH=1):
+def sere_iter(df, TH=1, **kwargs):
     """Generator function to provide list of SERE scores.
 
     Parameters
