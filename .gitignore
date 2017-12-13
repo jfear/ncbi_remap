@@ -9,18 +9,18 @@
 *DS_Store*
 
 # Snakemake and Slurm
-*/.snakemake
-*/slurm_logs
-*slurm-*.out
+.snakemake
+slurm_logs
+slurm-*.out
 
 # Folders
 data
 output
-scratch
-figs
-*/cachedir
-wip
 references
+cachedir
+scratch
+figures
+website/content
 _build
 .*
 

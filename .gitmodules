@@ -1,3 +1,9 @@
 [submodule "lcdb-wf"]
 	path = lcdb-wf
 	url = git@github.com:lcdb/lcdb-wf
+[submodule "website/plugins/pelican-plugins"]
+	path = website/plugins/pelican-plugins
+	url = https://github.com/getpelican/pelican-plugins.git
+[submodule "website/plugins/ipynb"]
+	path = website/plugins/ipynb
+	url = https://github.com/danielfrg/pelican-ipynb.git
