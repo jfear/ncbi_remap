@@ -11,7 +11,7 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
-sys.path.insert(0, '../lib/python')
+sys.path.insert(0, '../lib')
 from ncbi_remap.snakemake import wrapper_for, put_flag
 
 # Setup tempdir to work with lscratch
@@ -22,7 +22,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 # import config
-configfile: '../config/reference_config.yml'
+configfile: '../config/reference_config.yaml'
 
 
 ################################################################################
@@ -34,6 +34,9 @@ srxs = store['aln/queue'].srx.unique()[:1000]
 mask = store['aln/queue'].srx.isin(srxs)
 sample_table = store['aln/queue'][mask]
 store.close()
+
+#NOTE: pulling just flybase samples for building BedGraphs
+sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t').head(3)
 
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 
@@ -72,6 +75,7 @@ patterns = {
     # SRX Level Files
     'expFeatureCounts': 'output/samples/{srx}/{srx}.counts',
     'expBamCoverage': 'output/samples/{srx}/{srx}.{strand}.bw',
+    'expBamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
 
     # MISC Files
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
@@ -92,6 +96,7 @@ def keepers(targets):
         targets['bamtools_stats'],
         targets['expFeatureCounts'],
         targets['expBamCoverage'],
+        targets['expBamCoverageFlyBase'],
     ]
 
 
@@ -106,7 +111,7 @@ rule update_queue:
     outputs and moves ids around in the queing system.
     """
     run:
-        sys.path.insert(0, '../lib/python')
+        sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id, check_layout, check_strand, check_alignment
 
         def check_outputs(**kwargs):
@@ -180,6 +185,24 @@ onerror:
     print('Something went wrong, you need to re-run')
 
 
+################################################################################
+# FASTQ dump and check for SE or PE
+################################################################################
+rule fastq_dump:
+    """Downloads fastq and checks if there is one or two sets of reads."""
+    output:
+        fq1=patterns['fastq']['r1'],
+        fq2=patterns['fastq']['r2'],
+        flag=patterns['layout'],
+        summary=patterns['fastq']['summary'],
+    log: patterns['fastq']['r1'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
+    conda:
+        "conda.yaml"
+    wrapper:
+        wrapper_for('../wrappers/fastq_dump')
+
 
 ################################################################################
 # FASTQ Pre-process
@@ -201,6 +224,8 @@ rule atropos:
     threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 8
+    conda:
+        "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/atropos')
 
@@ -213,7 +238,8 @@ rule hisat2_splice_site:
     input:
         gtf=config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
-    conda: "../config/extra_env.yaml"
+    conda:
+        "conda.yaml"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
@@ -239,6 +265,8 @@ rule hisat2:
         samtools_view_extra="--threads 6 -q 20",
         samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
+    conda:
+        "conda.yaml"
     wrapper:
         wrapper_for('wrappers/hisat2/align')
 
@@ -253,8 +281,9 @@ rule hisat2_summary:
       mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_hisat2
+        srx = wildcards.srx
         srr = wildcards.srr
-        df = parse_hisat2(srr, input.fn + '.log')
+        df = parse_hisat2(srx, srr, input.fn + '.log')
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.ix[0, 'per_alignment'] < .50:
@@ -267,7 +296,8 @@ rule bai:
         bam=patterns['hisat2']['bam']
     output:
         bai=temp(patterns['bai'])
-    conda: "../config/extra_env.yaml"
+    conda:
+        "conda.yaml"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     shell:
@@ -290,11 +320,13 @@ rule feature_counts:
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
-    threads: 4
+    threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     log:
         patterns['feature_counts']['counts'] + '.log'
+    conda:
+        "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
 
@@ -311,10 +343,12 @@ rule expFeatureCounts:
       mem_gb=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_featureCounts_counts
+        srx = wildcards.srx
+
         dfs = []
         for cnt in input.cnts:
             name = os.path.basename(os.path.dirname(cnt))
-            dfs.append(parse_featureCounts_counts(name, cnt).unstack(level=0))
+            dfs.append(parse_featureCounts_counts(srx, name, cnt).unstack(level=0))
 
         if len(dfs) > 1:
             df = pd.concat(dfs, axis=1)
@@ -336,7 +370,8 @@ rule run_stats:
         samtools_stats=patterns['samtools_stats'],
         samtools_idxstats=patterns['samtools_idxstats'],
         bamtools_stats=patterns['bamtools_stats']
-    conda: '../config/extra_env.yaml'
+    conda:
+        'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     shell:
@@ -376,6 +411,8 @@ rule bamCoverage:
     threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 3
+    conda:
+        "conda.yaml"
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
@@ -393,7 +430,8 @@ rule convertBedGraphToBigWig:
         chromSizes=_convertBedGraphToBigWig
     output:
         bigwig='{prefix}.bw'
-    conda: '../config/extra_env.yaml'
+    conda:
+        'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     shell:
@@ -415,7 +453,8 @@ def _input_expMerge(wildcards):
 rule expMerge:
     input: _input_expMerge
     output: bedgraph=temp('output/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
-    conda: '../config/extra_env.yaml'
+    conda:
+        'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     shell:"""
@@ -426,3 +465,19 @@ rule expMerge:
         bigWigToBedGraph {input[0]} {output.bedgraph}
     fi
     """
+
+
+rule convertToFlybase:
+    input: rules.expMerge.output.bedgraph
+    output: bedgraph=temp('output/samples/{srx}/{srx}.flybase.{strand,first|second}.bedgraph')
+    conda:
+        'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 3
+    shell:
+        'chrom_convert '
+        '--from UCSC '
+        '--to FlyBase '
+        '--fileType BED '
+        '-i {input[0]} '
+        '-o {output.bedgraph}'

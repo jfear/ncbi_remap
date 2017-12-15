@@ -290,7 +290,7 @@ rule fastq_dump:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     wrapper:
-        wrapper_for('wrappers/fastq_dump')
+        wrapper_for('../wrappers/fastq_dump')
 
 
 ################################################################################
