@@ -49,33 +49,37 @@ patterns = {
         'r2': '../prealn-wf/output/samples/{srx}/{srr}/{srr}_2.fastq.gz',
         'summary': '../prealn-wf/output/samples/{srx}/{srr}/{srr}.fastq.tsv',
     },
+
     'layout': '../prealn-wf/output/samples/{srx}/{srr}/LAYOUT',
     'strand': '../prealn-wf/output/samples/{srx}/{srr}/STRAND',
     'atropos': {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
         'r2': 'output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
     },
+
     'hisat2': {
         'splice_sites': '../prealn-wf/output/known_splice_sites_r6-11.txt',
         'bam': 'output/samples/{srx}/{srr}/{srr}.fq.bam',
+        'bai': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bai',
         'summary': 'output/samples/{srx}/{srr}/{srr}.fq.bam.tsv',
         'bad': 'output/samples/{srx}/{srr}/ALIGNMENT_BAD',
     },
-    'bai': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bai',
-    'feature_counts': {
-        'counts': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts',
-        'jcounts': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts.jcounts',
-        'summary': 'output/samples/{srx}/{srr}/{srr}.fq.bam.counts.summary',
-    },
-    'samtools_stats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.samtools.stats',
-    'samtools_idxstats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.samtools.idxstats',
-    'bamtools_stats': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bamtools.stats',
-    'bamCoverage': 'output/samples/{srx}/{srr}/{srr}.fq.{strand}.bw',
 
     # SRX Level Files
-    'expFeatureCounts': 'output/samples/{srx}/{srx}.counts',
-    'expBamCoverage': 'output/samples/{srx}/{srx}.{strand}.bw',
-    'expBamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
+    'srxMerge': {
+        'bam': 'output/samples/{srx}/{srx}.bam',
+        'bai': 'output/samples/{srx}/{srx}.bam.bai',
+        'feature_counts': {
+            'counts': 'output/samples/{srx}/{srx}.bam.counts',
+            'jcounts': 'output/samples/{srx}/{srx}.bam.counts.jcounts',
+            'summary': 'output/samples/{srx}/{srx}.bam.counts.summary',
+        },
+        'samtools_stats': 'output/samples/{srx}/{srx}.bam.samtools.stats',
+        'samtools_idxstats': 'output/samples/{srx}/{srx}.bam.samtools.idxstats',
+        'bamtools_stats': 'output/samples/{srx}/{srx}.bam.bamtools.stats',
+        'bamCoverage': 'output/samples/{srx}/{srx}.{strand}.bw',
+        'bamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
+    },
 
     # MISC Files
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
@@ -90,13 +94,12 @@ targets = helpers.fill_patterns(patterns, sample_table)
 def keepers(targets):
     return [
         targets['hisat2']['summary'],
-        targets['feature_counts']['summary'],
-        targets['samtools_stats'],
-        targets['samtools_idxstats'],
-        targets['bamtools_stats'],
-        targets['expFeatureCounts'],
-        targets['expBamCoverage'],
-        targets['expBamCoverageFlyBase'],
+        targets['srxMerge']['feature_counts']['summary'],
+        targets['srxMerge']['samtools_stats'],
+        targets['srxMerge']['samtools_idxstats'],
+        targets['srxMerge']['bamtools_stats'],
+        targets['srxMerge']['bamCoverage'],
+        targets['srxMerge']['bamCoverageFlyBase'],
     ]
 
 
@@ -293,9 +296,9 @@ rule hisat2_summary:
 
 rule bai:
     input:
-        bam=patterns['hisat2']['bam']
+        bam='{prefix}.bam'
     output:
-        bai=temp(patterns['bai'])
+        bai=temp('{prefix}.bam.bai')
     conda:
         "conda.yaml"
     resources:
@@ -305,18 +308,60 @@ rule bai:
 
 
 ################################################################################
+# Merge Bams
+################################################################################
+def _input_expMerge(wildcards):
+    fill = {
+        'srx': wildcards.srx,
+        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique().tolist()
+    }
+    return expand(patterns['hisat2']['bam'], **fill)
+
+
+rule expMerge:
+    input: _input_expMerge
+    output: bam=temp(patterns['srxMerge']['bam'])
+    conda:
+        'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1
+    threads: 8
+    shell:
+        'samtools merge '
+        '-f '
+        '-@ {threads} '
+        '{output.bam} '
+        '{input}'
+
+
+################################################################################
 # Feature Counts
 ################################################################################
+def _layout(wildcards):
+    fill = {
+        'srx': wildcards.srx,
+        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
+    }
+    return expand(patterns['layout'], **fill)
+
+def _strand(wildcards):
+    fill = {
+        'srx': wildcards.srx,
+        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
+    }
+    return expand(patterns['strand'], **fill)
+
+
 rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam'],
-        layout=patterns['layout'],
-        strand=patterns['strand'],
+        bam=patterns['srxMerge']['bam'],
+        layout=_layout,
+        strand=_strand,
     output:
-        counts=patterns['feature_counts']['counts'],
-        jcounts=patterns['feature_counts']['jcounts'],
-        summary=patterns['feature_counts']['summary']
+        counts=patterns['srxMerge']['feature_counts']['counts'],
+        jcounts=patterns['srxMerge']['feature_counts']['jcounts'],
+        summary=patterns['srxMerge']['feature_counts']['summary']
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
@@ -324,39 +369,11 @@ rule feature_counts:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1
     log:
-        patterns['feature_counts']['counts'] + '.log'
+        patterns['srxMerge']['feature_counts']['counts'] + '.log'
     conda:
         "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
-
-
-def _expFeatureCounts(wildcards):
-    sTable = sample_table[(sample_table['srx'] == wildcards.srx)].copy()
-    return utils.flatten(helpers.fill_patterns(dict(fc=patterns['feature_counts']['counts']), sTable))
-
-
-rule expFeatureCounts:
-    input: cnts=_expFeatureCounts
-    output: patterns['expFeatureCounts']
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
-    run:
-        from ncbi_remap.parser import parse_featureCounts_counts
-        srx = wildcards.srx
-
-        dfs = []
-        for cnt in input.cnts:
-            name = os.path.basename(os.path.dirname(cnt))
-            dfs.append(parse_featureCounts_counts(srx, name, cnt).unstack(level=0))
-
-        if len(dfs) > 1:
-            df = pd.concat(dfs, axis=1)
-        else:
-            df = dfs[0]
-
-        df.to_csv(output[0], sep='\t')
-
 
 
 ################################################################################
@@ -364,12 +381,12 @@ rule expFeatureCounts:
 ################################################################################
 rule run_stats:
     input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
+        bam=patterns['srxMerge']['bam'],
+        bai=patterns['srxMerge']['bai'],
     output:
-        samtools_stats=patterns['samtools_stats'],
-        samtools_idxstats=patterns['samtools_idxstats'],
-        bamtools_stats=patterns['bamtools_stats']
+        samtools_stats=patterns['srxMerge']['samtools_stats'],
+        samtools_idxstats=patterns['srxMerge']['samtools_idxstats'],
+        bamtools_stats=patterns['srxMerge']['bamtools_stats']
     conda:
         'conda.yaml'
     resources:
@@ -385,7 +402,7 @@ rule run_stats:
 
 
 ################################################################################
-# Make Individual BedGraphs
+# Make BedGraphs
 ################################################################################
 def _param_bamCoverage(wildcards):
     """Get strand information from wildcards."""
@@ -403,9 +420,9 @@ def _param_bamCoverage(wildcards):
 
 rule bamCoverage:
     input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai']
-    output: temp('output/samples/{srx}/{srr}/{srr}.fq.{strand,first|second}.bedgraph')
+        bam=patterns['srxMerge']['bam'],
+        bai=patterns['srxMerge']['bai']
+    output: temp('output/samples/{srx}/{srx}.{strand,first|second}.bw')
     params:
         extra=_param_bamCoverage
     threads: 8
@@ -417,6 +434,25 @@ rule bamCoverage:
         wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
 
 
+rule convertToFlybase:
+    input: rules.bamCoverage.output
+    output: bedgraph=temp(patterns['srxMerge']['bamCoverageFlyBase'])
+    conda:
+        'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 3
+    shell:
+        'chrom_convert '
+        '--from UCSC '
+        '--to FlyBase '
+        '--fileType BED '
+        '-i {input[0]} '
+        '-o {output.bedgraph}'
+
+
+################################################################################
+# Make BigWigs
+################################################################################
 def _convertBedGraphToBigWig(wildcards):
     if 'flybase' in wildcards.prefix:
         return targets['chromSizes_fb']
@@ -440,44 +476,3 @@ rule convertBedGraphToBigWig:
         '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
         '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
         '&& rm $tmpBg '
-
-
-################################################################################
-# Merge Experiment BigWigs
-################################################################################
-def _input_expMerge(wildcards):
-    sTable = sample_table[(sample_table['srx'] == wildcards.srx) & (sample_table['strand'] == wildcards.strand)].copy()
-    return utils.flatten(helpers.fill_patterns(dict(bam=patterns['bamCoverage']), sTable))
-
-
-rule expMerge:
-    input: _input_expMerge
-    output: bedgraph=temp('output/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
-    conda:
-        'conda.yaml'
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
-    shell:"""
-    inputs=({input})
-    if [ ${{#inputs[@]}} -gt 1 ]; then
-        bigWigMerge {input} {output.bedgraph}
-    else
-        bigWigToBedGraph {input[0]} {output.bedgraph}
-    fi
-    """
-
-
-rule convertToFlybase:
-    input: rules.expMerge.output.bedgraph
-    output: bedgraph=temp('output/samples/{srx}/{srx}.flybase.{strand,first|second}.bedgraph')
-    conda:
-        'conda.yaml'
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 3
-    shell:
-        'chrom_convert '
-        '--from UCSC '
-        '--to FlyBase '
-        '--fileType BED '
-        '-i {input[0]} '
-        '-o {output.bedgraph}'
