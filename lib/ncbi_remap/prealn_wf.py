@@ -49,7 +49,8 @@ def srr_per_srx(store):
         List of samples that meet criteria
 
     """
-    return store['prealn/complete'].groupby('srx').count()
+    flags = store['prealn/flags']
+    return flags[flags.flag_complete].reset_index().groupby('srx').srr.count().to_frame()
 
 
 def libsize(store, cutoff=1e5, filter_srrs=None, keep_srrs=None):
