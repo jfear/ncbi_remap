@@ -119,31 +119,27 @@ def check_layout(store, pattern, **kwargs):
 def check_strand(store, pattern, **kwargs):
     """Checks STRAND file.
 
-    Parses strand file and adds to the corresponding hdf5 lists.
+    Parses strand file and adds to the corresponding value to hdf5.
 
-        * 'strand/first'
-        * 'strand/second'
-        * 'strand/unstranded'
+        * 'first'
+        * 'second'
+        * 'unstranded'
 
     Parameters
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
+    pattern : str
         File naming pattern for the ALIGNEMNT_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
     """
     with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if (strand == 'first_strand') | (strand == 'same_strand'):
-            key = 'strand/first'
-        elif (strand == 'second_strand') | (strand == 'opposite_strand'):
-            key = 'strand/second'
-        elif strand == 'unstranded':
-            key = 'strand/unstranded'
-        add_id(store, key, **kwargs)
+        strand_value = fh.read().strip()
+        strand = store['strand']
+        strand[(kwargs['srx'], kwargs['srr'])] = strand_value
+        store['layout'] = strand
 
 
 def combine(func, pattern, row):
