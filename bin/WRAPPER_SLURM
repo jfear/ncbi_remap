@@ -1,7 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name="seq_pipeline"
 #SBATCH --partition="niddk,norm"
-#SBATCH --time=120:00:00
+#SBATCH --time=72:00:00
+#SBATCH --cpus-per-task=2
 
 # Make required folders
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
@@ -9,18 +10,7 @@ if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 # run pipeline
 (source activate ncbi_remap2;
     time snakemake \
-    -p \
-    --directory $PWD \
-    -T \
-    -k \
-    --rerun-incomplete \
+    --profile ../config/slurm \
     --jobname "s.{rulename}.{jobid}.sh" \
-    -j 1000 \
     --cluster-config slurm.yml \
-    --cluster "sbatch --partition {cluster.partition} --cpus-per-task {threads} --mem {resources.mem_gb}g --time {cluster.time} --gres {cluster.gres} --output=slurm_logs/{rule}.o.%j --error=slurm_logs/{rule}.e.%j" \
-    --verbose \
-    --use-conda \
-    --latency-wait=300 \
-    --restart-times 4 \
-    --notemp \
     ) > "Snakefile.log" 2>&1
