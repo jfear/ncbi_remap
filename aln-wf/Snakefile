@@ -343,9 +343,10 @@ rule atropos:
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
     log:
         patterns['atropos']['r1'] + '.log'
-    threads: 8
+    threads: 2
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 4
     conda:
         "conda.yaml"
     wrapper:
