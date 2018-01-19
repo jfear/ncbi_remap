@@ -1,0 +1,15 @@
+restart-times: 4
+jobscript: "../config/slurm/slurm-jobscript.sh"
+cluster: "../config/slurm/slurm-submit.py --partition {cluster.partition} --cpus-per-task {threads} --mem {cluster.mem_gb} --time {cluster.time_hr} --gres {cluster.gres} --output=slurm_logs/{rule}.o.%j --error=slurm_logs/{rule}.e.%j"
+cluster-status: "../config/slurm/slurm-status.py"
+max-jobs-per-second: 10
+max-status-checks-per-second: .01
+local-cores: 2
+jobs: 999
+latency-wait: 120
+timestamp: true
+keep-going: true
+rerun-incomplete: true
+verbose: true
+use-conda: true
+printshellcmds: true

@@ -6,7 +6,7 @@ __license__ = "MIT"
 import sys
 from snakemake.shell import shell
 
-sys.path.insert(0, '../lib/python')
+sys.path.insert(0, '../lib')
 from ncbi_remap.snakemake import get_flag
 
 inputs = snakemake.input
@@ -24,7 +24,11 @@ else:
     extra = params.extra_se
 
 # Look up strand
-strand = get_flag(inputs.strand)
+try:
+    strand = get_flag(inputs.strand)
+except:
+    strand = 'unstranded'
+
 if strand == 'first_strand':
     extra += '-s 1'
 elif strand == 'second_strand':

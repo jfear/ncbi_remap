@@ -1,11 +1,11 @@
 __default__:
-    time: "11:00:00"
-    gres: "lscratch:80"
-    partition: 'norm,niddk'
+  time_hr: 1
+  mem_gb: 2
+  gres: "lscratch:80"
+  partition: 'norm,niddk'
 
 atropos:
   gres: "lscratch:200"
 
 hisat2:
-    time: "24:00:00"
-    gres: "lscratch:250"
+  gres: "lscratch:250"
