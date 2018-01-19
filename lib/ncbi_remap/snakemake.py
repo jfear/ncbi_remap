@@ -206,15 +206,68 @@ def agg(store, key, func, pattern, df, large=False):
             continue
         try:
             if large:
-                dd = combine(func, pattern, row)
+                dd = combine(func, pattern, row.to_dict())
                 store.append(key, dd)
             else:
-                dat = combine(func, pattern, row)
+                dat = combine(func, pattern, row.to_dict())
                 if dat is None:
                     continue
                 dfs.append(dat)
         except ValueError:
-            logger.error('Error parsing {}->{}'.format(row.srx, row.srr))
+            logger.error('Error parsing {srx}->{srr}'.format(row.to_dict()))
+
+    if dfs:
+        ddf = pd.concat(dfs)
+        store.append(key, ddf)
+
+
+def agg_srx(store, key, func, pattern, srxs, large=False):
+    """Aggregator to import experiment level tables and dump into a hdf5 store.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        Data store to save results.
+    key : str
+        Node in the data store to save results.
+    func : .parser.parser_*
+        A parser function that returns a dataframe.
+    pattern : str
+        A file name pattern that can be filled with row.
+    srxs : list
+        A list of srxs.
+    large : bool
+        If True import datasets one at time because they are large.
+
+    Returns
+    -------
+    None
+
+    """
+    done = []
+    if store.get_node(key):
+        done = set()        # change to set to keep memory down.
+        # Iterate over chunks and grab srxs that are already there.
+        for chunk in store.select(key, chunksize=1e5):
+            idx = chunk.index.names.index('srx')
+            done |= set(chunk.index.levels[idx])
+        done = list(done)
+
+    dfs = []
+    for srx in srxs:
+        if srx in done:
+            continue
+        try:
+            if large:
+                dd = combine(func, pattern, srx=srx)
+                store.append(key, dd)
+            else:
+                dat = combine(func, pattern, srx=srx)
+                if dat is None:
+                    continue
+                dfs.append(dat)
+        except ValueError:
+            logger.error('Error parsing {}'.format(srx))
 
     if dfs:
         ddf = pd.concat(dfs)
