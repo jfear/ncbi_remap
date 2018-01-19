@@ -1,3 +1,4 @@
+ipdb
 jedi
 joblib
 neovim
