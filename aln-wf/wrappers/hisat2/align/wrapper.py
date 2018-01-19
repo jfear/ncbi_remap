@@ -82,4 +82,5 @@ shell(
     "&& cp {sort_bam} {outputs.bam} "
     "&& rm {bam} "
     "&& rm {sort_bam} "
+    "&& samtools index {outputs.bam} "
 )
