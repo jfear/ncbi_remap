@@ -121,6 +121,17 @@ rule targets:
     input: keepers(targets)
 
 
+onsuccess:
+    print('All Finished')
+
+
+onerror:
+    print('Something went wrong, you need to re-run')
+
+
+################################################################################
+# Summary Rules
+################################################################################
 rule update_queue:
     """Updates queue.
 
