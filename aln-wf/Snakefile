@@ -75,6 +75,11 @@ patterns = {
             'jcounts': 'output/samples/{srx}/{srx}.bam.counts.jcounts',
             'summary': 'output/samples/{srx}/{srx}.bam.counts.summary',
         },
+        'feature_counts_intergenic': {
+            'counts': 'output/samples/{srx}/{srx}.bam.intergenic.counts',
+            'jcounts': 'output/samples/{srx}/{srx}.bam.intergenic.counts.jcounts',
+            'summary': 'output/samples/{srx}/{srx}.bam.intergenic.counts.summary',
+        },
         'samtools_stats': 'output/samples/{srx}/{srx}.bam.samtools.stats',
         'samtools_idxstats': 'output/samples/{srx}/{srx}.bam.samtools.idxstats',
         'bamtools_stats': 'output/samples/{srx}/{srx}.bam.bamtools.stats',
@@ -83,6 +88,11 @@ patterns = {
     },
 
     # MISC Files
+    'intergenic': {
+        'bed': '../output/dmel_r6-11.intergenic.bed',
+        'gtf': '../output/dmel_r6-11.intergenic.gtf',
+    },
+
     'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
 }
 
@@ -96,6 +106,7 @@ def keepers(targets):
     return [
         targets['hisat2']['summary'],
         targets['srxMerge']['feature_counts']['summary'],
+        targets['srxMerge']['feature_counts_intergenic']['summary'],
         targets['srxMerge']['samtools_stats'],
         targets['srxMerge']['samtools_idxstats'],
         targets['srxMerge']['bamtools_stats'],
@@ -185,8 +196,86 @@ onsuccess:
     print('All Finished')
 
 
-onerror:
-    print('Something went wrong, you need to re-run')
+        # Hisat2
+        logger.info('Parsing Hisat2')
+        agg(store, 'aln/workflow/hisat2', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed)
+
+        # stats
+        logger.info('Parsing Other Stats')
+        logger.info('Parsing Other Stats - Samtools Stats')
+        agg(store, 'aln/workflow/samtools_stats', parse_samtools_stats, patterns['srxMerge']['samtools_stats'], completed)
+
+        logger.info('Parsing Other Stats - Bamtools Stats')
+        agg(store, 'aln/workflow/bamtools_stats', parse_bamtools_stats, patterns['srxMerge']['bamtools_stats'], completed)
+
+        # Feature Counts
+        logger.info('Parsing Feature Counts')
+        logger.info('Parsing Feature Counts - Summary')
+        agg(store, 'aln/workflow/feature_counts/summary', parse_featureCounts_summary, patterns['srxMerge']['feature_counts']['summary'], completed)
+
+        logger.info('Parsing Feature Counts - Counts')
+        agg(store, 'aln/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['srxMerge']['feature_counts']['counts'], completed, large=True)
+
+        logger.info('Parsing Feature Counts - Junction Counts')
+        agg(store, 'aln/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['srxMerge']['feature_counts']['jcounts'], completed, large=True)
+
+        logger.info('Parsing Feature Counts Intergenic')
+        logger.info('Parsing Feature Counts Intergenic - Summary')
+        agg(store, 'aln/workflow/feature_counts/summary', parse_featureCounts_summary, patterns['srxMerge']['feature_counts_intergenic']['summary'], completed)
+
+        logger.info('Parsing Feature Counts Intergenic - Counts')
+        agg(store, 'aln/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['srxMerge']['feature_counts_intergenic']['counts'], completed, large=True)
+
+        logger.info('Parsing Feature Counts Intergenic - Junction Counts')
+        agg(store, 'aln/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['srxMerge']['feature_counts_intergenic']['jcounts'], completed, large=True)
+
+        logger.info('Parsing Large Datasets')
+        logger.info('Parsing Other Stats - Samtools Index Stats')
+        agg(store, 'aln/workflow/samtools_idxstats', parse_samtools_idxstats, patterns['srxMerge']['samtools_idxstats'], completed, large=True)
+
+
+        store.close()
+
+
+################################################################################
+# Build Intergenic Reference
+################################################################################
+rule intergenic:
+    input:
+        db=config['references']['dmel']['db']
+    output:
+        bed=patterns['intergenic']['bed'],
+        gtf=patterns['intergenic']['gtf']
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
+    run:
+        import gffutils
+        from gffutils.pybedtools_integration import to_bedtool, featurefuncs
+        db = gffutils.FeatureDB(input.db)
+        gene = to_bedtool(db.features_of_type('gene')).saveas()
+        slopped = gene.slop(b=100, genome='dm6')
+        merged = slopped.sort().merge()
+        complement = merged.complement(genome='dm6').saveas()
+
+        global cnt
+        cnt = 1
+        def interName(feature):
+            global cnt
+            feature = featurefuncs.extend_fields(feature, 4)
+            feature.name = 'intergenic{}'.format(cnt)
+            cnt += 1
+            return feature
+
+        def interGFF(feature):
+            gff = featurefuncs.bed2gff(feature)
+            gff[1] = 'bedtools'
+            gff[2] = 'gene'
+            gff.attrs['gene_id'] = gff.name
+            return gff
+
+        bed = complement.each(interName).saveas(output.bed)
+        bed.each(interGFF).saveas(output.gtf)
 
 
 ################################################################################
@@ -371,6 +460,33 @@ rule feature_counts:
       mem_gb=lambda wildcards, attempt: attempt * 1
     log:
         patterns['srxMerge']['feature_counts']['counts'] + '.log'
+    conda:
+        "conda.yaml"
+    wrapper:
+        wrapper_for('../wrappers/featurecounts')
+
+
+rule featurecounts_intergenic:
+    """
+    Count reads in intergenic regions with featureCounts from the subread package
+    """
+    input:
+        annotation=targets['intergenic']['gtf'],
+        bam=patterns['srxMerge']['bam'],
+        layout=_layout,
+    output:
+        counts=patterns['srxMerge']['feature_counts_intergenic']['counts'],
+        jcounts=patterns['srxMerge']['feature_counts_intergenic']['jcounts'],
+        summary=patterns['srxMerge']['feature_counts_intergenic']['summary']
+    params:
+        extra_pe = '-p -P -C -J -t gene ',
+        extra_se = '-J -t gene '
+    threads: 2
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 1
+    log:
+        patterns['srxMerge']['feature_counts_intergenic']['counts'] + '.log'
     conda:
         "conda.yaml"
     wrapper:
