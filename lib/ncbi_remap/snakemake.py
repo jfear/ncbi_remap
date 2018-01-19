@@ -92,34 +92,28 @@ def check_alignment(store, pattern, **kwargs):
 def check_layout(store, pattern, **kwargs):
     """Checks LAYOUT file.
 
-    Parses layout file and adds to the corresponding hdf5 lists.
+    Parses layout file and adds to the corresponding value to HDF5.
 
-        * 'layout/SE'
-        * 'layout/PE'
-        * 'layout/keep_R1'
-        * 'layout/keep_R2'
+        * 'SE'
+        * 'PE'
+        * 'keep_R1'
+        * 'keep_R2'
 
     Parameters
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
+    pattern : str
         File naming pattern for the ALIGNEMNT_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
     """
     with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if strand == 'SE':
-            key = 'layout/SE'
-        elif strand == 'PE':
-            key = 'layout/PE'
-        elif strand == 'keep_R1':
-            key = 'layout/keep_R1'
-        elif strand == 'keep_R2':
-            key = 'layout/keep_R2'
-        add_id(store, key, **kwargs)
+        layout_value = fh.read().strip()
+        layout = store['layout']
+        layout[(kwargs['srx'], kwargs['srr'])] = layout_value
+        store['layout'] = layout
 
 
 def check_strand(store, pattern, **kwargs):
