@@ -58,7 +58,9 @@ def check_download(store, pattern, **kwargs):
 
     if flagBad.exists():
         remove_id(store, 'prealn/queue', **kwargs)
-        add_id(store, 'prealn/download_bad', **kwargs)
+        flags = store['prealn/flags']
+        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_download_bad'] = True
+        store['prealn/flags'] = flags
         return True
 
 
@@ -81,7 +83,9 @@ def check_alignment(store, pattern, **kwargs):
     ab = pattern.format(**kwargs)
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
-        add_id(store, 'prealn/alignment_bad', **kwargs)
+        flags = store['prealn/flags']
+        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_alignment_bad'] = True
+        store['prealn/flags'] = flags
         return True
 
 
