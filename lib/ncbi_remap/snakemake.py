@@ -142,7 +142,8 @@ def check_strand(store, pattern, **kwargs):
         store['layout'] = strand
 
 
-def combine(func, pattern, row):
+#TODO: Fix parsers to work with srx+srr and srx only.
+def combine(func, pattern, **kwargs):
     """Parse input file using parser function.
 
     Uses a parser function to return a data frame.
@@ -153,8 +154,8 @@ def combine(func, pattern, row):
         A parser function that returns a dataframe.
     pattern : str
         A file name pattern that can be filled with row.
-    row : pd.Series
-        A row from a sample table.
+    kwargs
+        Additional kwargs to pass to func, must have srx and may have srr.
 
     Returns
     -------
@@ -162,7 +163,9 @@ def combine(func, pattern, row):
         parse dataframe.
 
     """
-    return func(row.srx, row.srr, pattern.format(**row.to_dict()))
+    srx = kwargs['srx']
+    srr = kwargs.get('srr', None)
+    return func(srx, srr, pattern.format(**kwargs))
 
 
 def agg(store, key, func, pattern, df, large=False):
