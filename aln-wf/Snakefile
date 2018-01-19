@@ -364,7 +364,8 @@ rule hisat2_splice_site:
     conda:
         "conda.yaml"
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
@@ -379,14 +380,16 @@ rule hisat2:
         layout=patterns['layout'],
         strand=patterns['strand']
     output:
-        bam=temp(patterns['hisat2']['bam'])
-    threads: 8
+        bam=temp(patterns['hisat2']['bam']),
+        bai=temp(patterns['hisat2']['bai'])
+    threads: 4
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 16
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 4
     params:
         hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=patterns['hisat2']['splice_sites']),
-        samtools_view_extra="--threads 6 -q 20",
-        samtools_sort_extra='--threads 6 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+        samtools_view_extra="--threads 4 -q 20",
+        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     conda:
         "conda.yaml"
@@ -401,7 +404,8 @@ rule hisat2_summary:
     output:
         tsv=patterns['hisat2']['summary']
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_hisat2
         srx = wildcards.srx
@@ -412,19 +416,6 @@ rule hisat2_summary:
         if df.ix[0, 'per_alignment'] < .50:
             fname = patterns['hisat2']['bad'].format(**wildcards)
             Path(fname).touch()
-
-
-rule bai:
-    input:
-        bam='{prefix}.bam'
-    output:
-        bai=temp('{prefix}.bam.bai')
-    conda:
-        "conda.yaml"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
-    shell:
-        "samtools index {input.bam}"
 
 
 ################################################################################
