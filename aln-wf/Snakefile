@@ -83,8 +83,10 @@ patterns = {
         'samtools_stats': 'output/samples/{srx}/{srx}.bam.samtools.stats',
         'samtools_idxstats': 'output/samples/{srx}/{srx}.bam.samtools.idxstats',
         'bamtools_stats': 'output/samples/{srx}/{srx}.bam.bamtools.stats',
-        'bamCoverage': 'output/samples/{srx}/{srx}.{strand}.bw',
-        'bamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
+        'bamCoverage': 'output/samples/{srx}/{srx}.{strand}.bedgraph',
+        'bamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bedgraph',
+        'bigWig': 'output/samples/{srx}/{srx}.{strand}.bw',
+        'bigWigFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
     },
 
     # MISC Files
@@ -110,8 +112,8 @@ def keepers(targets):
         targets['srxMerge']['samtools_stats'],
         targets['srxMerge']['samtools_idxstats'],
         targets['srxMerge']['bamtools_stats'],
-        targets['srxMerge']['bamCoverage'],
-        targets['srxMerge']['bamCoverageFlyBase'],
+        targets['srxMerge']['bigWig'],
+        targets['srxMerge']['bigWigFlyBase'],
     ]
 
 
@@ -410,18 +412,22 @@ def _input_expMerge(wildcards):
 
 rule expMerge:
     input: _input_expMerge
-    output: bam=temp(patterns['srxMerge']['bam'])
+    output:
+        bam=patterns['srxMerge']['bam'],
+        bai=patterns['srxMerge']['bai']
     conda:
         'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
-    threads: 8
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    threads: 4
     shell:
         'samtools merge '
         '-f '
         '-@ {threads} '
         '{output.bam} '
-        '{input}'
+        '{input} && '
+        'samtools index {output.bam}'
 
 
 ################################################################################
@@ -432,14 +438,15 @@ def _layout(wildcards):
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
     }
-    return expand(patterns['layout'], **fill)
+    return expand(patterns['layout'], **fill)[0]
+
 
 def _strand(wildcards):
     fill = {
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
     }
-    return expand(patterns['strand'], **fill)
+    return expand(patterns['strand'], **fill)[0]
 
 
 rule feature_counts:
@@ -455,9 +462,10 @@ rule feature_counts:
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
-    threads: 8
+    threads: 2
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 1
     log:
         patterns['srxMerge']['feature_counts']['counts'] + '.log'
     conda:
@@ -507,7 +515,8 @@ rule run_stats:
     conda:
         'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
@@ -539,12 +548,14 @@ rule bamCoverage:
     input:
         bam=patterns['srxMerge']['bam'],
         bai=patterns['srxMerge']['bai']
-    output: temp('output/samples/{srx}/{srx}.{strand,first|second}.bw')
+    output:
+        temp('output/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
     params:
         extra=_param_bamCoverage
-    threads: 8
+    threads: 4
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 3
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 4
     conda:
         "conda.yaml"
     wrapper:
@@ -552,12 +563,13 @@ rule bamCoverage:
 
 
 rule convertToFlybase:
-    input: rules.bamCoverage.output
+    input: patterns['srxMerge']['bamCoverage']
     output: bedgraph=temp(patterns['srxMerge']['bamCoverageFlyBase'])
     conda:
         'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 3
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell:
         'chrom_convert '
         '--from UCSC '
@@ -586,7 +598,8 @@ rule convertBedGraphToBigWig:
     conda:
         'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell:
         'export LC_COLLATE=C; '
         'tmpBg=`mktemp --suffix=.bedgraph` '
