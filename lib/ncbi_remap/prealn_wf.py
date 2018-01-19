@@ -14,6 +14,7 @@ STRAND_CUTOFF1 = 0.75     # 75% stranded reads
 STRAND_CUTOFF2 = 0.95     # 95% stranded reads
 UNALIGN_CUTOFF = 0.50     # 50% Reads Unaligned
 CONTAMINATION_CUTOFF = 40 # 50% reads mapping to DM6
+SPEARMAN_CUTOFF = .95  # Minimum spearman r
 
 
 def remove_rows(df, column, values):
@@ -48,7 +49,8 @@ def srr_per_srx(store):
         List of samples that meet criteria
 
     """
-    return store['prealn/complete'].groupby('srx').count()
+    flags = store['prealn/flags']
+    return flags[flags.flag_complete].reset_index().groupby('srx').srr.count().to_frame()
 
 
 def libsize(store, cutoff=1e5, filter_srrs=None, keep_srrs=None):
@@ -258,7 +260,7 @@ def contamination(store, cutoff=50, filter_srrs=None, keep_srrs=None):
     return df.loc[df['dm6'] >= cutoff, ['srx', 'srr']]
 
 
-def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', TH=1, show_warn=True, **kwargs):
+def srx_reproducibility_score(store, srx, srr=None, method='spearman', multi='pairwise', TH=1, show_warn=True, **kwargs):
     """Calculate reproducibility among SRR for an SRX.
 
     This can either be the correlation or the SERE.
@@ -269,6 +271,8 @@ def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', T
         HDFStore with feature_counts in it.
     srx : str
         SRA experiment accession (SRX).
+    srr : str or list
+        SRA runs accession(s) (SRR) to include.
     method : str
         Method to use for calculating reproducibility. Option: 'pearson',
         'spearman', 'sere'.
@@ -292,7 +296,7 @@ def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', T
 
     """
     # Import data
-    df = get_feature_counts(store, srx, show_warn=show_warn)
+    df = get_feature_counts(store, srx, srr=srr, show_warn=show_warn)
 
     # If no data then return None
     if df is None:
@@ -320,7 +324,7 @@ def srx_reproducibility_score(store, srx, method='spearman', multi='pairwise', T
     return [(srx, None, None)]
 
 
-def get_feature_counts(store, srx, show_warn=True):
+def get_feature_counts(store, srx, srr=None, show_warn=True):
     """Import feature counts tables for all SRR for a given SRX(s).
 
     Parameters
@@ -329,6 +333,8 @@ def get_feature_counts(store, srx, show_warn=True):
         HDFStore with feature_counts in it.
     srx : str or list
         SRA experiment accession(s) (SRX).
+    srr : str or list
+        SRA runs accession(s) (SRR) to include.
     show_warn : bool
         If true then show warnings. If False then hide warnings.
 
@@ -340,7 +346,11 @@ def get_feature_counts(store, srx, show_warn=True):
     """
 
     # Get data.
-    df = store.select('prealn/workflow/feature_counts/counts', 'srx == srx').unstack().T
+    query = 'srx == srx'
+    if srr is not None:
+        query += ' & srr == srr'
+
+    df = store.select('prealn/workflow/feature_counts/counts', query).unstack().T
 
     if (df.shape == (0, 0)):
         if show_warn:

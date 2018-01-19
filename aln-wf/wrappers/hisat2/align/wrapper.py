@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 from snakemake.shell import shell
 from lcdblib.snakemake import aligners
 
-sys.path.insert(0, '../lib/python')
+sys.path.insert(0, '../lib')
 from ncbi_remap.snakemake import get_flag
 
 inputs = snakemake.input
@@ -82,4 +82,5 @@ shell(
     "&& cp {sort_bam} {outputs.bam} "
     "&& rm {bam} "
     "&& rm {sort_bam} "
+    "&& samtools index {outputs.bam} "
 )

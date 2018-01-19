@@ -58,7 +58,9 @@ def check_download(store, pattern, **kwargs):
 
     if flagBad.exists():
         remove_id(store, 'prealn/queue', **kwargs)
-        add_id(store, 'prealn/download_bad', **kwargs)
+        flags = store['prealn/flags']
+        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_download_bad'] = True
+        store['prealn/flags'] = flags
         return True
 
 
@@ -81,74 +83,67 @@ def check_alignment(store, pattern, **kwargs):
     ab = pattern.format(**kwargs)
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
-        add_id(store, 'prealn/alignment_bad', **kwargs)
+        flags = store['prealn/flags']
+        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_alignment_bad'] = True
+        store['prealn/flags'] = flags
         return True
 
 
 def check_layout(store, pattern, **kwargs):
     """Checks LAYOUT file.
 
-    Parses layout file and adds to the corresponding hdf5 lists.
+    Parses layout file and adds to the corresponding value to HDF5.
 
-        * 'layout/SE'
-        * 'layout/PE'
-        * 'layout/keep_R1'
-        * 'layout/keep_R2'
+        * 'SE'
+        * 'PE'
+        * 'keep_R1'
+        * 'keep_R2'
 
     Parameters
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
+    pattern : str
         File naming pattern for the ALIGNEMNT_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
     """
     with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if strand == 'SE':
-            key = 'layout/SE'
-        elif strand == 'PE':
-            key = 'layout/PE'
-        elif strand == 'keep_R1':
-            key = 'layout/keep_R1'
-        elif strand == 'keep_R2':
-            key = 'layout/keep_R2'
-        add_id(store, key, **kwargs)
+        layout_value = fh.read().strip()
+        layout = store['layout']
+        layout[(kwargs['srx'], kwargs['srr'])] = layout_value
+        store['layout'] = layout
 
 
 def check_strand(store, pattern, **kwargs):
     """Checks STRAND file.
 
-    Parses strand file and adds to the corresponding hdf5 lists.
+    Parses strand file and adds to the corresponding value to hdf5.
 
-        * 'strand/first'
-        * 'strand/second'
-        * 'strand/unstranded'
+        * 'first'
+        * 'second'
+        * 'unstranded'
 
     Parameters
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
+    pattern : str
         File naming pattern for the ALIGNEMNT_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
     """
     with open(pattern.format(**kwargs)) as fh:
-        strand = fh.read().strip()
-        if (strand == 'first_strand') | (strand == 'same_strand'):
-            key = 'strand/first'
-        elif (strand == 'second_strand') | (strand == 'opposite_strand'):
-            key = 'strand/second'
-        elif strand == 'unstranded':
-            key = 'strand/unstranded'
-        add_id(store, key, **kwargs)
+        strand_value = fh.read().strip()
+        strand = store['strand']
+        strand[(kwargs['srx'], kwargs['srr'])] = strand_value
+        store['layout'] = strand
 
 
-def combine(func, pattern, row):
+#TODO: Fix parsers to work with srx+srr and srx only.
+def combine(func, pattern, **kwargs):
     """Parse input file using parser function.
 
     Uses a parser function to return a data frame.
@@ -159,8 +154,8 @@ def combine(func, pattern, row):
         A parser function that returns a dataframe.
     pattern : str
         A file name pattern that can be filled with row.
-    row : pd.Series
-        A row from a sample table.
+    kwargs
+        Additional kwargs to pass to func, must have srx and may have srr.
 
     Returns
     -------
@@ -168,7 +163,9 @@ def combine(func, pattern, row):
         parse dataframe.
 
     """
-    return func(row.srx, row.srr, pattern.format(**row.to_dict()))
+    srx = kwargs['srx']
+    srr = kwargs.get('srr', None)
+    return func(srx, srr, pattern.format(**kwargs))
 
 
 def agg(store, key, func, pattern, df, large=False):
@@ -209,15 +206,68 @@ def agg(store, key, func, pattern, df, large=False):
             continue
         try:
             if large:
-                dd = combine(func, pattern, row)
+                dd = combine(func, pattern, row.to_dict())
                 store.append(key, dd)
             else:
-                dat = combine(func, pattern, row)
+                dat = combine(func, pattern, row.to_dict())
                 if dat is None:
                     continue
                 dfs.append(dat)
         except ValueError:
-            logger.error('Error parsing {}->{}'.format(row.srx, row.srr))
+            logger.error('Error parsing {srx}->{srr}'.format(row.to_dict()))
+
+    if dfs:
+        ddf = pd.concat(dfs)
+        store.append(key, ddf)
+
+
+def agg_srx(store, key, func, pattern, srxs, large=False):
+    """Aggregator to import experiment level tables and dump into a hdf5 store.
+
+    Parameters
+    ----------
+    store : pd.HDFStore
+        Data store to save results.
+    key : str
+        Node in the data store to save results.
+    func : .parser.parser_*
+        A parser function that returns a dataframe.
+    pattern : str
+        A file name pattern that can be filled with row.
+    srxs : list
+        A list of srxs.
+    large : bool
+        If True import datasets one at time because they are large.
+
+    Returns
+    -------
+    None
+
+    """
+    done = []
+    if store.get_node(key):
+        done = set()        # change to set to keep memory down.
+        # Iterate over chunks and grab srxs that are already there.
+        for chunk in store.select(key, chunksize=1e5):
+            idx = chunk.index.names.index('srx')
+            done |= set(chunk.index.levels[idx])
+        done = list(done)
+
+    dfs = []
+    for srx in srxs:
+        if srx in done:
+            continue
+        try:
+            if large:
+                dd = combine(func, pattern, srx=srx)
+                store.append(key, dd)
+            else:
+                dat = combine(func, pattern, srx=srx)
+                if dat is None:
+                    continue
+                dfs.append(dat)
+        except ValueError:
+            logger.error('Error parsing {}'.format(srx))
 
     if dfs:
         ddf = pd.concat(dfs)
