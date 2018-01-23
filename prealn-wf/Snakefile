@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#!/usr/bin/env python
 # vim: set ft=python.snakemake
 import os
 import sys
@@ -24,9 +24,9 @@ workdir: '.'
 configfile: '../config/reference_config.yaml'
 
 
-################################################################################
+###############################################################################
 # Build Sample Table
-################################################################################
+###############################################################################
 mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['prealn/queue'].srx.unique()[:1000]
@@ -34,9 +34,9 @@ mask = store['prealn/queue'].srx.isin(srxs)
 sample_table = store['prealn/queue'][mask].copy()
 store.close()
 
-################################################################################
+###############################################################################
 # Set up file naming patterns
-################################################################################
+###############################################################################
 patterns = {
     'fastq': {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
@@ -81,9 +81,9 @@ patterns = {
 }
 
 
-################################################################################
+###############################################################################
 # Set up Build Targets
-################################################################################
+###############################################################################
 targets = helpers.fill_patterns(patterns, sample_table)
 
 
@@ -118,9 +118,9 @@ onerror:
     print('Something went wrong, you need to re-run')
 
 
-################################################################################
+###############################################################################
 # Summary Rules
-################################################################################
+###############################################################################
 rule update_queue:
     """Updates queue.
 
@@ -143,16 +143,25 @@ rule update_queue:
 
         # Initialize values if needed
         if not store.get_node('layout'):
-            store['layout'] = pd.Series(index=store['ids'].set_index(['srx', 'srr']).index, name='layout').fillna('Missing')
+            store['layout'] = pd.Series(
+                index=store['ids'].set_index(['srx', 'srr']).index,
+                name='layout'
+            ).fillna('Missing')
 
         if not store.get_node('strand'):
-            store['strand'] = pd.Series(index=store['ids'].set_index(['srx', 'srr']).index, name='strand').fillna('Missing')
+            store['strand'] = pd.Series(
+                index=store['ids'].set_index(['srx', 'srr']).index,
+                name='strand'
+            ).fillna('Missing')
 
         if not store.get_node('prealn/flags'):
-            store['prealn/flags'] = pd.DataFrame(data=[], index=store['ids'].set_index(['srx', 'srr']).index,
-                                                 columns=['flag_abi_solid', 'flag_alignment_bad', 'flag_complete',
-                                                 'flag_download_bad', 'flag_quality_scores_bad', 'flag_qc_passed',
-                                                 'flag_merge', ]).fillna(False)
+            store['prealn/flags'] = pd.DataFrame(
+                data=[], index=store['ids'].set_index(['srx', 'srr']).index,
+                columns=['flag_abi_solid', 'flag_alignment_bad',
+                         'flag_complete', 'flag_download_bad',
+                         'flag_quality_scores_bad', 'flag_qc_passed',
+                         'flag_merge', ]
+            ).fillna(False)
 
         done = []
         for i, row in sample_table.iterrows():
@@ -232,9 +241,11 @@ rule aggregate:
         from ncbi_remap.io import add_table
         from ncbi_remap.snakemake import agg
         from ncbi_remap.parser import (
-            parse_fastq_summary, parse_fastq_screen, parse_hisat2, parse_featureCounts_summary,
-            parse_picardCollect_summary, parse_picard_markduplicate_metrics, parse_samtools_stats,
-            parse_bamtools_stats, parse_featureCounts_counts, parse_featureCounts_jcounts, parse_samtools_idxstats
+            parse_fastq_summary, parse_fastq_screen, parse_hisat2,
+            parse_featureCounts_summary, parse_picardCollect_summary,
+            parse_picard_markduplicate_metrics, parse_samtools_stats,
+            parse_bamtools_stats, parse_featureCounts_counts,
+            parse_featureCounts_jcounts, parse_samtools_idxstats
         )
 
         store = pd.HDFStore(mystore)
@@ -243,64 +254,84 @@ rule aggregate:
 
         # fastq summary
         logger.info('Parsing Fastq Summary')
-        agg(store, 'prealn/workflow/fastq', parse_fastq_summary, patterns['fastq']['summary'], completed)
+        agg(store, 'prealn/workflow/fastq', parse_fastq_summary,
+            patterns['fastq']['summary'], completed)
 
         # fastq_screen
         logger.info('Parsing Fastq Screen')
-        agg(store, 'prealn/workflow/fastq_screen', parse_fastq_screen, patterns['fastq_screen'], completed)
+        agg(store, 'prealn/workflow/fastq_screen', parse_fastq_screen,
+            patterns['fastq_screen'], completed)
 
         # Hisat2
         logger.info('Parsing Hisat2')
-        agg(store, 'prealn/workflow/hisat2', parse_hisat2, patterns['hisat2']['bam'] + '.log', completed)
+        agg(store, 'prealn/workflow/hisat2', parse_hisat2,
+            patterns['hisat2']['bam'] + '.log', completed)
 
         # stats
         logger.info('Parsing Other Stats')
         logger.info('Parsing Other Stats - Samtools Stats')
-        agg(store, 'prealn/workflow/samtools_stats', parse_samtools_stats, patterns['samtools_stats'], completed)
+        agg(store, 'prealn/workflow/samtools_stats', parse_samtools_stats,
+            patterns['samtools_stats'], completed)
 
         logger.info('Parsing Other Stats - Bamtools Stats')
-        agg(store, 'prealn/workflow/bamtools_stats', parse_bamtools_stats, patterns['bamtools_stats'], completed)
+        agg(store, 'prealn/workflow/bamtools_stats', parse_bamtools_stats,
+            patterns['bamtools_stats'], completed)
 
         # MarkDuplicates
         logger.info('Parsing Mark Duplicates')
-        agg(store, 'prealn/workflow/markduplicates', parse_picard_markduplicate_metrics,
+        agg(store, 'prealn/workflow/markduplicates',
+            parse_picard_markduplicate_metrics,
             patterns['picard']['markduplicates']['metrics'], completed)
 
         # CollectRNASeqMetrics
         logger.info('Parsing Collect RNA-Seq Metrics')
         logger.info('Parsing Collect RNA-Seq Metrics - First')
-        agg(store, 'prealn/workflow/collectrnaseqmetrics/first', parse_picardCollect_summary,
-            patterns['picard']['collectrnaseqmetrics']['metrics']['first'], completed)
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/first',
+            parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
+            completed)
 
         logger.info('Parsing Collect RNA-Seq Metrics - Second')
-        agg(store, 'prealn/workflow/collectrnaseqmetrics/second', parse_picardCollect_summary,
-            patterns['picard']['collectrnaseqmetrics']['metrics']['second'], completed)
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/second',
+            parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
+            completed)
 
         logger.info('Parsing Collect RNA-Seq Metrics - Unstranded')
-        agg(store, 'prealn/workflow/collectrnaseqmetrics/unstranded', parse_picardCollect_summary,
-            patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'], completed)
+        agg(store, 'prealn/workflow/collectrnaseqmetrics/unstranded',
+            parse_picardCollect_summary,
+            patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
+            completed)
 
         # Feature Counts
         logger.info('Parsing Feature Counts')
         logger.info('Parsing Feature Counts - Summary')
-        agg(store, 'prealn/workflow/feature_counts/summary', parse_featureCounts_summary, patterns['feature_counts']['summary'], completed)
+        agg(store, 'prealn/workflow/feature_counts/summary',
+            parse_featureCounts_summary,
+            patterns['feature_counts']['summary'], completed)
 
         logger.info('Parsing Large Datasets')
         logger.info('Parsing Other Stats - Samtools Index Stats')
-        agg(store, 'prealn/workflow/samtools_idxstats', parse_samtools_idxstats, patterns['samtools_idxstats'], completed, large=True)
+        agg(store, 'prealn/workflow/samtools_idxstats',
+            parse_samtools_idxstats, patterns['samtools_idxstats'],
+            completed, large=True)
 
         logger.info('Parsing Feature Counts - Counts')
-        agg(store, 'prealn/workflow/feature_counts/counts', parse_featureCounts_counts, patterns['feature_counts']['counts'], completed, large=True)
+        agg(store, 'prealn/workflow/feature_counts/counts',
+            parse_featureCounts_counts, patterns['feature_counts']['counts'],
+            completed, large=True)
 
         logger.info('Parsing Feature Counts - Junction Counts')
-        agg(store, 'prealn/workflow/feature_counts/jcounts', parse_featureCounts_jcounts, patterns['feature_counts']['jcounts'], completed, large=True)
+        agg(store, 'prealn/workflow/feature_counts/jcounts',
+            parse_featureCounts_jcounts,
+            patterns['feature_counts']['jcounts'], completed, large=True)
 
         store.close()
 
 
-################################################################################
+###############################################################################
 # FASTQ dump and check for SE or PE
-################################################################################
+###############################################################################
 rule fastq_dump:
     """Downloads fastq and checks if there is one or two sets of reads."""
     output:
@@ -315,9 +346,9 @@ rule fastq_dump:
         wrapper_for('../wrappers/fastq_dump')
 
 
-################################################################################
+###############################################################################
 # FASTQ QC
-################################################################################
+###############################################################################
 rule fastq_screen:
     """Check for contamination."""
     input:
@@ -340,9 +371,9 @@ rule fastq_screen:
         wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
 
 
-################################################################################
+###############################################################################
 # FASTQ Pre-process
-################################################################################
+###############################################################################
 rule atropos:
     """Filter reads that are less than 25bp."""
     input:
@@ -364,9 +395,9 @@ rule atropos:
         wrapper_for('../wrappers/atropos')
 
 
-################################################################################
+###############################################################################
 # Alignment
-################################################################################
+###############################################################################
 rule hisat2_splice_site:
     """Generate splicesite information from known annotations."""
     input:
@@ -432,9 +463,9 @@ rule bai:
         "samtools index {input.bam}"
 
 
-################################################################################
+###############################################################################
 # PICARD RNA Seq Metrics
-################################################################################
+###############################################################################
 rule collectrnaseqmetrics_unstrand:
     input:
         bam=rules.hisat2.output.bam,
@@ -527,9 +558,9 @@ rule collectrnaseqmetrics_agg:
         put_flag(output.flag, flag)
 
 
-################################################################################
+###############################################################################
 # Feature Counts
-################################################################################
+###############################################################################
 rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
@@ -552,9 +583,9 @@ rule feature_counts:
         wrapper_for('../wrappers/featurecounts')
 
 
-################################################################################
+###############################################################################
 # Stats
-################################################################################
+###############################################################################
 rule run_stats:
     input:
         bam=patterns['hisat2']['bam'],
@@ -576,9 +607,9 @@ rule run_stats:
         '&& rm $BAM'
 
 
-################################################################################
+###############################################################################
 # PICARD RNA Seq Metrics
-################################################################################
+###############################################################################
 rule markduplicates:
     input:
         bam=rules.hisat2.output.bam
