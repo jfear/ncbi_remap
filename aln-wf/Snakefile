@@ -603,7 +603,7 @@ rule bamCoverage:
     conda:
         "conda.yaml"
     wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/deeptools/bamCoverage')
+        wrapper_for('wrappers/deeptools/bamCoverage')
 
 
 rule convertToFlybase:
