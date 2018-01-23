@@ -463,10 +463,17 @@ rule collectrnaseqmetrics_first:
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12
-    wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
-
+      mem_gb=lambda wildcards, attempt: attempt * 20
+    shell(
+        'picard '
+        '-Xmx{resources.mem_gb - 5}g '
+        'CollectRnaSeqMetrics '
+        'REF_FLAT={input.refflat} '
+        'INPUT={input.bam} '
+        'OUTPUT={output.metrics} '
+        '{extra} '
+        '{log} '
+    )
 
 rule collectrnaseqmetrics_second:
     input:
@@ -480,9 +487,17 @@ rule collectrnaseqmetrics_second:
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12
-    wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/picard/collectrnaseqmetrics')
+      mem_gb=lambda wildcards, attempt: attempt * 20
+    shell(
+        'picard '
+        '-Xmx{resources.mem_gb - 5}g '
+        'CollectRnaSeqMetrics '
+        'REF_FLAT={input.refflat} '
+        'INPUT={input.bam} '
+        'OUTPUT={output.metrics} '
+        '{extra} '
+        '{log} '
+    )
 
 
 rule collectrnaseqmetrics_agg:
