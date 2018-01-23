@@ -24,6 +24,7 @@ div.input_prompt {
 
 div.output_prompt {
     padding: .4em .2em;
+    display: none;
 }
 
 div.input_area {

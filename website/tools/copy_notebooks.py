@@ -66,7 +66,7 @@ def copy_notebooks():
             cells = '1:'
             template = 'page'
             # TODO: Edit Index title
-            title = 'This is an example Project title in the copy_notebook script'
+            title = 'NCBI Remap'
             content.cells[3].source = '\n'.join(gen_contents())
         else:
             cells = '1:'

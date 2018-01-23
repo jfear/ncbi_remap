@@ -2,4 +2,8 @@ ipdb
 jedi
 joblib
 neovim
+nb_conda
 pelican
+Markdown
+ghp-import
+beautifulsoup4
