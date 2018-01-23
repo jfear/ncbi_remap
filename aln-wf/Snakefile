@@ -35,10 +35,10 @@ sample_table = store['aln/queue'][mask]
 store.close()
 
 # NOTE: pulling just flybase samples for building BedGraphs
-sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
-srxs = sample_table.srx.unique()
-sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
-sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+# sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
+# srxs = sample_table.srx.unique()
+# sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
+# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 
 ###############################################################################
 # Set up file naming patterns and targets
