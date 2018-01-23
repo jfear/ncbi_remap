@@ -148,6 +148,7 @@ rule update_queue:
             for fname in utils.flatten(keepers(tg)):
                 if not os.path.exists(fname):
                     return
+            kwargs.pop('strand')
             return kwargs
 
         store = pd.HDFStore(mystore)
@@ -170,7 +171,7 @@ rule update_queue:
             if val is not None:
                 done.append(val)
 
-        df = pd.DataFrame(done)
+        df = pd.DataFrame(done).drop_duplicates()
 
         # Add to complete, add to alignment queue, remove from prealn queue
         add_table(store, 'aln/complete', data=df)
