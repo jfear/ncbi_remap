@@ -32,6 +32,7 @@ PAGE_DEST_DIR = abspath_from_here('..', 'content', 'pages')
 Path(NB_DEST_DIR).mkdir(parents=True, exist_ok=True)
 Path(PAGE_DEST_DIR).mkdir(parents=True, exist_ok=True)
 
+
 def copy_notebooks():
     nblist = sorted(nb for nb in os.listdir(NB_SOURCE_DIR)
                     if nb.endswith('.ipynb'))
@@ -52,15 +53,16 @@ def copy_notebooks():
 
         # TODO: Double check paths and EDIT ProjectName
         figurelist = os.listdir(abspath_from_here('..', 'content', 'figures'))
-        figure_map = {os.path.join('figures', fig) : os.path.join('/ncbi_remap/figures', fig)
-                      for fig in figurelist}
+        figure_map = {
+            os.path.join('figures', fig):
+                os.path.join('/ncbi_remap/figures', fig) for fig in figurelist
+        }
 
     for nb in nblist:
         base, ext = os.path.splitext(nb)
         print('-', nb)
 
-        content = nbformat.read(os.path.join(NB_SOURCE_DIR, nb),
-                                as_version=4)
+        content = nbformat.read(os.path.join(NB_SOURCE_DIR, nb), as_version=4)
 
         if nb == 'Index.ipynb':
             cells = '1:'
@@ -68,6 +70,7 @@ def copy_notebooks():
             # TODO: Edit Index title
             title = 'NCBI Remap'
             content.cells[3].source = '\n'.join(gen_contents())
+            content.cells[3].cell_type = 'markdown'
         else:
             cells = '1:'
             template = 'page'
@@ -93,11 +96,16 @@ def copy_notebooks():
         pagefile = os.path.join(PAGE_DEST_DIR, base + '.md')
         htmlfile = base.lower() + '.html'
         with open(pagefile, 'w') as f:
-            f.write(PAGEFILE.format(title=title,
-                                    htmlfile=htmlfile,
-                                    notebook_file=nb,
-                                    template=template,
-                                    cells=cells))
+            f.write(
+                PAGEFILE.format(
+                    title=title,
+                    htmlfile=htmlfile,
+                    notebook_file=nb,
+                    template=template,
+                    cells=cells
+                )
+            )
+
 
 if __name__ == '__main__':
     copy_notebooks()

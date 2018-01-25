@@ -65,13 +65,13 @@ help:
 	@echo 'Set the RELATIVE variable to 1 to enable relative urls                    '
 	@echo '                                                                          '
 
-add_nav:
-	python tools/add_navigation.py
-
-copy_notebook:
+copy_notebooks:
 	python tools/copy_notebooks.py
 
-all: copy_notebook
+add_nav: copy_notebooks
+	python tools/add_navigation.py
+
+all: add_nav
 	make html
 
 html:

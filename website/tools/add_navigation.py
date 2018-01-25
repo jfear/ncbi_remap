@@ -1,15 +1,15 @@
 import os
 import itertools
 
-from ipykernel import kernelspec as ks
 import nbformat
 from nbformat.v4.nbbase import new_markdown_cell
 
-from generate_contents import NOTEBOOK_DIR, REG, iter_notebooks, get_notebook_title
+from generate_contents import NOTEBOOK_DIR, iter_notebooks, get_notebook_title
+from copy_notebooks import NB_DEST_DIR
 
 
 def prev_this_next(it):
-    a, b, c = itertools.tee(it,3)
+    a, b, c = itertools.tee(it, 3)
     next(c)
     return zip(itertools.chain([None], a), b, itertools.chain(c, [None]))
 
@@ -21,7 +21,7 @@ NAV_COMMENT = "<!--NAVIGATION-->\n"
 
 
 def iter_navbars():
-    for prev_nb, nb, next_nb in prev_this_next(iter_notebooks()):
+    for prev_nb, nb, next_nb in prev_this_next(iter_notebooks(NB_DEST_DIR)):
         navbar = NAV_COMMENT
         if prev_nb:
             navbar += PREV_TEMPLATE.format(title=get_notebook_title(prev_nb),
@@ -30,14 +30,16 @@ def iter_navbars():
         if next_nb:
             navbar += NEXT_TEMPLATE.format(title=get_notebook_title(next_nb),
                                            url=next_nb)
-        yield os.path.join(NOTEBOOK_DIR, nb), navbar
+        yield os.path.join(NB_DEST_DIR, nb), navbar
 
 
 def write_navbars():
     for nb_name, navbar in iter_navbars():
         nb = nbformat.read(nb_name, as_version=4)
         nb_file = os.path.basename(nb_name)
-        is_comment = lambda cell: cell.source.startswith(NAV_COMMENT)
+
+        def is_comment(cell):
+            return cell.source.startswith(NAV_COMMENT)
 
         if is_comment(nb.cells[1]):
             print("- amending navbar for {0}".format(nb_file))
