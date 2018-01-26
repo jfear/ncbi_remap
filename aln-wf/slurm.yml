@@ -9,3 +9,7 @@ atropos:
 
 hisat2:
   gres: "lscratch:250"
+
+convertBedGraphToBigWig:
+  gres: "lscratch:200"
+
