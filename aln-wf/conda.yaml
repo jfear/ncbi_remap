@@ -84,6 +84,7 @@ dependencies:
 - subread=1.5.3=0
 - tbb=4.4_20150728=0
 - tqdm=4.7.2=py36_0
+- ucsc-bedsort=357=0
 - ucsc-bedgraphtobigwig=357=0
 - ucsc-fetchchromsizes=357=0
 - ucsc-gtftogenepred=357=0
