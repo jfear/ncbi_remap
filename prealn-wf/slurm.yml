@@ -1,32 +1,16 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-    time: "11:00:00"
-    gres: "lscratch:50"
-    partition: 'norm'
+  gres: "lscratch:50"
+  partition: 'norm'
 
 fastq_dump:
-  time: "48:00:00"
   gres: "lscratch:200"
 
 fastq_screen:
-    gres: "lscratch:200"
-
-atropos:
-  time: "24:00:00"
   gres: "lscratch:200"
 
-markduplicates:
-    time: "48:00:00"
-
-collectrnaseqmetrics_unstrand:
-    time: "48:00:00"
-
-collectrnaseqmetrics_first:
-    time: "48:00:00"
-
-collectrnaseqmetrics_second:
-    time: "48:00:00"
+atropos:
+  gres: "lscratch:200"
 
 hisat2:
-    time: "24:00:00"
     gres: "lscratch:250"
