@@ -28,7 +28,7 @@ dependencies:
 - bioconductor-genefilter=1.60.0=r3.4.1_0
 - bioconductor-geneplotter=1.56.0=r3.4.1_0
 - bioconductor-genomeinfodb=1.14.0=r3.4.1_0
-- bioconductor-genomeinfodbdata=0.99.1=r3.4.1_0
+- bioconductor-genomeinfodbdata=1.0.0=r3.4.1_0
 - bioconductor-genomicalignments=1.14.0=r3.4.1_0
 - bioconductor-genomicfeatures=1.30.0=r3.4.1_0
 - bioconductor-genomicranges=1.30.0=r3.4.1_0
@@ -331,7 +331,7 @@ dependencies:
 - traitlets=4.3.2=py36_0
 - urllib3=1.22=py36_0
 - wcwidth=0.1.7=py36_0
-- wheel=0.30.0=py_1
+- wheel=0.30.0=py36_2
 - wrapt=1.10.11=py36_0
 - xorg-libxau=1.0.8=3
 - xorg-libxdmcp=1.1.2=3
