@@ -337,14 +337,14 @@ rule aggregate:
 rule fastq_dump:
     """Downloads fastq and checks if there is one or two sets of reads."""
     output:
-        fq1=patterns['fastq']['r1'],
-        fq2=patterns['fastq']['r2'],
-        flag=patterns['layout'],
-        summary=patterns['fastq']['summary'],
+        fq1 = patterns['fastq']['r1'],
+        fq2 = patterns['fastq']['r2'],
+        flag = patterns['layout'],
+        summary = patterns['fastq']['summary'],
     log: patterns['fastq']['r1'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 12
+      mem_gb = lambda wildcards, attempt: attempt * 1,
+      time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -357,22 +357,22 @@ rule fastq_dump:
 rule fastq_screen:
     """Check for contamination."""
     input:
-        fastq=patterns['fastq']['r1'],
-        dm6=config['references']['dmel']['bowtie2'],
-        hg19=config['references']['human']['bowtie2'],
-        wolbachia=config['references']['wolbachia']['bowtie2'],
-        ecoli=config['references']['ecoli']['bowtie2'],
-        yeast=config['references']['yeast']['bowtie2'],
-        rRNA=config['references']['rRNA']['bowtie2'],
-        phix=config['references']['phix']['bowtie2'],
-        ercc=config['references']['ercc']['bowtie2'],
-        adapters=config['references']['adapters']['bowtie2']
+        fastq = patterns['fastq']['r1'],
+        dm6 =config['references']['dmel']['bowtie2'],
+        hg19 = config['references']['human']['bowtie2'],
+        wolbachia = config['references']['wolbachia']['bowtie2'],
+        ecoli = config['references']['ecoli']['bowtie2'],
+        yeast = config['references']['yeast']['bowtie2'],
+        rRNA = config['references']['rRNA']['bowtie2'],
+        phix = config['references']['phix']['bowtie2'],
+        ercc = config['references']['ercc']['bowtie2'],
+        adapters = config['references']['adapters']['bowtie2']
     output:
-        txt=patterns['fastq_screen']
+        txt = patterns['fastq_screen']
     log: patterns['fastq_screen'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 3,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      mem_gb = lambda wildcards, attempt: attempt * 3,
+      time_hr = lambda wildcards, attempt: attempt * 1
     conda:
         "conda.yaml"
     wrapper:
@@ -385,21 +385,21 @@ rule fastq_screen:
 rule atropos:
     """Filter reads that are less than 25bp."""
     input:
-        R1=patterns['fastq']['r1'],
-        R2=patterns['fastq']['r2'],
-        layout=patterns['layout']
+        R1 = patterns['fastq']['r1'],
+        R2 = patterns['fastq']['r2'],
+        layout = patterns['layout']
     output:
-        R1=temp(patterns['atropos']['r1']),
-        R2=temp(patterns['atropos']['r2']),
+        R1 = temp(patterns['atropos']['r1']),
+        R2 = temp(patterns['atropos']['r2']),
     params:
-        extra_pe='-U 0 --minimum-length 25',
-        extra_se='--minimum-length 25',
+        extra_pe = '-U 0 --minimum-length 25',
+        extra_se = '--minimum-length 25',
     log:
         patterns['atropos']['r1'] + '.log'
     threads: 8
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8,
-      time_hr=lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -412,34 +412,34 @@ rule atropos:
 rule hisat2_splice_site:
     """Generate splicesite information from known annotations."""
     input:
-        gtf=config['references']['dmel']['gtf']
+        gtf = config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
     conda:
         "conda.yaml"
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
 rule hisat2:
     """Basic alignment."""
     input:
-        flag=patterns['layout'],
-        index=config['references']['dmel']['hisat2'],
-        splice_sites=patterns['hisat2']['splice_sites'],
-        R1=patterns['atropos']['r1'],
-        R2=patterns['atropos']['r2'],
-        layout=patterns['layout']
+        flag = patterns['layout'],
+        index = config['references']['dmel']['hisat2'],
+        splice_sites = patterns['hisat2']['splice_sites'],
+        R1 = patterns['atropos']['r1'],
+        R2 = patterns['atropos']['r2'],
+        layout = patterns['layout']
     output:
-        bam=temp(patterns['hisat2']['bam'])
+        bam = temp(patterns['hisat2']['bam'])
     threads: 8
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 16,
-      time_hr=lambda wildcards, attempt: attempt * 4
+        mem_gb = lambda wildcards, attempt: attempt * 16,
+        time_hr = lambda wildcards, attempt: attempt * 4
     params:
-        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
-        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+        hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
+        samtools_sort_extra = '--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
     conda:
         "conda.yaml"
@@ -450,12 +450,12 @@ rule hisat2:
 rule hisat2_summary:
     """Parse log and flag as bad alignment if <50% aligned."""
     input:
-        fn=patterns['hisat2']['bam']
+        fn = patterns['hisat2']['bam']
     output:
-        tsv=patterns['hisat2']['summary']
+        tsv = patterns['hisat2']['summary']
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_hisat2
         srx = wildcards.srx
@@ -470,14 +470,14 @@ rule hisat2_summary:
 
 rule bai:
     input:
-        bam='{prefix}.bam'
+        bam = '{prefix}.bam'
     output:
-        bai=temp('{prefix}.bam.bai')
+        bai = temp('{prefix}.bam.bai')
     conda:
         "conda.yaml"
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     shell:
         "samtools index {input.bam}"
 
@@ -487,17 +487,17 @@ rule bai:
 ###############################################################################
 rule collectrnaseqmetrics_unstrand:
     input:
-        bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        bam = rules.hisat2.output.bam,
+        refflat = config['references']['dmel']['refflat']
     output:
-        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
+        metrics = patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded']
     params:
-        extra='STRAND=NONE',
+        extra = 'STRAND=NONE',
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 12,
+        time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -506,17 +506,17 @@ rule collectrnaseqmetrics_unstrand:
 
 rule collectrnaseqmetrics_first:
     input:
-        bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        bam = rules.hisat2.output.bam,
+        refflat = config['references']['dmel']['refflat']
     output:
-        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
+        metrics = patterns['picard']['collectrnaseqmetrics']['metrics']['first']
     params:
-        extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
+        extra = 'STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 12,
+        time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -525,17 +525,17 @@ rule collectrnaseqmetrics_first:
 
 rule collectrnaseqmetrics_second:
     input:
-        bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        bam = rules.hisat2.output.bam,
+        refflat = config['references']['dmel']['refflat']
     output:
-        metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
+        metrics = patterns['picard']['collectrnaseqmetrics']['metrics']['second']
     params:
-        extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND'
+        extra = 'STRAND=SECOND_READ_TRANSCRIPTION_STRAND'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 20,
-      time_hr=lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 20,
+        time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -544,14 +544,14 @@ rule collectrnaseqmetrics_second:
 
 rule collectrnaseqmetrics_agg:
     input:
-        unstranded=patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
-        first=patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
-        second=patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
+        unstranded = patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
+        first = patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
+        second = patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
     output:
-        flag=patterns['strand']
+        flag = patterns['strand']
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     run:
         from ncbi_remap.parser import parse_picardCollect_summary
         srx = wildcards.srx
@@ -575,21 +575,21 @@ rule collectrnaseqmetrics_agg:
 ###############################################################################
 rule feature_counts:
     input:
-        annotation=config['references']['dmel']['gtf'],
-        bam=patterns['hisat2']['bam'],
-        layout=patterns['layout'],
-        strand=patterns['strand'],
+        annotation = config['references']['dmel']['gtf'],
+        bam = patterns['hisat2']['bam'],
+        layout = patterns['layout'],
+        strand = patterns['strand'],
     output:
-        counts=patterns['feature_counts']['counts'],
-        jcounts=patterns['feature_counts']['jcounts'],
-        summary=patterns['feature_counts']['summary']
+        counts = patterns['feature_counts']['counts'],
+        jcounts = patterns['feature_counts']['jcounts'],
+        summary = patterns['feature_counts']['summary']
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
     threads: 4
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 4,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 4,
+        time_hr = lambda wildcards, attempt: attempt * 1
     log:
         patterns['feature_counts']['counts'] + '.log'
     conda:
@@ -603,15 +603,15 @@ rule feature_counts:
 ###############################################################################
 rule run_stats:
     input:
-        bam=patterns['hisat2']['bam'],
-        bai=patterns['bai'],
+        bam = patterns['hisat2']['bam'],
+        bai = patterns['bai'],
     output:
-        samtools_stats=patterns['samtools_stats'],
-        samtools_idxstats=patterns['samtools_idxstats'],
-        bamtools_stats=patterns['bamtools_stats']
+        samtools_stats = patterns['samtools_stats'],
+        samtools_idxstats = patterns['samtools_idxstats'],
+        bamtools_stats = patterns['bamtools_stats']
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb = lambda wildcards, attempt: attempt * 1,
+        time_hr = lambda wildcards, attempt: attempt * 1
     conda:
         "conda.yaml"
     shell:
@@ -629,15 +629,15 @@ rule run_stats:
 ###############################################################################
 rule markduplicates:
     input:
-        bam=rules.hisat2.output.bam
+        bam = rules.hisat2.output.bam
     output:
-        bam=temp(patterns['picard']['markduplicates']['bam']),
-        metrics=patterns['picard']['markduplicates']['metrics']
+        bam = temp(patterns['picard']['markduplicates']['bam']),
+        metrics = patterns['picard']['markduplicates']['metrics']
     log:
         patterns['picard']['markduplicates']['metrics'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 20,
-      time_hr=lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 20,
+        time_hr = lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
