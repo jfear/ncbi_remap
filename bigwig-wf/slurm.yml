@@ -1,0 +1,3 @@
+__default__:
+  gres: "lscratch:80"
+  partition: 'norm'

@@ -1,0 +1,12 @@
+channels:
+- bioconda
+- conda-forge
+- defaults
+- lcdb
+- jfear
+dependencies:
+- lcdblib=0.1.2
+- snakemake=4.3.1=py36_0
+- ucsc-bedgraphtobigwig=357=0
+- ucsc-bigwigmerge=357=0
+- ucsc-bedsort=357=0

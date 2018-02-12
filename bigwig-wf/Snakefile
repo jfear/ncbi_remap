@@ -1,0 +1,257 @@
+"""Nested merging of BigWigs.
+
+We are wanting to create aggregated BigWig tracks for display. Aggregation is
+complicated by the fact there are so many files. Linux can only open ~4k files
+at one time. UCSC bigWigMerge opens all of the files simultaneously and
+iterates over the genome adding counts. To deal with this I have set up a
+nested loop where we aggregate files in groups of `grp_size` and then aggregate
+the aggregates and aggregate the aggregates.
+
+For now I am focused on a set of well stranded libraries that I am preparing
+for FlyBase. There are just under 5k samples to merge.
+
+"""
+import numpy as np
+import pandas as pd
+from itertools import zip_longest
+
+srxs = pd.read_csv('../output/flybase_samples.tsv', sep='\t').srx.tolist()
+grp_size = 50
+
+
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
+    args = [iter(iterable)] * n
+    res = []
+    for x in zip_longest(*args, fillvalue=fillvalue):
+        vals = []
+        for y in x:
+            if y is None:
+                continue
+            vals.append(y)
+        res.append(vals)
+    return res
+
+
+patterns = {
+    'lvl1_bg': 'output/lvl1_{strand}_{num}.bg',
+    'lvl1_bw': 'output/lvl1_{strand}_{num}.bw',
+    'lvl2_bg': 'output/lvl2_{strand}_{num}.bg',
+    'lvl2_bw': 'output/lvl2_{strand}_{num}.bw',
+    'lvl3_bg': 'output/{strand}.bg',
+    'lvl3_bw': 'output/{strand}.bw',
+    'flybase_bg': 'output/fb_{strand}.bg',
+    'flybase_bw': 'output/fb_{strand}.bw',
+    'orig': '../aln-wf/output/samples/{srx}/{srx}.{strand}.bw',
+    'chrom': '/data/LCDB/lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes',
+    'fb_chrom': '../output/dmel_r6-11.flybase.chromsizes'
+}
+
+###############################################################################
+# Build targets for nested merging
+###############################################################################
+grp1_first = grouper(
+    expand(patterns['orig'], srx=srxs, strand='first'),
+    grp_size
+)
+
+grp2_first = grouper(
+    expand(patterns['lvl1_bw'], num=range(len(grp1_first)), strand='first'),
+    grp_size
+)
+
+grp3_first = grouper(
+    expand(patterns['lvl2_bw'], num=range(len(grp2_first)), strand='first'),
+    grp_size
+)
+
+grp1_second = grouper(
+    expand(patterns['orig'], srx=srxs, strand='second'),
+    grp_size
+)
+
+grp2_second = grouper(
+    expand(patterns['lvl1_bw'], num=range(len(grp1_second)), strand='second'),
+    grp_size
+)
+
+grp3_second = grouper(
+    expand(patterns['lvl2_bw'], num=range(len(grp2_second)), strand='second'),
+    grp_size
+)
+
+
+targets = {
+    'lvl1': {
+        'first': grp1_first,
+        'second': grp1_second
+    },
+    'lvl2': {
+        'first': grp2_first,
+        'second': grp2_second
+    },
+    'lvl3': {
+        'first': grp3_first,
+        'second': grp3_second
+    }
+}
+
+
+rule targets:
+    input:
+        expand(patterns['lvl3_bw'], strand=['first', 'second']) +
+        expand(patterns['flybase_bw'], strand=['first', 'second'])
+
+###############################################################################
+# Lvl 1 (group SRXs into sets of size `grp_size`)
+###############################################################################
+
+
+def _bwm_lvl1(wildcards):
+    return targets['lvl1'][wildcards.strand][int(wildcards.num)]
+
+
+rule bigWigMerge_lvl1:
+    input:
+        bw = _bwm_lvl1
+    output:
+        bg = temp(patterns['lvl1_bg'])
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bigWigMerge {input.bw} {output.bg}'
+
+
+rule bgToBw_lvl1:
+    input:
+        bg = patterns['lvl1_bg'],
+        chrom = patterns['chrom']
+    output:
+        bw = temp(patterns['lvl1_bw'])
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bedGraphToBigWig {input.bg} {input.chrom} {output}'
+
+###############################################################################
+# Lvl 2 (group Lvl1 into sets of size `grp_size`)
+###############################################################################
+
+
+def _bwm_lvl2(wildcards):
+    return targets['lvl2'][wildcards.strand][int(wildcards.num)]
+
+
+rule bigWigMerge_lvl2:
+    input:
+        bw = _bwm_lvl2
+    output:
+        bg = temp(patterns['lvl2_bg'])
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bigWigMerge {input.bw} {output.bg}'
+
+
+rule bgToBw_lvl2:
+    input:
+        bg = patterns['lvl2_bg'],
+        chrom = patterns['chrom']
+    output:
+        bw = temp(patterns['lvl2_bw'])
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bedGraphToBigWig {input.bg} {input.chrom} {output}'
+
+
+###############################################################################
+# Lvl 3 (merge all Lvl2)
+###############################################################################
+
+
+def _bwm_lvl3(wildcards):
+    return targets['lvl3'][wildcards.strand][0]
+
+
+rule bigWigMerge_lvl3:
+    input:
+        bw = _bwm_lvl3
+    output:
+        bg = patterns['lvl3_bg']
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bigWigMerge {input.bw} {output.bg}'
+
+
+rule bgToBw_lvl3:
+    input:
+        bg = patterns['lvl3_bg'],
+        chrom = patterns['chrom']
+    conda:
+        'conda.yaml'
+    output:
+        bw = 'output/{strand,first|second}.bw',
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'bedGraphToBigWig {input.bg} {input.chrom} {output}'
+
+
+###############################################################################
+# Make FlyBase Version
+###############################################################################
+
+
+rule convertToFlybase:
+    input:
+        bg = 'output/{strand}.bg'
+    output:
+        bedgraph = patterns['flybase_bg']
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'chrom_convert '
+        '--from UCSC '
+        '--to FlyBase '
+        '--fileType BED '
+        '-i {input.bg} '
+        '-o {output.bedgraph}'
+
+
+rule bgToBw_fb:
+    input:
+        bg = patterns['flybase_bg'],
+        chrom = patterns['fb_chrom']
+    output:
+        bw = patterns['flybase_bw']
+    conda:
+        'conda.yaml'
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 8,
+        time_hr = lambda wildcards, attempt: attempt * 1
+    shell:
+        'export TMPDIR=/lscratch/$SLURM_JOBID && '
+        'bedSort {input.bg} $TMPDIR/sort.bg && '
+        'bedGraphToBigWig $TMPDIR/sort.bg {input.chrom} {output}'
