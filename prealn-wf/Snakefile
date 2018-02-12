@@ -512,24 +512,16 @@ rule collectrnaseqmetrics_first:
         metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['first']
     params:
         extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
-        java_args='-Xmx30g'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['first'] + '.log'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 20,
-      mem_pic=lambda wildcards, attempt: attempt * 20 - 5,
+      mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
-    shell:
-        'picard '
-        '-Xmx{resources.mem_pic}g '
-        'CollectRnaSeqMetrics '
-        'REF_FLAT={input.refflat} '
-        'INPUT={input.bam} '
-        'OUTPUT={output.metrics} '
-        '{params.extra} '
-        '{log} '
+    wrapper:
+        wrapper_for('wrappers/picard/collectrnaseqmetrics')
+
 
 rule collectrnaseqmetrics_second:
     input:
@@ -538,25 +530,16 @@ rule collectrnaseqmetrics_second:
     output:
         metrics=patterns['picard']['collectrnaseqmetrics']['metrics']['second']
     params:
-        extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND',
-        java_args='-Xmx30g'
+        extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND'
     log:
         patterns['picard']['collectrnaseqmetrics']['metrics']['second'] + '.log'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 20,
-      mem_pic=lambda wildcards, attempt: attempt * 20 - 5,
       time_hr=lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
-    shell:
-        'picard '
-        '-Xmx{resources.mem_pic}g '
-        'CollectRnaSeqMetrics '
-        'REF_FLAT={input.refflat} '
-        'INPUT={input.bam} '
-        'OUTPUT={output.metrics} '
-        '{params.extra} '
-        '{log} '
+    wrapper:
+        wrapper_for('wrappers/picard/collectrnaseqmetrics')
 
 
 rule collectrnaseqmetrics_agg:
