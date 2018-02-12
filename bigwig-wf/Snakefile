@@ -15,6 +15,15 @@ import numpy as np
 import pandas as pd
 from itertools import zip_longest
 
+
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
+
+
 srxs = pd.read_csv('../output/flybase_samples.tsv', sep='\t').srx.tolist()
 grp_size = 50
 
@@ -252,6 +261,5 @@ rule bgToBw_fb:
         mem_gb = lambda wildcards, attempt: attempt * 8,
         time_hr = lambda wildcards, attempt: attempt * 1
     shell:
-        'export TMPDIR=/lscratch/$SLURM_JOBID && '
         'bedSort {input.bg} $TMPDIR/sort.bg && '
         'bedGraphToBigWig $TMPDIR/sort.bg {input.chrom} {output}'
