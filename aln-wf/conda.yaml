@@ -91,6 +91,7 @@ dependencies:
 - ucsc-liftover=357=0
 - ucsc-oligomatch=357=0
 - ucsc-twobittofa=357=0
+- ucsc-bigwigmerge=357=0
 - xopen=0.3.2=py36_0
 - aioeasywebdav=2.2.0=py36_0
 - aiohttp=2.0.7=py36_0
