@@ -110,13 +110,9 @@ def remove_chunk(store, key, srrs, **kwargs):
         A list of SRRs to remove.
 
     """
-    defaults = {'columns': 'all'}
-    defaults.update(kwargs)
-
     df = store[key]
     subset = df[~df.srr.isin(srrs)].copy()
-    store.put(key, subset, format='table')
-    build_index(store, key, **defaults)
+    store[key] = subset
 
 
 def add_data_columns(store, key, **kwargs):
