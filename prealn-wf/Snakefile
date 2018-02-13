@@ -132,7 +132,8 @@ rule update_queue:
     run:
         sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
-        from ncbi_remap.snakemake import check_download, check_alignment, check_layout, check_strand
+        from ncbi_remap.snakemake import (check_download, check_alignment,
+                                          check_layout, check_strand)
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
