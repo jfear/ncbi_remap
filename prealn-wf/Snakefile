@@ -190,7 +190,7 @@ rule print_queue:
 
         def cnts(key):
             if store.__contains__(key):
-                return store[key].shape[0]
+                return store[key].value_counts()[True]
             else:
                 return 0
 
@@ -198,19 +198,19 @@ rule print_queue:
         strand = store['strand'].value_counts()
 
         pairs = [
-            ("ids in the system", cnts('ids')),
-            ("queued", cnts("prealn/queue")),
-            ("completed", store['prealn/flags']['flag_completed'].sum()),
-            ("download bad", store['prealn/flags']['flag_download_bad'].sum()),
-            ("quality scores bad", store['prealn/flags']['flag_quality_scores_bad'].sum()),
-            ("alignment bad", store['prealn/flags']['flag_alignment_bad'].sum()),
-            ("abi solid", store['prealn/flags']['flag_abi_solid'].sum()),
+            ("ids in the system", store['ids'].shape[0]),
+            ("queued", store["prealn/queue"].shape[0]),
+            ("completed", store['prealn/complete'].shape[0]),
+            ("download bad", cnts('prealn/download_bad')),
+            ("quality scores bad", cnts('prealn/quality_scores_bad')),
+            ("alignment bad", cnts('prealn/alignment_bad')),
+            ("abi solid", cnts('prealn/abi_solid')),
             ("Single End", layout.SE),
             ("Pair End", layout.PE),
             ("Really Single End R1", layout.keep_R1),
             ("Really Single End R2", layout.keep_R2),
-            ("first strand", strand.first),
-            ("second strand", strand.second),
+            ("first strand", strand.same_strand),
+            ("second strand", strand.opposite_strand),
             ("unstranded", strand.unstranded),
         ]
 
