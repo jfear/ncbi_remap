@@ -90,7 +90,7 @@ def check_download(store, pattern, **kwargs):
     store : pd.io.pytables.HDFStore
         The data store to save to.
     pattern : str
-        File naming pattern for the ALIGNEMNT_BAD file.
+        File naming pattern for the DOWNLOAD_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
