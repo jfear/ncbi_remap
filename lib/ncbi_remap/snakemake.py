@@ -213,6 +213,31 @@ def check_strand(store, pattern, **kwargs):
         store['layout'] = strand
 
 
+def check_quality(store, pattern, **kwargs):
+    """Removes from queue is quality scores are bad.
+
+    If there is an QUALITY file then remove from the queue, add to
+    complete, and add to 'prealn/abi_solid'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the QUALITY file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        flags = store['prealn/quality_scores_bad'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/quality_scores_bad'] = flags
+        return True
+
+
 #TODO: Fix parsers to work with srx+srr and srx only.
 def combine(func, pattern, **kwargs):
     """Parse input file using parser function.
