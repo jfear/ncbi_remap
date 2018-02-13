@@ -13,6 +13,51 @@ def wrapper_for(path):
     return 'file:' + path
 
 
+def initialize_prealn(store):
+    """Initialize missing prealn data store.
+
+    Initialize the prealn datastore values.
+    """
+    base = store['ids'].copy()
+    if not store.__contains__('layout'):
+        store['layout'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='layout').fillna('Missing')
+
+    if not store.__contains__('strand'):
+        store['layout'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='strand').fillna('Missing')
+
+    if not store.__contains__('prealn/queue'):
+        store['prealn/queue'] = base
+
+    if not store.__contains__('prealn/complete'):
+        store['prealn/complete'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='complete').fillna(False)
+
+    if not store.__contains__('prealn/alignment_bad'):
+        store['prealn/alignment_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='alignment_bad').fillna(False)
+
+    if not store.__contains__('prealn/download_bad'):
+        store['prealn/download_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='download_bad').fillna(False)
+
+    if not store.__contains__('prealn/abi_solid'):
+        store['prealn/abi_solid'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='abi_solid').fillna(False)
+
+    if not store.__contains__('prealn/quality_scores_bad'):
+        store['prealn/quality_scores_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='quality_scores_bad').fillna(False)
+
+
 def put_flag(fname, flag):
     """Export flag from file.
 
