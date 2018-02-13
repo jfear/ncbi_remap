@@ -35,3 +35,13 @@ def fastq_stats(fn):
     avgLen = lens / libsize
     return libsize, avgLen
 
+
+def fastq_abi_solid(fn):
+    """Look at reads and determine if they are likely abi solid"""
+    with open(fn, 'r') as fh:
+        _, seq = fh.readline(), fh.readline()
+
+    if seq.startswith('T'):
+        return True
+
+    return False
