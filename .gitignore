@@ -23,6 +23,7 @@ figures
 website/content
 _build
 .*
+dask-worker-space
 
 # Files
 notebook/*.html
