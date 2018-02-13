@@ -105,8 +105,8 @@ def check_download(store, pattern, **kwargs):
     if flagBad.exists():
         remove_id(store, 'prealn/queue', **kwargs)
         flags = store['prealn/download_bad'].copy()
-        flags.append(pd.Series(kwargs), ignore_index=True)
-        store['prealn/download_bad'] = flags.drop_duplicates()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/download_bad'] = flags
         return True
 
 
@@ -130,8 +130,8 @@ def check_alignment(store, pattern, **kwargs):
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
         flags = store['prealn/alignment_bad'].copy()
-        flags.append(pd.Series(kwargs), ignore_index=True)
-        store['prealn/alignment_bad'] = flags.drop_duplicates()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/alignment_bad'] = flags
         return True
 
 
@@ -155,8 +155,8 @@ def check_abi(store, pattern, **kwargs):
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
         flags = store['prealn/abi_solid'].copy()
-        flags.append(pd.Series(kwargs), ignore_index=True)
-        store['prealn/abi_solid'] = flags.drop_duplicates()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/abi_solid'] = flags
         return True
 
 
