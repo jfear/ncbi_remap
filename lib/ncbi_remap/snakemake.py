@@ -135,6 +135,31 @@ def check_alignment(store, pattern, **kwargs):
         return True
 
 
+def check_abi(store, pattern, **kwargs):
+    """Checks for ABI_SOLID file.
+
+    If there is an ABI_SOLID file then remove from the queue, add to
+    complete, and add to 'prealn/abi_solid'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        flags = store['prealn/abi_solid'].copy()
+        flags.append(pd.Series(kwargs), ignore_index=True)
+        store['prealn/abi_solid'] = flags.drop_duplicates()
+        return True
+
+
 def check_layout(store, pattern, **kwargs):
     """Checks LAYOUT file.
 
