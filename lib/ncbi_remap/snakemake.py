@@ -5,8 +5,9 @@ from pathlib import Path
 from itertools import zip_longest
 
 import pandas as pd
-from .io import add_id, remove_id
+from .io import remove_id
 from .logging import logger
+
 
 def wrapper_for(path):
     return 'file:' + path
@@ -43,7 +44,7 @@ def check_download(store, pattern, **kwargs):
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
+    pattern : str
         File naming pattern for the ALIGNEMNT_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
@@ -58,9 +59,9 @@ def check_download(store, pattern, **kwargs):
 
     if flagBad.exists():
         remove_id(store, 'prealn/queue', **kwargs)
-        flags = store['prealn/flags']
-        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_download_bad'] = True
-        store['prealn/flags'] = flags
+        flags = store['prealn/download_bad'].copy()
+        flags.append(pd.Series(kwargs), ignore_index=True)
+        store['prealn/download_bad'] = flags.drop_duplicates()
         return True
 
 
@@ -83,9 +84,9 @@ def check_alignment(store, pattern, **kwargs):
     ab = pattern.format(**kwargs)
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
-        flags = store['prealn/flags']
-        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_alignment_bad'] = True
-        store['prealn/flags'] = flags
+        flags = store['prealn/alignment_bad'].copy()
+        flags.append(pd.Series(kwargs), ignore_index=True)
+        store['prealn/alignment_bad'] = flags.drop_duplicates()
         return True
 
 
