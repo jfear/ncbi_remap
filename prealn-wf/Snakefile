@@ -134,7 +134,8 @@ rule update_queue:
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
         from ncbi_remap.snakemake import (check_download, check_alignment,
                                           check_layout, check_strand,
-                                          add_complete)
+                                          add_complete, initialize_prealn,
+                                          check_quality_scores, check_abi)
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
@@ -145,6 +146,10 @@ rule update_queue:
 
         store = pd.HDFStore(mystore)
 
+        # Initialize if missing
+        initialize_prealn(store)
+
+        # Update
         done = []
         for i, (srx, srr) in store['prealn/queue'].iterrows():
             curr = {'srx': srx, 'srr': srr}
