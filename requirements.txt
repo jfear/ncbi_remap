@@ -62,6 +62,7 @@ scikit-learn
 scipy
 seaborn
 snakemake
+sramongo
 subread
 trackhub
 ucsc-fetchchromsizes

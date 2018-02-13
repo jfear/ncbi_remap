@@ -44,6 +44,8 @@ patterns = {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
         'r2': 'output/samples/{srx}/{srr}/{srr}_2.fastq.gz',
         'summary': 'output/samples/{srx}/{srr}/{srr}.fastq.tsv',
+        'abi': 'output/samples/{srx}/{srr}/ABI_SOLID',
+        'quality': 'output/samples/{srx}/{srr}/QUALITY',
     },
     'layout': 'output/samples/{srx}/{srr}/LAYOUT',
     'fastq_screen': 'output/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt',
@@ -132,7 +134,10 @@ rule update_queue:
     run:
         sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
-        from ncbi_remap.snakemake import check_download, check_alignment, check_layout, check_strand
+        from ncbi_remap.snakemake import (check_download, check_alignment,
+                                          check_layout, check_strand,
+                                          initialize_prealn,
+                                          check_quality_scores, check_abi)
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
@@ -143,33 +148,22 @@ rule update_queue:
 
         store = pd.HDFStore(mystore)
 
-        # Initialize values if needed
-        if not store.get_node('layout'):
-            store['layout'] = pd.Series(
-                index=store['ids'].set_index(['srx', 'srr']).index,
-                name='layout'
-            ).fillna('Missing')
+        # Initialize if missing
+        initialize_prealn(store)
 
-        if not store.get_node('strand'):
-            store['strand'] = pd.Series(
-                index=store['ids'].set_index(['srx', 'srr']).index,
-                name='strand'
-            ).fillna('Missing')
-
-        if not store.get_node('prealn/flags'):
-            store['prealn/flags'] = pd.DataFrame(
-                data=[], index=store['ids'].set_index(['srx', 'srr']).index,
-                columns=['flag_abi_solid', 'flag_alignment_bad',
-                         'flag_complete', 'flag_download_bad',
-                         'flag_quality_scores_bad', 'flag_qc_passed',
-                         'flag_merge', ]
-            ).fillna(False)
-
+        # Update
         done = []
-        for i, row in sample_table.iterrows():
-            curr = row.to_dict()
+        for i, (srx, srr) in store['prealn/queue'].iterrows():
+            curr = {'srx': srx, 'srr': srr}
 
             if check_download(store, patterns['fastq']['r1'] + '.log', **curr):
+                continue
+
+            if check_quality_scores(store, patterns['fastq']['quality'],
+                                    **curr):
+                continue
+
+            if check_abi(store, patterns['fastq']['abi'], **curr):
                 continue
 
             if check_alignment(store, patterns['hisat2']['bad'], **curr):
@@ -181,16 +175,13 @@ rule update_queue:
                 check_layout(store, patterns['layout'], **curr)
                 check_strand(store, patterns['strand'], **curr)
 
-        df = pd.DataFrame(done)
+        if len(done) > 0:
+            df = pd.DataFrame(done)[['srx', 'srr']]
 
-        # Add to complete, add to alignment queue, remove from prealn queue
-        add_table(store, 'prealn/complete', data=df)
-        add_table(store, 'aln/queue', data=df)
-        remove_chunk(store, 'prealn/queue', df.srr.tolist())
-
-        flags = store['prealn/flags']
-        flags.loc[df.set_index(['srx', 'srr']).index, 'flag_complete'] = True
-        store['prealn/flags'] = flags
+            # Add to complete, add to alignment queue, remove from prealn queue
+            add_table(store, 'prealn/complete', data=df)
+            add_table(store, 'aln/queue', data=df)
+            remove_chunk(store, 'prealn/queue', df.srr.tolist())
 
         store.close()
 
@@ -202,7 +193,7 @@ rule print_queue:
 
         def cnts(key):
             if store.__contains__(key):
-                return store[key].shape[0]
+                return store[key].value_counts()[True]
             else:
                 return 0
 
@@ -210,19 +201,19 @@ rule print_queue:
         strand = store['strand'].value_counts()
 
         pairs = [
-            ("ids in the system", cnts('ids')),
-            ("queued", cnts("prealn/queue")),
-            ("completed", store['prealn/flags']['flag_completed'].sum()),
-            ("download bad", store['prealn/flags']['flag_download_bad'].sum()),
-            ("quality scores bad", store['prealn/flags']['flag_quality_scores_bad'].sum()),
-            ("alignment bad", store['prealn/flags']['flag_alignment_bad'].sum()),
-            ("abi solid", store['prealn/flags']['flag_abi_solid'].sum()),
+            ("ids in the system", store['ids'].shape[0]),
+            ("queued", store["prealn/queue"].shape[0]),
+            ("completed", store['prealn/complete'].shape[0]),
+            ("download bad", cnts('prealn/download_bad')),
+            ("quality scores bad", cnts('prealn/quality_scores_bad')),
+            ("alignment bad", cnts('prealn/alignment_bad')),
+            ("abi solid", cnts('prealn/abi_solid')),
             ("Single End", layout.SE),
             ("Pair End", layout.PE),
             ("Really Single End R1", layout.keep_R1),
             ("Really Single End R2", layout.keep_R2),
-            ("first strand", strand.first),
-            ("second strand", strand.second),
+            ("first strand", strand.same_strand),
+            ("second strand", strand.opposite_strand),
             ("unstranded", strand.unstranded),
         ]
 

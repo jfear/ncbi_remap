@@ -29,7 +29,7 @@ import pandas as pd
 from snakemake.shell import shell
 
 sys.path.insert(0, '../lib')
-from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats
+from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats, fastq_abi_solid
 from ncbi_remap.snakemake import put_flag
 
 # Get TMPDIR
@@ -49,6 +49,7 @@ shell("fastq-dump -O {TMPDIR} -M 0 --split-files {sample} {log}")
 t1 = os.path.join(TMPDIR, sample + '_1.fastq')
 R1md5 = md5sum(t1)
 R1Libsize, R1avgLen = fastq_stats(t1)
+R1Abi = fastq_abi_solid(t1)
 
 with open(t1, 'rb') as f_in:
     with gzip.open(output.fq1, 'wb') as f_out:
@@ -60,6 +61,7 @@ if check_fastq(t2):
     # Get md5sum
     R2md5 = md5sum(t2)
     R2Libsize, R2avgLen = fastq_stats(t2)
+    R2Abi = fastq_abi_solid(t2)
 
     with open(t2, 'rb') as f_in:
         with gzip.open(output.fq2, 'wb') as f_out:
@@ -104,4 +106,8 @@ elif (R2Libsize > 1000) & (R2avgLen > 10):
 else:
     # R1 and R2 look bad, flag as download bad
     fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
+    Path(fname).touch()
+
+if R1Abi | R2Abi:
+    fname = os.path.join(os.path.dirname(output.fq1), 'ABI_SOLID')
     Path(fname).touch()

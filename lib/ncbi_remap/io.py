@@ -46,24 +46,14 @@ def add_table(store, key, data=None, force=None, **kwargs):
         If True then delete the previous store if it exists.
 
     """
-    defaults = {'columns': 'all'}
-    defaults.update(kwargs)
-
-    # If the store exists delete
     if store.__contains__(key) & (force is True):
-        del store[key]
+        # If the store exists delete
+        curr = data
     elif store.__contains__(key):
-        # Drop if duplicates
-        if 'srr' in data.columns:
-            data = data[~data.srr.isin(store[key].srr)].copy()
-        elif 'srx' in data.columns:
-            data = data[~data.srx.isin(store[key].srx)].copy()
-        else:
-            data = data[~data.isin(store[key].to_dict('list')).all(axis=1)].copy()
+        curr = store[key].copy()
+        curr = curr.append(data, ignore_index=True).drop_duplicates()
 
-    if data.shape[0] > 0:
-        store.append(key, data, data_columns=True, index=False)
-        build_index(store, key, **defaults)
+    store[key] = curr
 
 
 def add_id(store, key, **kwargs):
@@ -120,13 +110,9 @@ def remove_chunk(store, key, srrs, **kwargs):
         A list of SRRs to remove.
 
     """
-    defaults = {'columns': 'all'}
-    defaults.update(kwargs)
-
     df = store[key]
     subset = df[~df.srr.isin(srrs)].copy()
-    store.put(key, subset, format='table')
-    build_index(store, key, **defaults)
+    store[key] = subset
 
 
 def add_data_columns(store, key, **kwargs):

@@ -5,11 +5,57 @@ from pathlib import Path
 from itertools import zip_longest
 
 import pandas as pd
-from .io import add_id, remove_id
+from .io import remove_id
 from .logging import logger
+
 
 def wrapper_for(path):
     return 'file:' + path
+
+
+def initialize_prealn(store):
+    """Initialize missing prealn data store.
+
+    Initialize the prealn datastore values.
+    """
+    base = store['ids'].copy()
+    if not store.__contains__('layout'):
+        store['layout'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='layout').fillna('Missing')
+
+    if not store.__contains__('strand'):
+        store['layout'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='strand').fillna('Missing')
+
+    if not store.__contains__('prealn/queue'):
+        store['prealn/queue'] = base
+
+    if not store.__contains__('prealn/complete'):
+        store['prealn/complete'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='complete').fillna(False)
+
+    if not store.__contains__('prealn/alignment_bad'):
+        store['prealn/alignment_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='alignment_bad').fillna(False)
+
+    if not store.__contains__('prealn/download_bad'):
+        store['prealn/download_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='download_bad').fillna(False)
+
+    if not store.__contains__('prealn/abi_solid'):
+        store['prealn/abi_solid'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='abi_solid').fillna(False)
+
+    if not store.__contains__('prealn/quality_scores_bad'):
+        store['prealn/quality_scores_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='quality_scores_bad').fillna(False)
 
 
 def put_flag(fname, flag):
@@ -43,8 +89,8 @@ def check_download(store, pattern, **kwargs):
     ----------
     store : pd.io.pytables.HDFStore
         The data store to save to.
-    patter : str
-        File naming pattern for the ALIGNEMNT_BAD file.
+    pattern : str
+        File naming pattern for the DOWNLOAD_BAD file.
     **kwargs
         Keywords needed to fill the pattern.
 
@@ -58,9 +104,9 @@ def check_download(store, pattern, **kwargs):
 
     if flagBad.exists():
         remove_id(store, 'prealn/queue', **kwargs)
-        flags = store['prealn/flags']
-        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_download_bad'] = True
-        store['prealn/flags'] = flags
+        flags = store['prealn/download_bad'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/download_bad'] = flags
         return True
 
 
@@ -83,9 +129,34 @@ def check_alignment(store, pattern, **kwargs):
     ab = pattern.format(**kwargs)
     if os.path.exists(ab):
         remove_id(store, 'prealn/queue', **kwargs)
-        flags = store['prealn/flags']
-        flags.loc[(kwargs['srx'], kwargs['srr']), 'flag_alignment_bad'] = True
-        store['prealn/flags'] = flags
+        flags = store['prealn/alignment_bad'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/alignment_bad'] = flags
+        return True
+
+
+def check_abi(store, pattern, **kwargs):
+    """Checks for ABI_SOLID file.
+
+    If there is an ABI_SOLID file then remove from the queue, add to
+    complete, and add to 'prealn/abi_solid'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        flags = store['prealn/abi_solid'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/abi_solid'] = flags
         return True
 
 
@@ -139,7 +210,32 @@ def check_strand(store, pattern, **kwargs):
         strand_value = fh.read().strip()
         strand = store['strand']
         strand[(kwargs['srx'], kwargs['srr'])] = strand_value
-        store['layout'] = strand
+        store['strand'] = strand
+
+
+def check_quality_scores(store, pattern, **kwargs):
+    """Removes from queue is quality scores are bad.
+
+    If there is an QUALITY file then remove from the queue, add to
+    complete, and add to 'prealn/abi_solid'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the QUALITY file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'prealn/queue', **kwargs)
+        flags = store['prealn/quality_scores_bad'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['prealn/quality_scores_bad'] = flags
+        return True
 
 
 #TODO: Fix parsers to work with srx+srr and srx only.
