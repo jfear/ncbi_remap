@@ -213,7 +213,7 @@ def check_strand(store, pattern, **kwargs):
         store['strand'] = strand
 
 
-def check_quality(store, pattern, **kwargs):
+def check_quality_scores(store, pattern, **kwargs):
     """Removes from queue is quality scores are bad.
 
     If there is an QUALITY file then remove from the queue, add to

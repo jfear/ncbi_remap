@@ -44,6 +44,8 @@ patterns = {
         'r1': 'output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
         'r2': 'output/samples/{srx}/{srr}/{srr}_2.fastq.gz',
         'summary': 'output/samples/{srx}/{srr}/{srr}.fastq.tsv',
+        'abi': 'output/samples/{srx}/{srr}/ABI_SOLID',
+        'quality': 'output/samples/{srx}/{srr}/QUALITY',
     },
     'layout': 'output/samples/{srx}/{srr}/LAYOUT',
     'fastq_screen': 'output/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt',
@@ -134,7 +136,7 @@ rule update_queue:
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
         from ncbi_remap.snakemake import (check_download, check_alignment,
                                           check_layout, check_strand,
-                                          add_complete, initialize_prealn,
+                                          initialize_prealn,
                                           check_quality_scores, check_abi)
 
         def check_outputs(**kwargs):
@@ -173,12 +175,13 @@ rule update_queue:
                 check_layout(store, patterns['layout'], **curr)
                 check_strand(store, patterns['strand'], **curr)
 
-        df = pd.DataFrame(done)[['srx', 'srr']]
+        if len(done) > 0:
+            df = pd.DataFrame(done)[['srx', 'srr']]
 
-        # Add to complete, add to alignment queue, remove from prealn queue
-        add_table(store, 'prealn/complete', data=df)
-        add_table(store, 'aln/queue', data=df)
-        remove_chunk(store, 'prealn/queue', df.srr.tolist())
+            # Add to complete, add to alignment queue, remove from prealn queue
+            add_table(store, 'prealn/complete', data=df)
+            add_table(store, 'aln/queue', data=df)
+            remove_chunk(store, 'prealn/queue', df.srr.tolist())
 
         store.close()
 
