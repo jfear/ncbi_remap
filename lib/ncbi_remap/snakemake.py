@@ -210,7 +210,7 @@ def check_strand(store, pattern, **kwargs):
         strand_value = fh.read().strip()
         strand = store['strand']
         strand[(kwargs['srx'], kwargs['srr'])] = strand_value
-        store['layout'] = strand
+        store['strand'] = strand
 
 
 def check_quality(store, pattern, **kwargs):
