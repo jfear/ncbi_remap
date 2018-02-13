@@ -133,7 +133,8 @@ rule update_queue:
         sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
         from ncbi_remap.snakemake import (check_download, check_alignment,
-                                          check_layout, check_strand)
+                                          check_layout, check_strand,
+                                          add_complete)
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
@@ -144,31 +145,9 @@ rule update_queue:
 
         store = pd.HDFStore(mystore)
 
-        # Initialize values if needed
-        if not store.get_node('layout'):
-            store['layout'] = pd.Series(
-                index=store['ids'].set_index(['srx', 'srr']).index,
-                name='layout'
-            ).fillna('Missing')
-
-        if not store.get_node('strand'):
-            store['strand'] = pd.Series(
-                index=store['ids'].set_index(['srx', 'srr']).index,
-                name='strand'
-            ).fillna('Missing')
-
-        if not store.get_node('prealn/flags'):
-            store['prealn/flags'] = pd.DataFrame(
-                data=[], index=store['ids'].set_index(['srx', 'srr']).index,
-                columns=['flag_abi_solid', 'flag_alignment_bad',
-                         'flag_complete', 'flag_download_bad',
-                         'flag_quality_scores_bad', 'flag_qc_passed',
-                         'flag_merge', ]
-            ).fillna(False)
-
         done = []
-        for i, row in sample_table.iterrows():
-            curr = row.to_dict()
+        for i, (srx, srr) in store['prealn/queue'].iterrows():
+            curr = {'srx': srx, 'srr': srr}
 
             if check_download(store, patterns['fastq']['r1'] + '.log', **curr):
                 continue
@@ -182,16 +161,12 @@ rule update_queue:
                 check_layout(store, patterns['layout'], **curr)
                 check_strand(store, patterns['strand'], **curr)
 
-        df = pd.DataFrame(done)
+        df = pd.DataFrame(done)[['srx', 'srr']]
 
         # Add to complete, add to alignment queue, remove from prealn queue
         add_table(store, 'prealn/complete', data=df)
         add_table(store, 'aln/queue', data=df)
         remove_chunk(store, 'prealn/queue', df.srr.tolist())
-
-        flags = store['prealn/flags']
-        flags.loc[df.set_index(['srx', 'srr']).index, 'flag_complete'] = True
-        store['prealn/flags'] = flags
 
         store.close()
 
