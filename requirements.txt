@@ -13,8 +13,8 @@ biopython
 bowtie2
 cutadapt
 deeptools
-fastq-screen
 fastqc
+fastq-screen
 gat
 gffutils
 ghostscript
@@ -63,6 +63,7 @@ scipy
 seaborn
 snakemake
 subread
+trackhub
 ucsc-fetchchromsizes
 ucsc-gtftogenepred
 ucsc-liftover

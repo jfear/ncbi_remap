@@ -32,10 +32,17 @@ store = pd.HDFStore(mystore, mode='r')
 srxs = store['aln/queue'].srx.unique()[:1000]
 mask = store['aln/queue'].srx.isin(srxs)
 sample_table = store['aln/queue'][mask]
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 store.close()
 
 # NOTE: pulling just flybase samples for building BedGraphs
-sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
+# sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
+# srxs = sample_table.srx.unique()
+# sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
+# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+
+# NOTE: pulling just modENCODE samples for running tau and TSPS
+sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
 srxs = sample_table.srx.unique()
 sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
@@ -147,6 +154,7 @@ rule update_queue:
             for fname in utils.flatten(keepers(tg)):
                 if not os.path.exists(fname):
                     return
+            kwargs.pop('strand')
             return kwargs
 
         store = pd.HDFStore(mystore)
@@ -169,7 +177,7 @@ rule update_queue:
             if val is not None:
                 done.append(val)
 
-        df = pd.DataFrame(done)
+        df = pd.DataFrame(done).drop_duplicates()
 
         # Add to complete, add to alignment queue, remove from prealn queue
         add_table(store, 'aln/complete', data=df)
@@ -196,7 +204,7 @@ rule print_queue:
         pairs = [
             ("ids in the system", cnts('ids')),
             ("queued", cnts("aln/queue")),
-            ("completed", store['aln/flags']['flag_completed'].sum()),
+            ("completed", store['aln/flags']['flag_complete'].sum()),
             ("alignment bad", store['aln/flags']['flag_alignment_bad'].sum()),
         ]
 
@@ -645,9 +653,8 @@ rule convertBedGraphToBigWig:
       mem_gb=lambda wildcards, attempt: attempt * 2,
       time_hr=lambda wildcards, attempt: attempt * 1
     shell:
-        'export LC_COLLATE=C; '
         'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& sort -k1,1 -k2,2n {input.bedgraph} > $tmpBg '
+        '&& bedSort {input.bedgraph} $tmpBg '
         '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
         '&& rm $tmpBg '
 

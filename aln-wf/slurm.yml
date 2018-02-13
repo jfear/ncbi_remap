@@ -2,10 +2,14 @@ __default__:
   time_hr: 1
   mem_gb: 2
   gres: "lscratch:80"
-  partition: 'norm,niddk'
+  partition: 'norm'
 
 atropos:
   gres: "lscratch:200"
 
 hisat2:
   gres: "lscratch:250"
+
+convertBedGraphToBigWig:
+  gres: "lscratch:200"
+

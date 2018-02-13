@@ -1,6 +1,5 @@
 import os
 import re
-import itertools
 import nbformat
 
 # TODO: Check paths
@@ -15,8 +14,8 @@ CHAPTERS = {"00": "Preface",
 REG = re.compile(r'(\d\d)\.(\d\d)-(.*)\.ipynb')
 
 
-def iter_notebooks():
-    return sorted(nb for nb in os.listdir(NOTEBOOK_DIR) if REG.match(nb))
+def iter_notebooks(directory=NOTEBOOK_DIR):
+    return sorted(nb for nb in os.listdir(directory) if REG.match(nb))
 
 
 def get_notebook_title(nb_file):
@@ -51,5 +50,5 @@ def print_contents(directory=None):
 if __name__ == '__main__':
     print_contents()
     print('\n', 70 * '#', '\n')
-    #TODO: fix url
+    # TODO: fix url
     print_contents('http://nbviewer.jupyter.org/github/jfear/ncbi_remap/blob/master/docs/')
