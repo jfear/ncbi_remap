@@ -157,6 +157,13 @@ rule update_queue:
             if check_download(store, patterns['fastq']['r1'] + '.log', **curr):
                 continue
 
+            if check_quality_scores(store, patterns['fastq']['quality'],
+                                    **curr):
+                continue
+
+            if check_abi(store, patterns['fastq']['abi'], **curr):
+                continue
+
             if check_alignment(store, patterns['hisat2']['bad'], **curr):
                 continue
 
