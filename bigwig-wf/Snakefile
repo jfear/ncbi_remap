@@ -24,7 +24,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 
-srxs = pd.read_csv('../output/flybase_samples.tsv', sep='\t').srx.tolist()
+srxs = pd.read_csv('../output/flybase_samples_annot_RNA-Seq.tsv', sep='\t').srx.tolist()
 grp_size = 50
 
 
