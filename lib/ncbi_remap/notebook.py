@@ -1,18 +1,24 @@
 """Set of helper functions for the notebook."""
 import os
+from pathlib import Path
 from datetime import datetime
-from yaml import load
+from subprocess import check_output
 
 import numpy as np
+import pandas as pd
+import matplotlib as mpl
 import seaborn as sns
 from IPython import get_ipython
 
+from .io import config
 from .plotting import add_styles
 
 
 class Nb(object):
-    def __init__(self, nb_name=None, project_dir=None, config_dir=None, fig_dir=None, table_dir=None,
-                 cache=None, formats=None, styles=None, styles_wide=None, watermark=None, **kwargs):
+    def __init__(self, nb_name=None, project_dir=None, subproject_dir=None,
+                 config_dir=None, ref_dir=None, fig_dir=None, table_dir=None,
+                 formats=None, styles=None, styles_wide=None, styles_full=None,
+                 watermark=None, **kwargs):
         """Helper method for working consistently in notebook.
 
         Stores a set a bunch of useful attributes. Turns on a bunch of commonly
@@ -27,18 +33,21 @@ class Nb(object):
             Name of the project directory.
         config_dir : str
             Name of the config directory.
+        ref_dir : str
+            Name of the references directory.
+        subproject_dir : str
+            Name of the subproject directory for placing output.
         fig_dir : str
             Name of the figures directory.
         table_dir : str
             Name of the tables directory.
-        cache : str
-            Name of the cache directory.
         formats : str or list
-            Default list of formats to use for plotting. For example 'png' or ['png', 'svg'].
+            Default list of formats to use for plotting. For example 'png' or
+            ['png', 'svg'].
         styles : str or list
-            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
-        styles_wide : str or list
-            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
+            Default list of matplotlib.style.library to use for plotting. For
+            example 'seaborn-notebook' or ['seaborn-notebook',
+            'seaborn-paper'].
         watermark : bool
             If true turn on watermarking.
         **kwargs
@@ -50,40 +59,122 @@ class Nb(object):
             Name of the current notebook.
         project_dir : str
             Name of the project directory.
+        subproject_dir : str
+            Directory to save outputs from this subproject.
         config_dir : str
             Name of the config directory.
+        ref_dir : str
+            Name of the references directory.
         fig_dir : str
             Name of the figures directory.
         table_dir : str
             Name of the tables directory.
-        cache : str
-            Name of the cache directory.
         formats : str or list
-            Default list of formats to use for plotting. For example 'png' or ['png', 'svg'].
+            Default list of formats to use for plotting. For example 'png' or
+            ['png', 'svg'].
         styles : str or list
-            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
+            Default list of matplotlib.style.library to use for plotting. For
+            example 'seaborn-notebook' or ['seaborn-notebook',
+            'seaborn-paper'].
         styles_wide : str or list
-            Default list of matplotlib.style.library to use for plotting. For example 'seaborn-notebook' or ['seaborn-notebook', 'seaborn-paper'].
+            Default list of matplotlib.style.library to use for plotting wide
+            (two column) images. For example 'seaborn-notebook' or
+            ['seaborn-notebook', 'seaborn-paper'].
+        styles_full : str or list
+            Default list of matplotlib.style.library to use for plotting wide
+            (two column) images. For example 'seaborn-notebook' or
+            ['seaborn-notebook', 'seaborn-paper'].
         date : str
             Current date, generated upon creation.
+        conda_env : str
+            Name of the current conda environment location.
+        fasta : str
+            Path to fasta file.
+        chromsizes : str
+            Path to chromsizes file.
+        gtf : str
+            Path to gtf file.
+        gtf_db : str
+            Path to gtf_db file.
+        annot : str
+            Path to annot file.
+        syn : str
+            Path to syn file.
+        seurat : Seurat
+            Useful Seurat paths.
 
         """
         self.nb_name = nb_name
         self.project_dir = project_dir
+        self.seurat_dir = seurat_dir
         self.config_dir = config_dir
+        self.ref_dir = ref_dir
         self.fig_dir = fig_dir
         self.table_dir = table_dir
-        self.cache = cache
         self.formats = formats
         self.styles = styles
         self.styles_wide = styles_wide
+        self.styles_full = styles_full
         self.date = datetime.now().strftime("%Y-%m-%d")
+        self.conda_env = self.get_conda()
+
+        # Add useful reference paths
+        assembly = kwargs['assembly']
+        tag = kwargs['tag']
+        self.fasta = os.path.join(self.ref_dir, assembly, tag, 'fasta',
+                                  f'{assembly}_{tag}.fasta')
+
+        self.chromsizes = os.path.join(self.ref_dir, assembly, tag, 'fasta',
+                                       f'{assembly}_{tag}.chromsizes')
+
+        self.gtf = os.path.join(self.ref_dir, assembly, tag, 'gtf',
+                                f'{assembly}_{tag}.gtf')
+
+        self.gtf_db = os.path.join(self.ref_dir, assembly, tag, 'gtf',
+                                   f'{assembly}_{tag}.gtf.db')
+
+        self.annot = os.path.join(self.ref_dir, assembly, tag,
+                                  'fb_annotation',
+                                  f'{assembly}_{tag}.fb_annotation')
+
+        self.syn = os.path.join(self.ref_dir, assembly, tag,
+                                'fb_synonym',
+                                f'{assembly}_{tag}.fb_synonym')
+
+        # Add useful mappers
+        _annot = pd.read_csv(self.annot, sep='\t', index_col=1)
+        self.fbgn2symbol = _annot['gene_symbol'].to_dict()
+        self.symbol2fbgn = {v: k for k, v in self.fbgn2symbol.items()}
+
+        try:
+            self.fbgn2chrom = pd.read_csv(
+                os.path.join(self.project_dir, 'output/fbgn2chrom.tsv'),
+                sep='\t', index_col=0)
+        except Exception:
+            print(
+                'Please check output/fbgn2chrom.tsv. '
+                'If it does not exist, run bin/fbgn2chrom.py'
+            )
+
+        # Add Colors
+        colors = kwargs.pop('colors')
+        self.colors = colors['cycle']
+
+        self.color_chrom = colors['chrom']
+
+        self.color_female = colors['female']
+        self.color_male = colors['male']
+        self.colors_sex = sns.color_palette([self.color_female,
+                                             self.color_male])
+
+        self.color_c1 = colors['c1']
+        self.color_c2 = colors['c2']
+        self.color_c3 = colors['c3']
 
         # Add any key word args
         self._config_attrs = kwargs.keys()
         for k, v in kwargs.items():
             setattr(self, k, v)
-
 
         # turn on magics
         self._start_magics(watermark=watermark)
@@ -115,10 +206,18 @@ class Nb(object):
         if os.path.exists(styles):
             add_styles(styles)
 
-        sns.set_context('notebook')
+        mpl.style.use(['common', 'notebook'])
+        sns.set_palette(self.colors)
+
+    def get_conda(self):
+        conda_info = check_output(['conda', 'info']).decode('utf-8')
+        for x in conda_info.split('\n'):
+            if 'envs directories' in x:
+                return x.split(':')[1].strip()
 
     @classmethod
-    def setup_notebook(cls, nb_name=None, config_name='common.yaml', watermark=True):
+    def setup_notebook(cls, nb_name=None, subproject_dir=None, watermark=True,
+                       **kwargs):
         """Helper function to consistently setup notebooks.
 
         Functions detects working folder and sets up a ncbi_remap.notebook.Nb
@@ -128,40 +227,40 @@ class Nb(object):
         ----------
         nb_name : str
             Name of the current notebook.
-        config_name : str
-            Name of the a YAML config file.
+        subproject_dir : str
+            Directory to save outputs from this subproject.
         watermark : bool
             If truen then output watermark information.
+        kwargs
+            Additional arguments to pass to Nb.
 
         """
-        if nb_name is None:
-            cache_dir = 'cache'
-        else:
-            cache_dir = os.path.join('cache', nb_name)
-
         # Figure out current project and config folder
-        prj = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        prj = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '../../')
+        )
         cfg = os.path.join(prj, 'config')
+        ref = os.environ.get('REFERENCES_DIR', None)
 
         # set defaults
         defaults = {
             'nb_name': nb_name,
             'project_dir': prj,
+            'subproject_dir': subproject_dir,
             'config_dir': cfg,
-            'fig_dir': os.path.join(prj, 'output/figures'),
-            'table_dir': os.path.join(prj, 'output/tables'),
-            'cache': os.path.join(prj, 'output', cache_dir),
-            'formats': ['png', 'pdf'],
-            'styles': ['notebook', 'paper', 'talk', 'poster'],
-            'styles_wide': ['notebook-wide', 'paper-wide', 'talk-wide', 'poster-wide'],
+            'ref_dir': ref,
+            'fig_dir': './figures',
+            'table_dir': './tables',
+            'formats': ['png', 'pdf', 'svg'],
+            'styles': ['notebook', 'paper'],
+            'styles_wide': ['notebook-wide', 'paper-wide'],
+            'styles_full': ['notebook-full', 'paper-full'],
             'watermark': watermark
         }
 
+        defaults.update(kwargs)
 
         # Import external config
-        fname = os.path.join(cfg, 'common.yaml')
-        with open(fname) as fh:
-            config = load(fh)
         defaults.update(config)
 
         return cls(**defaults)
@@ -183,7 +282,7 @@ class Nb(object):
 
     def __str__(self):
         keys = ['nb_name', 'project_dir', 'config_dir', 'fig_dir', 'table_dir',
-                'cache', 'formats', 'styles', 'date']
+                'formats', 'styles', 'styles_wide', 'styles_full', 'date']
         keys.extend(self._config_attrs)
         res = []
         for key in keys:

@@ -1,8 +1,8 @@
-axes.labelsize: 8.8
-axes.titlesize: 9.6
+axes.labelsize: 10.0
+axes.titlesize: 12.0
 figure.figsize: 6.85 ,3.34
 grid.linewidth: 0.8
-legend.fontsize: 8.0
+legend.fontsize: 10.0
 lines.linewidth: 1.4
 lines.markeredgewidth: 0.0
 lines.markersize: 4

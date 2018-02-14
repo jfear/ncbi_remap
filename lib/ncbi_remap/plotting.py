@@ -4,6 +4,7 @@ from functools import wraps
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+
 def add_styles(dirname):
     mpl.style.core.USER_LIBRARY_PATHS.append(dirname)
     mpl.style.core.update_user_library(mpl.style.library)

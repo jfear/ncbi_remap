@@ -1,7 +1,21 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
+from pathlib import Path
+from yaml import load
+
+from joblib import Memory
 import pandas as pd
 from IPython.display import display
+
+# Create Cache
+cache_dir = Path(Path(__file__).parent, '../../output/cache').resolve()
+cache_dir.mkdir(exist_ok=True)
+memory = Memory(cachedir=cache_dir, verbose=0)
+
+# Get config
+cname = Path(Path(__file__).parent, '../../config/common.yaml').resolve()
+with cname.open() as fh:
+    config = load(fh)
 
 
 def build_index(store, key, columns=None):
