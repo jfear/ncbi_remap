@@ -147,7 +147,7 @@ rule update_queue:
     run:
         sys.path.insert(0, '../lib')
         from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
-        from ncbi_remap.snakemake import check_alignment
+        from ncbi_remap.snakemake import check_alignment2, initialize_aln
 
         def check_outputs(**kwargs):
             tg = helpers.fill_patterns(patterns, kwargs)
@@ -160,32 +160,25 @@ rule update_queue:
         store = pd.HDFStore(mystore)
 
         # Initialize values if needed
-        if not store.get_node('aln/flags'):
-            store['aln/flags'] = pd.DataFrame(
-                data=[], index=store['ids'].set_index(['srx', 'srr']).index,
-                columns=['flag_alignment_bad', 'flag_complete']
-            ).fillna(False)
+        initialize_aln(store)
 
         done = []
-        for i, row in sample_table.iterrows():
-            curr = row.to_dict()
+        for i, (srx, srr) in store['aln/queue'].iterrows():
+            curr = {'srx': srx, 'srr': srr, 'strand': ['first', 'second']}
 
-            if check_alignment(store, patterns['hisat2']['bad'], **curr):
+            if check_alignment2(store, patterns['hisat2']['bad'], **curr):
                 continue
 
             val = check_outputs(**curr)
             if val is not None:
                 done.append(val)
 
-        df = pd.DataFrame(done).drop_duplicates()
+        if len(done) > 0:
+            df = pd.DataFrame(done).drop_duplicates()
 
-        # Add to complete, add to alignment queue, remove from prealn queue
-        add_table(store, 'aln/complete', data=df)
-        remove_chunk(store, 'aln/queue', df.srr.tolist())
-
-        flags = store['aln/flags']
-        flags.loc[df.set_index(['srx', 'srr']).index, 'flag_complete'] = True
-        store['aln/flags'] = flags
+            # Add to complete, add to alignment queue, remove from prealn queue
+            add_table(store, 'aln/complete', data=df)
+            remove_chunk(store, 'aln/queue', df.srr.tolist())
 
         store.close()
 
@@ -197,15 +190,15 @@ rule print_queue:
 
         def cnts(key):
             if store.__contains__(key):
-                return store[key].shape[0]
+                return store[key].value_counts()[True]
             else:
                 return 0
 
         pairs = [
-            ("ids in the system", cnts('ids')),
-            ("queued", cnts("aln/queue")),
-            ("completed", store['aln/flags']['flag_complete'].sum()),
-            ("alignment bad", store['aln/flags']['flag_alignment_bad'].sum()),
+            ("ids in the system", store['ids'].shape[0]),
+            ("queued", store["aln/queue"].shape[0]),
+            ("completed", store['aln/complete'].shape[0]),
+            ("alignment bad", cnts('aln/alignment_bad')),
         ]
 
         report = '\nCurrent Queue Summary\n'
@@ -446,7 +439,7 @@ rule hisat2_summary:
         df = parse_hisat2(srx, srr, input.fn + '.log')
         df.to_csv(output.tsv, sep='\t', index=False)
 
-        if df.ix[0, 'per_alignment'] < .50:
+        if df.iloc[0, :]['per_alignment'] < .50:
             fname = patterns['hisat2']['bad'].format(**wildcards)
             Path(fname).touch()
 
