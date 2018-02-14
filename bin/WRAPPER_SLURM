@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name="seq_pipeline"
-#SBATCH --partition="niddk,norm"
+#SBATCH --job-name="seq_sra"
+#SBATCH --partition="norm"
 #SBATCH --time=72:00:00
 #SBATCH --cpus-per-task=2
 
