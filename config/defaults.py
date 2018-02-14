@@ -1,7 +1,8 @@
-# Imports
 import os
 import sys
+from pathlib import Path
 
+from IPython.display import display, HTML, Markdown
 import numpy as np
 import pandas as pd
 
@@ -16,10 +17,6 @@ from ncbi_remap.plotting import make_figs
 
 # Setup notebook
 nbconfig = Nb.setup_notebook()
-
-# Turn on cache
-from joblib import Memory
-memory = Memory(cachedir=nbconfig.cache, verbose=0)
 
 # Connect to data store
 store = pd.HDFStore('../sra.h5', mode='r')
