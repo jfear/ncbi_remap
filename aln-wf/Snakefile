@@ -446,7 +446,7 @@ rule hisat2_summary:
         df = parse_hisat2(srx, srr, input.fn + '.log')
         df.to_csv(output.tsv, sep='\t', index=False)
 
-        if df.ix[0, 'per_alignment'] < .50:
+        if df.iloc[0, :]['per_alignment'] < .50:
             fname = patterns['hisat2']['bad'].format(**wildcards)
             Path(fname).touch()
 
