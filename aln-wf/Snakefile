@@ -190,15 +190,15 @@ rule print_queue:
 
         def cnts(key):
             if store.__contains__(key):
-                return store[key].shape[0]
+                return store[key].value_counts()[True]
             else:
                 return 0
 
         pairs = [
-            ("ids in the system", cnts('ids')),
-            ("queued", cnts("aln/queue")),
-            ("completed", store['aln/flags']['flag_complete'].sum()),
-            ("alignment bad", store['aln/flags']['flag_alignment_bad'].sum()),
+            ("ids in the system", store['ids'].shape[0]),
+            ("queued", store["aln/queue"].shape[0]),
+            ("completed", store['aln/complete'].shape[0]),
+            ("alignment bad", cnts('aln/alignment_bad')),
         ]
 
         report = '\nCurrent Queue Summary\n'
