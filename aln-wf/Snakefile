@@ -164,7 +164,7 @@ rule update_queue:
 
         done = []
         for i, (srx, srr) in store['aln/queue'].iterrows():
-            curr = {'srx': srx, 'srr': srr}
+            curr = {'srx': srx, 'srr': srr, 'strand': ['first', 'second']}
 
             if check_alignment2(store, patterns['hisat2']['bad'], **curr):
                 continue
