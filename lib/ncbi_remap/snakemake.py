@@ -58,6 +58,18 @@ def initialize_prealn(store):
             name='quality_scores_bad').fillna(False)
 
 
+def initialize_aln(store):
+    """Initialize missing prealn data store.
+
+    Initialize the prealn datastore values.
+    """
+    base = store['ids'].copy()
+    if not store.__contains__('aln/alignment_bad'):
+        store['aln/alignment_bad'] = pd.Series(
+            index=base.set_index(['srx', 'srr']),
+            name='alignment_bad').fillna(False)
+
+
 def put_flag(fname, flag):
     """Export flag from file.
 
@@ -132,6 +144,31 @@ def check_alignment(store, pattern, **kwargs):
         flags = store['prealn/alignment_bad'].copy()
         flags[(kwargs['srx'], kwargs['srr'])] = True
         store['prealn/alignment_bad'] = flags
+        return True
+
+
+def check_alignment2(store, pattern, **kwargs):
+    """Checks for ALIGNMENT_BAD file.
+
+    If there is an ALIGNMENT_BAD file then remove from the queue, add to
+    complete, and add to 'prealn/alignment_bad'.
+
+    Parameters
+    ----------
+    store : pd.io.pytables.HDFStore
+        The data store to save to.
+    patter : str
+        File naming pattern for the ALIGNEMNT_BAD file.
+    **kwargs
+        Keywords needed to fill the pattern.
+
+    """
+    ab = pattern.format(**kwargs)
+    if os.path.exists(ab):
+        remove_id(store, 'aln/queue', **kwargs)
+        flags = store['aln/alignment_bad'].copy()
+        flags[(kwargs['srx'], kwargs['srr'])] = True
+        store['aln/alignment_bad'] = flags
         return True
 
 
