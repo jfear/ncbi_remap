@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
 from typing import Union
+
 import pandas as pd
 from IPython.display import display
 
@@ -179,6 +180,12 @@ class HDFStore(object):
             srx_srr = self._tuple_to_frame(srx_srr)
 
         self._append_new_ids(key, srx_srr)
+
+    def get_srxs(self, key):
+        return self._store[key].index.get_level_values('srx').unique().tolist()
+
+    def get_srrs(self, key):
+        return self._store[key].index.get_level_values('srr').unique().tolist()
 
 
 def build_index(store, key, columns=None):
