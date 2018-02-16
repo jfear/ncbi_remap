@@ -30,6 +30,9 @@ class HDFStore(object):
     def __delitem__(self, key: str):
         del self._store[key]
 
+    def contains(self, key):
+        return self._store.__contains__(key)
+
     def close(self):
         self._store.close()
 
