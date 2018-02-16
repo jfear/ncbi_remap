@@ -10,7 +10,7 @@ import matplotlib as mpl
 import seaborn as sns
 from IPython import get_ipython
 
-from .io import config
+from .config import PROJECT_DIR, CONFIG_DIR, REFERENCES_DIR, config
 from .plotting import add_styles
 
 
@@ -100,13 +100,10 @@ class Nb(object):
             Path to annot file.
         syn : str
             Path to syn file.
-        seurat : Seurat
-            Useful Seurat paths.
 
         """
         self.nb_name = nb_name
         self.project_dir = project_dir
-        self.seurat_dir = seurat_dir
         self.config_dir = config_dir
         self.ref_dir = ref_dir
         self.fig_dir = fig_dir
@@ -235,20 +232,13 @@ class Nb(object):
             Additional arguments to pass to Nb.
 
         """
-        # Figure out current project and config folder
-        prj = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '../../')
-        )
-        cfg = os.path.join(prj, 'config')
-        ref = os.environ.get('REFERENCES_DIR', None)
-
         # set defaults
         defaults = {
             'nb_name': nb_name,
-            'project_dir': prj,
+            'project_dir': PROJECT_DIR,
             'subproject_dir': subproject_dir,
-            'config_dir': cfg,
-            'ref_dir': ref,
+            'config_dir': CONFIG_DIR,
+            'ref_dir': REFERENCES_DIR,
             'fig_dir': './figures',
             'table_dir': './tables',
             'formats': ['png', 'pdf', 'svg'],

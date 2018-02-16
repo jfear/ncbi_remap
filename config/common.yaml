@@ -2,6 +2,8 @@ author: Justin M Fear
 email: justin.m.fear@gmail.com
 project: NCBI Remap
 git: https://github.com/jfear/ncbi_remap
+store: sra.h5
+#references_dir: <path to references> defaults to environmental variable
 assembly: dmel
 tag: r6-16
 colors:
