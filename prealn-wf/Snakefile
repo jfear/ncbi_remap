@@ -8,6 +8,7 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib')
+from ncbi_remap.io import HDFStore
 from ncbi_remap.snakemake import wrapper_for, put_flag
 
 
@@ -26,10 +27,10 @@ configfile: '../config/reference_config.yaml'
 # Build Sample Table
 ###############################################################################
 mystore = '../sra.h5'
-store = pd.HDFStore(mystore, mode='r')
-srxs = store['prealn/queue'].srx.unique()[:1000]
-mask = store['prealn/queue'].srx.isin(srxs)
-sample_table = store['prealn/queue'][mask].copy()
+store = HDFStore(mystore, mode='r')
+srxs = store.get_srxs('prealn/queue')[:1000]
+mask = store['prealn/queue'].loc[(srxs, slice(None)), :]
+sample_table = store['prealn/queue'][mask].reset_index()
 store.close()
 
 # NOTE: pulling just modENCODE samples for running tau and TSPS
@@ -132,56 +133,56 @@ rule update_queue:
     outputs and moves ids around in the queing system.
     """
     run:
-        sys.path.insert(0, '../lib')
-        from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
-        from ncbi_remap.snakemake import (check_download, check_alignment,
-                                          check_layout, check_strand,
-                                          initialize_prealn,
-                                          check_quality_scores, check_abi)
+        from ncbi_remap.prealn_wf import (check_download, check_indicator_file,
+                                          check_flag_file)
 
-        def check_outputs(**kwargs):
-            tg = helpers.fill_patterns(patterns, kwargs)
+        def check_outputs(srx, srr, **kwargs):
+            fill = {
+                'srx': srx,
+                'srr': srr
+            }
+            fill.update(kwargs)
+            tg = helpers.fill_patterns(patterns, fill)
             for fname in utils.flatten(keepers(tg)):
                 if not os.path.exists(fname):
                     return
-            return kwargs
+            return srx, srr
 
-        store = pd.HDFStore(mystore)
-
-        # Initialize if missing
-        initialize_prealn(store)
+        store = HDFStore(mystore)
 
         # Update
         done = []
-        for i, (srx, srr) in store['prealn/queue'].iterrows():
+        for (srx, srr), _ in store['prealn/queue'].iterrows():
             curr = {'srx': srx, 'srr': srr}
 
             if check_download(store, patterns['fastq']['r1'] + '.log', **curr):
                 continue
 
-            if check_quality_scores(store, patterns['fastq']['quality'],
-                                    **curr):
+            if check_indicator_file(store, 'prealn/quality_scores_bad',
+                                    patterns['fastq']['quality'], **curr):
                 continue
 
-            if check_abi(store, patterns['fastq']['abi'], **curr):
+            if check_indicator_file(store, 'prealn/abi_solid',
+                                    patterns['fastq']['abi'], **curr):
                 continue
 
-            if check_alignment(store, patterns['hisat2']['bad'], **curr):
+            if check_indicator_file(store, 'prealn/alignment_bad',
+                                    patterns['hisat2']['bad'], **curr):
                 continue
 
             val = check_outputs(**curr)
             if val is not None:
                 done.append(val)
-                check_layout(store, patterns['layout'], **curr)
-                check_strand(store, patterns['strand'], **curr)
+                check_flag_file(store, 'layout', patterns['layout'], **curr)
+                check_flag_file(store, 'strand', patterns['strand'], **curr)
 
         if len(done) > 0:
-            df = pd.DataFrame(done)[['srx', 'srr']]
+            df = pd.DataFrame(done).set_index(['srx', 'srr'])
 
             # Add to complete, add to alignment queue, remove from prealn queue
-            add_table(store, 'prealn/complete', data=df)
-            add_table(store, 'aln/queue', data=df)
-            remove_chunk(store, 'prealn/queue', df.srr.tolist())
+            store.push('prealn/complete', df)
+            store.push('aln/queue', df)
+            store.pop('prealn/queue', df)
 
         store.close()
 
@@ -189,7 +190,7 @@ rule update_queue:
 rule print_queue:
     """Prints the current counts for the queue."""
     run:
-        store = pd.HDFStore(mystore, mode='r')
+        store = HDFStore(mystore, mode='r')
 
         def cnts(key):
             if store.__contains__(key):
@@ -241,7 +242,7 @@ rule aggregate:
             parse_featureCounts_jcounts, parse_samtools_idxstats
         )
 
-        store = pd.HDFStore(mystore)
+        store = HDFStore(mystore)
         flags = store['prealn/flags']
         completed = flags[flags['flag_complete'].reset_index()[['srx', 'srr']]]
 
