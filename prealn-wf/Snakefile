@@ -67,12 +67,24 @@ rule download:
     input: targets['fastq']['r1']
 
 
+def slack(text):
+    try:
+        from slackclient import SlackClient
+        token = os.environ['SLACK_SNAKEMAKE_BOT_TOKEN']
+        sc = SlackClient(token)
+        sc.api_call('chat.postMessage', channel='U6N9L3ZSQ', text=text)
+    except (ImportError, KeyError):
+        pass
+
+
 onsuccess:
     print('All Finished')
+    slack('prealn-wf: All Finished')
 
 
 onerror:
     print('Something went wrong, you need to re-run')
+    slack('prealn-wf: Something went wrong, you need to re-run')
 
 
 ###############################################################################
