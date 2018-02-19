@@ -415,7 +415,7 @@ rule hisat2_summary:
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.ix[0, 'per_alignment'] < .50:
-            fname = patterns['hisat2']['bad'].format(**wildcards)
+            fname = patterns['download_bad'].format(**wildcards)
             Path(fname).touch()
 
 
