@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
 from typing import Union
+from yaml import load
 
 import pandas as pd
 from IPython.display import display
+
+
+def patterns(fname):
+    with open(fname) as fh:
+        return load(fh)
 
 
 class HDFStore(object):
