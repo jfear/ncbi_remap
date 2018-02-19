@@ -396,7 +396,10 @@ rule hisat2:
 
 
 rule hisat2_summary:
-    """Parse log and flag as bad alignment if <50% aligned."""
+    """Parse log and add indicator file.
+
+    If the alignment is <50% of reads then add indicator file `ALIGNMENT_BAD`.
+   """
     input:
         fn = patterns['hisat2']['bam']
     output:
