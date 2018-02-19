@@ -3,6 +3,7 @@
 from typing import Union
 from yaml import load
 
+import numpy as np
 import pandas as pd
 from IPython.display import display
 
@@ -64,9 +65,10 @@ class HDFStore(object):
 
         """
         self._store['ids'] = srx_srr
-        self._store['prealn/queue'] = self.ids
+        self._store.put('prealn/queue', self.ids, data_columns=True,
+                        format='table')
 
-    def initialize_data_table(self, key, names, fill_bool=False):
+    def initialize_data_table(self, key, names):
         """Create a new empty datatable.
 
         Parameters
@@ -76,25 +78,17 @@ class HDFStore(object):
         names : str or List[str]
             Name or names of the columns. If a single name is given then a
             pd.Series will be created, otherwise a pd.DataFrame.
-        fill_bool : bool
-            If true use the boolean value to fill missing instead of
-            default 'NA'.
 
         """
-        if fill_bool:
-            fill = False
-        else:
-            fill = 'NA'
-
         if isinstance(names, (list, tuple)) and len(names) == 1:
             names = names[0]
 
         if isinstance(names, str):
             self._store[key] = pd.Series(name=names,
-                                         index=self.ids.index).fillna(fill)
+                                         index=self.ids.index)
         else:
             self._store[key] = pd.DataFrame(columns=names,
-                                            index=self.ids.index).fillna(fill)
+                                            index=self.ids.index)
 
     def update_ids_from_db(self, current_srx_srr):
         """
@@ -127,7 +121,8 @@ class HDFStore(object):
             self._append_new_ids(key, new_ids)
             self._drop_removed_ids(key, removed_ids)
 
-    def _append_new_ids(self, key: str, new_srx_srr: pd.DataFrame, fill='NA'):
+    def _append_new_ids(self, key: str, new_srx_srr: pd.DataFrame,
+                        fill=np.nan):
         """Append new sra ids."""
         if new_srx_srr.shape[0] == 0:
             return
