@@ -279,7 +279,11 @@ rule aggregate:
 # FASTQ dump and check for SE or PE
 ###############################################################################
 rule fastq_dump:
-    """Downloads fastq and checks if there is one or two sets of reads."""
+    """Downloads fastq and checks if there is one or two sets of reads.
+
+    If there are less than 1000 reads or reads are less than 10bp long a
+    indicator file `DOWNLOAD_BAD` is created.
+    """
     output:
         fq1 = patterns['fastq']['r1'],
         fq2 = patterns['fastq']['r2'],
