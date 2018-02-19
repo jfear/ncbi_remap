@@ -1,0 +1,36 @@
+fastq:
+  r1: output/samples/{srx}/{srr}/{srr}_1.fastq.gz
+  r2: output/samples/{srx}/{srr}/{srr}_2.fastq.gz
+  summary: output/samples/{srx}/{srr}/{srr}.fastq.tsv
+fastq_screen: output/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt
+atropos:
+  r1: output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz
+  r2: output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz
+hisat2:
+  splice_sites: output/known_splice_sites_r6-11.txt
+  bam: output/samples/{srx}/{srr}/{srr}.hisat2.bam
+  summary: output/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv
+bai: output/samples/{srx}/{srr}/{srr}.hisat2.bam.bai
+feature_counts:
+  counts: output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts
+  jcounts: output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts
+  summary: output/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary
+picard:
+  collectrnaseqmetrics:
+    metrics:
+      unstranded: output/samples/{srx}/{srr}/{srr}.hisat2.bam.NONE.picard.collectrnaseqmetrics
+      first: output/samples/{srx}/{srr}/{srr}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics
+      second: output/samples/{srx}/{srr}/{srr}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics
+  markduplicates:
+    bam: output/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam
+    metrics: output/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics
+samtools_stats: output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats
+samtools_idxstats: output/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats
+bamtools_stats: output/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats
+
+layout: output/samples/{srx}/{srr}/LAYOUT
+strand: output/samples/{srx}/{srr}/STRAND
+alignment_bad: output/samples/{srx}/{srr}/ALIGNMENT_BAD
+abi_solid: output/samples/{srx}/{srr}/ABI_SOLID
+quality_scores_bad: output/samples/{srx}/{srr}/QUALITY
+download_bad: output/samples/{srx}/{srr}/DOWNLOAD_BAD
