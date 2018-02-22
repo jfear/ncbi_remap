@@ -38,6 +38,7 @@ openpyxl
 pandas
 pandoc
 picard
+pyarrow
 pybedtools
 pybigwig
 pyfaidx

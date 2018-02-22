@@ -89,7 +89,7 @@ def parse_files(files, pattern, parser, **kwargs):
 
 
 # Parsing functions
-def parse_fastq_summary(srx, srr, file):
+def parse_fastq_summary(srx, srr, pattern):
     """Parser for fastq summary table.
 
     Returns
@@ -103,13 +103,13 @@ def parse_fastq_summary(srx, srr, file):
         'avgLen_R2': np.float64,
     }
 
-    df = pd.read_csv(file, sep='\t', dtype=dtypes)
+    df = pd.read_csv(pattern.format(srx=srx, srr=srr), sep='\t', dtype=dtypes)
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(['srx', 'srr'])
 
 
-def parse_fastq_screen(srx, srr, file):
+def parse_fastq_screen(srx, srr, pattern):
     """Parser for fastq screen.
 
     Adapted from multiqc.
@@ -118,7 +118,7 @@ def parse_fastq_screen(srx, srr, file):
     -------
     pandas.DataFrame: A single row dataframe.
     """
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         header = ['srx', 'srr', 'reference', 'type', 'value']
         parsed = []
 
@@ -147,7 +147,7 @@ def parse_fastq_screen(srx, srr, file):
             return udf.reset_index().set_index(['srx', 'srr', 'reference'])
 
 
-def parse_picardCollect_summary(srx, srr, file):
+def parse_picardCollect_summary(srx, srr, pattern):
     """Parser for picard collectRNAMetrics summary."""
     dtypes = {
         'CODING_BASES': np.int64,
@@ -181,7 +181,7 @@ def parse_picardCollect_summary(srx, srr, file):
         'SAMPLE': np.float64,
         'UTR_BASES': np.int64,
     }
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         for l in fh:
             if l.startswith('#'):
                 continue
@@ -193,17 +193,17 @@ def parse_picardCollect_summary(srx, srr, file):
         if len(parsed) == 0:
             return None
         else:
-            df = pd.read_csv(StringIO(parsed), sep='\t', dtype=dtypes)
+            df = pd.read_csv(StringIO(parsed), sep='\t', na_values='?',
+                             dtype=dtypes)
             df['srx'] = srx
             df['srr'] = srr
-            df.replace('?', np.nan, inplace=True)
             return df.set_index(['srx', 'srr'])
 
 
-def parse_picardCollect_hist(srx, srr, file):
+def parse_picardCollect_hist(srx, srr, pattern):
     """Parser for picard collectRNAMetrics summary."""
     parsed = ''
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         for l in fh:
             if l.startswith('#'):
                 continue
@@ -225,9 +225,9 @@ def parse_picardCollect_hist(srx, srr, file):
             return df.set_index(['srx', 'srr'])
 
 
-def parse_featureCounts_counts(srx, srr, file):
+def parse_featureCounts_counts(srx, srr, pattern):
     """Parser for subread feature counts."""
-    df = pd.read_csv(file, sep='\t', comment='#')
+    df = pd.read_csv(pattern.format(srx=srx, srr=srr), sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
     df['srx'] = srx
     df['srr'] = srr
@@ -235,18 +235,23 @@ def parse_featureCounts_counts(srx, srr, file):
     return df['count']
 
 
-def parse_featureCounts_jcounts(srx, srr, file):
+def parse_featureCounts_jcounts(srx, srr, pattern):
     """Parser for subread feature jcounts."""
-    header = ['PrimaryGene', 'SecondaryGenes', 'Site1_chr', 'Site1_location', 'Site1_strand', 'Site2_chr', 'Site2_location', 'Site2_strand', 'count']
-    df = pd.read_csv(file, sep='\t', header=None, names=header, skiprows=1)
+    header = [
+        'PrimaryGene', 'SecondaryGenes', 'Site1_chr', 'Site1_location',
+        'Site1_strand', 'Site2_chr', 'Site2_location', 'Site2_strand',
+        'count',
+    ]
+    df = pd.read_csv(pattern.format(srx=srx, srr=srr), sep='\t', header=None,
+                     names=header, skiprows=1, low_memory=False)
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(['srx', 'srr']).drop('SecondaryGenes', axis=1)
 
 
-def parse_featureCounts_summary(srx, srr, file):
+def parse_featureCounts_summary(srx, srr, pattern):
     """Parse rseqc bam stat."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         parsed = OrderedDict()
         for l in fh:
             fqs = re.search(r"^(.+?)\s+(\d+)$", l)
@@ -261,14 +266,14 @@ def parse_featureCounts_summary(srx, srr, file):
             return df.set_index(['srx', 'srr'])
 
 
-def parse_bamtools_stats(srx, srr, file):
+def parse_bamtools_stats(srx, srr, pattern):
     """Parse bamtools stats."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         parsed = OrderedDict()
         for l in fh:
             fqs = re.search(r"^(.+?):\s+(\d+).*$", l)
             if fqs:
-                parsed[fqs.group(1)] = int(fqs.group(2))
+                parsed[fqs.group(1).replace("'", "")] = int(fqs.group(2))
         if len(parsed) == 0:
             return None
         else:
@@ -284,9 +289,9 @@ def parse_bamtools_stats(srx, srr, file):
             return df.set_index(['srx', 'srr'])
 
 
-def parse_picard_markduplicate_metrics(srx, srr, file):
+def parse_picard_markduplicate_metrics(srx, srr, pattern):
     """Parser for picard markduplicates."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         for l in fh:
             if l.startswith('## METRICS CLASS'):
                 dat = next(fh)
@@ -300,9 +305,9 @@ def parse_picard_markduplicate_metrics(srx, srr, file):
     return df
 
 
-def parse_samtools_idxstats(srx, srr, file):
+def parse_samtools_idxstats(srx, srr, pattern):
     """Parser for samtools idxstats."""
-    df = pd.read_csv(file, sep='\t', header=None)
+    df = pd.read_csv(pattern.format(srx=srx, srr=srr), sep='\t', header=None)
     df.columns = ['chrom', 'length', '# mapped reads', '# unmapped reads']
     df['srx'] = srx
     df['srr'] = srr
@@ -310,9 +315,9 @@ def parse_samtools_idxstats(srx, srr, file):
     return df
 
 
-def parse_samtools_stats(srx, srr, file):
+def parse_samtools_stats(srx, srr, pattern):
     """Parse rseqc samtools stats."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         parsed = OrderedDict()
         for l in fh:
             if l.startswith('SN'):
@@ -335,9 +340,9 @@ def parse_samtools_stats(srx, srr, file):
             return df.set_index(['srx', 'srr'])
 
 
-def parse_md5(srx, srr, file):
+def parse_md5(srx, srr, pattern):
     """Parser for md5sum."""
-    df = pd.read_csv(file, sep='\s+', header=None)
+    df = pd.read_csv(pattern.format(srx=srx, srr=srr), sep='\s+', header=None)
     df.columns = ['md5', 'file']
     df['srx'] = srx
     df['srr'] = srr
@@ -346,9 +351,9 @@ def parse_md5(srx, srr, file):
     return df
 
 
-def parse_libsize(srx, srr, file):
+def parse_libsize(srx, srr, pattern):
     """Parser for md5sum."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         lsize = int(fh.read().strip())
         df = pd.DataFrame({'libsize': lsize}, index=[0])
         df['srx'] = srx
@@ -356,9 +361,9 @@ def parse_libsize(srx, srr, file):
         return df.set_index(['srx', 'srr'])
 
 
-def parse_atropos(srx, srr, file):
+def parse_atropos(srx, srr, pattern):
     """Parse atropos."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         parsed = OrderedDict()
         block = None
         subBlock = None
@@ -422,9 +427,9 @@ def parse_atropos(srx, srr, file):
             return df, pd.concat(cnts.values())
 
 
-def parse_hisat2(srx, srr, file):
+def parse_hisat2(srx, srr, pattern):
     """Parse hisat2."""
-    with open(file, 'r') as fh:
+    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
         parsed = OrderedDict([
             ('num_reads', np.nan),
             ('num_reads_paired', np.nan),
@@ -500,7 +505,7 @@ def split_ranges(df):
     return df
 
 
-def parse_fastqc(srx, srr, file, field=''):
+def parse_fastqc(srx, srr, pattern, field=''):
     """Parse fastqc zip file.
 
     Takes a zip file and makes a FastQC object.
@@ -511,7 +516,7 @@ def parse_fastqc(srx, srr, file, field=''):
         SRX name which will be added as row index.
     srr: str
         SRR name which will be added as row index.
-    file: str
+    pattern: str
         Path to the fastqc zip file.
     field: str
         Name of specific Fastqc section to return. Look at
@@ -524,14 +529,14 @@ def parse_fastqc(srx, srr, file, field=''):
 
     """
     if field:
-        return FastQC.parse_from_zip(srx, srr, file)[field]
+        return FastQC.parse_from_zip(srx, srr, pattern.format(srx=srx, srr=srr))[field]
     else:
-        return FastQC.parse_from_zip(srx, srr, file)
+        return FastQC.parse_from_zip(srx, srr, pattern.format(srx=srx, srr=srr))
 
 
-def parse_fastqc_per_seq_quality(srx, srr, file):
+def parse_fastqc_per_seq_quality(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Per sequence quality scores')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Per sequence quality scores')
     df = fqc.df
     wide = df.T
     wide['srx'] = srx
@@ -539,9 +544,9 @@ def parse_fastqc_per_seq_quality(srx, srr, file):
     return wide.set_index(['srx', 'srr'])
 
 
-def parse_fastqc_per_base_seq_quality(srx, srr, file):
+def parse_fastqc_per_base_seq_quality(srx, srr, pattern):
     """Parse fastqc base quality"""
-    fqc = parse_fastqc(srx, srr, file, field='Per base sequence quality')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Per base sequence quality')
     df = fqc.df['Mean'].copy().to_frame()
     splitRanges = split_ranges(df)
     splitRanges['srx'] = srx
@@ -549,9 +554,9 @@ def parse_fastqc_per_base_seq_quality(srx, srr, file):
     return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_adapter_content(srx, srr, file):
+def parse_fastqc_adapter_content(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Adapter Content')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Adapter Content')
     df = fqc.df
     splitRanges = split_ranges(df)
     splitRanges['srx'] = srx
@@ -559,45 +564,45 @@ def parse_fastqc_adapter_content(srx, srr, file):
     return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_per_base_seq_content(srx, srr, file):
+def parse_fastqc_per_base_seq_content(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Per base sequence content')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Per base sequence content')
     df = fqc.df
     splitRanges['srx'] = srx
     splitRanges['srr'] = srr
     return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_sequence_length(srx, srr, file):
+def parse_fastqc_sequence_length(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Sequence Length Distribution')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Sequence Length Distribution')
     df = fqc.df
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_overrepresented_seq(srx, srr, file):
+def parse_fastqc_overrepresented_seq(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Overrepresented sequences')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Overrepresented sequences')
     df = fqc.df
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_basic_stats(srx, srr, file):
+def parse_fastqc_basic_stats(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Basic Statistics')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Basic Statistics')
     df = fqc.df.T
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(['srx', 'srr'])
 
 
-def parse_fastqc_kmer_content(srx, srr, file):
+def parse_fastqc_kmer_content(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Kmer Content')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Kmer Content')
     df = fqc.df
     df.reset_index(inplace=True)
     df.set_index('Max Obs/Exp Position', inplace=True)
@@ -609,9 +614,9 @@ def parse_fastqc_kmer_content(srx, srr, file):
     return splitRanges.sort_values(['Sequence', 'Max Obs/Exp Position']).set_index(['srx', 'srr', 'Sequence'])
 
 
-def parse_fastqc_per_base_n_content(srx, srr, file):
+def parse_fastqc_per_base_n_content(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Per base N content')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Per base N content')
     df = fqc.df
     splitRanges = split_ranges(df)
     splitRanges['srx'] = srx
@@ -619,18 +624,18 @@ def parse_fastqc_per_base_n_content(srx, srr, file):
     return splitRanges.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_per_seq_gc_content(srx, srr, file):
+def parse_fastqc_per_seq_gc_content(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Per sequence GC content')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Per sequence GC content')
     df = fqc.df
     df['srx'] = srx
     df['srr'] = srr
     return df.set_index(append=True, keys=['srx', 'srr']).swaplevel()
 
 
-def parse_fastqc_seq_dup_level(srx, srr, file):
+def parse_fastqc_seq_dup_level(srx, srr, pattern):
     """Parse fastqc."""
-    fqc = parse_fastqc(srx, srr, file, field='Sequence Duplication Levels')
+    fqc = parse_fastqc(srx, srr, pattern.format(srx=srx, srr=srr), field='Sequence Duplication Levels')
     df = fqc.df
     df['srx'] = srx
     df['srr'] = srr
