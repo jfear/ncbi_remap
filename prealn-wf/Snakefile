@@ -8,7 +8,6 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 sys.path.insert(0, '../lib')
-from ncbi_remap.io import HDFStore
 from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
 
@@ -26,17 +25,17 @@ configfile: '../config/reference_config.yaml'
 ###############################################################################
 # Build Sample Table
 ###############################################################################
-mystore = '../sra.h5'
-store = HDFStore(mystore, mode='r')
-srxs = store.get_srxs('prealn/queue')[:1000]
-mask = store['prealn/queue'].loc[(srxs, slice(None)), :]
-sample_table = store['prealn/queue'][mask].reset_index()
+mystore = '../sra_new.h5'
+store = pd.HDFStore(mystore, mode='r')
+queue = store['prealn/queue']
+srxs = queue.srx.unique()[:1000]
+sample_table = queue[queue.srx.isin(srxs)]
 store.close()
 
 # NOTE: pulling just modENCODE samples for running tau and TSPS
-sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
-srxs = sample_table.srx.unique()
-sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
+# sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
+# srxs = sample_table.srx.unique()
+# sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
