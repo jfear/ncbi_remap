@@ -1,0 +1,43 @@
+fastq:
+  r1: ../prealn-wf/output/samples/{srx}/{srr}/{srr}_1.fastq.gz
+  r2: ../prealn-wf/output/samples/{srx}/{srr}/{srr}_2.fastq.gz
+  summary: ../prealn-wf/output/samples/{srx}/{srr}/{srr}.fastq.tsv
+
+atropos:
+  r1: output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz
+  r2: output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz
+
+hisat2:
+  splice_sites: ../prealn-wf/output/known_splice_sites_r6-11.txt
+  bam: output/samples/{srx}/{srr}/{srr}.fq.bam
+  bai: output/samples/{srx}/{srr}/{srr}.fq.bam.bai
+  summary: output/samples/{srx}/{srr}/{srr}.fq.bam.tsv
+
+# SRX Level Files
+srxMerge:
+  bam: output/samples/{srx}/{srx}.bam
+  bai: output/samples/{srx}/{srx}.bam.bai
+  feature_counts:
+    counts: output/samples/{srx}/{srx}.bam.counts
+    jcounts: output/samples/{srx}/{srx}.bam.counts.jcounts
+    summary: output/samples/{srx}/{srx}.bam.counts.summary
+  feature_counts_intergenic:
+    counts: output/samples/{srx}/{srx}.bam.intergenic.counts
+    jcounts: output/samples/{srx}/{srx}.bam.intergenic.counts.jcounts
+    summary: output/samples/{srx}/{srx}.bam.intergenic.counts.summary
+  samtools_stats: output/samples/{srx}/{srx}.bam.samtools.stats
+  samtools_idxstats: output/samples/{srx}/{srx}.bam.samtools.idxstats
+  bamtools_stats: output/samples/{srx}/{srx}.bam.bamtools.stats
+  bamCoverage: output/samples/{srx}/{srx}.{strand}.bedgraph
+  bamCoverageFlyBase: output/samples/{srx}/{srx}.flybase.{strand}.bedgraph
+  bigWig: output/samples/{srx}/{srx}.{strand}.bw
+  bigWigFlyBase: output/samples/{srx}/{srx}.flybase.{strand}.bw
+
+# MISC Files
+layout: ../prealn-wf/output/samples/{srx}/{srr}/LAYOUT
+strand: ../prealn-wf/output/samples/{srx}/{srr}/STRAND
+alignment_bad: output/samples/{srx}/{srr}/ALIGNMENT_BAD
+chromSizes_fb: ../output/dmel_r6-11.flybase.chromsizes
+intergenic:
+  bed: ../output/dmel_r6-11.intergenic.bed
+  gtf: ../output/dmel_r6-11.intergenic.gtf

@@ -11,7 +11,7 @@ from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
 sys.path.insert(0, '../lib')
-from ncbi_remap.snakemake import wrapper_for, put_flag
+from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
@@ -28,12 +28,12 @@ configfile: '../config/reference_config.yaml'
 # Build Sample Table
 ###############################################################################
 mystore = '../sra.h5'
-store = pd.HDFStore(mystore, mode='r')
-srxs = store['aln/queue'].srx.unique()[:1000]
-mask = store['aln/queue'].srx.isin(srxs)
-sample_table = store['aln/queue'][mask]
-sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
-store.close()
+# store = pd.HDFStore(mystore, mode='r')
+# srxs = store['aln/queue'].srx.unique()[:1000]
+# mask = store['aln/queue'].srx.isin(srxs)
+# sample_table = store['aln/queue'][mask]
+# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+# store.close()
 
 # NOTE: pulling just flybase samples for building BedGraphs
 # sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
@@ -42,71 +42,23 @@ store.close()
 # sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 
 # NOTE: pulling just modENCODE samples for running tau and TSPS
-sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
-srxs = sample_table.srx.unique()
-sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
-sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+# sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
+# srxs = sample_table.srx.unique()
+# sample_table = sample_table[sample_table.srx.isin(srxs)].copy()
+# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 
+# NOTE: Need to remove tmep files from some of the complete
+# 9,425 srx
+store = pd.HDFStore(mystore, mode='r')
+srxs = store['aln/complete'].srx.unique()[:5000]
+mask = store['aln/complete'].srx.isin(srxs)
+sample_table = store['aln/complete'][mask]
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+store.close()
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
-patterns = {
-    'fastq': {
-        'r1': '../prealn-wf/output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
-        'r2': '../prealn-wf/output/samples/{srx}/{srr}/{srr}_2.fastq.gz',
-        'summary': '../prealn-wf/output/samples/{srx}/{srr}/{srr}.fastq.tsv',
-    },
-
-    'layout': '../prealn-wf/output/samples/{srx}/{srr}/LAYOUT',
-    'strand': '../prealn-wf/output/samples/{srx}/{srr}/STRAND',
-    'atropos': {
-        'r1': 'output/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz',
-        'r2': 'output/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz',
-    },
-
-    'hisat2': {
-        'splice_sites': '../prealn-wf/output/known_splice_sites_r6-11.txt',
-        'bam': 'output/samples/{srx}/{srr}/{srr}.fq.bam',
-        'bai': 'output/samples/{srx}/{srr}/{srr}.fq.bam.bai',
-        'summary': 'output/samples/{srx}/{srr}/{srr}.fq.bam.tsv',
-        'bad': 'output/samples/{srx}/{srr}/ALIGNMENT_BAD',
-    },
-
-    # SRX Level Files
-    'srxMerge': {
-        'bam': 'output/samples/{srx}/{srx}.bam',
-        'bai': 'output/samples/{srx}/{srx}.bam.bai',
-        'feature_counts': {
-            'counts': 'output/samples/{srx}/{srx}.bam.counts',
-            'jcounts': 'output/samples/{srx}/{srx}.bam.counts.jcounts',
-            'summary': 'output/samples/{srx}/{srx}.bam.counts.summary',
-        },
-        'feature_counts_intergenic': {
-            'counts': 'output/samples/{srx}/{srx}.bam.intergenic.counts',
-            'jcounts': 'output/samples/{srx}/{srx}.bam.intergenic.counts.jcounts',
-            'summary': 'output/samples/{srx}/{srx}.bam.intergenic.counts.summary',
-        },
-        'samtools_stats': 'output/samples/{srx}/{srx}.bam.samtools.stats',
-        'samtools_idxstats': 'output/samples/{srx}/{srx}.bam.samtools.idxstats',
-        'bamtools_stats': 'output/samples/{srx}/{srx}.bam.bamtools.stats',
-        'bamCoverage': 'output/samples/{srx}/{srx}.{strand}.bedgraph',
-        'bamCoverageFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bedgraph',
-        'bigWig': 'output/samples/{srx}/{srx}.{strand}.bw',
-        'bigWigFlyBase': 'output/samples/{srx}/{srx}.flybase.{strand}.bw',
-    },
-
-    # MISC Files
-    'intergenic': {
-        'bed': '../output/dmel_r6-11.intergenic.bed',
-        'gtf': '../output/dmel_r6-11.intergenic.gtf',
-    },
-
-    'chromSizes_fb': '../output/dmel_r6-11.flybase.chromsizes',
-}
-
-###############################################################################
-# Set up Build Targets
-###############################################################################
+patterns = get_patterns('patterns.yaml')
 targets = helpers.fill_patterns(patterns, sample_table)
 
 
@@ -127,88 +79,29 @@ rule targets:
     input: keepers(targets)
 
 
+def slack(text):
+    try:
+        from slackclient import SlackClient
+        token = os.environ['SLACK_SNAKEMAKE_BOT_TOKEN']
+        sc = SlackClient(token)
+        sc.api_call('chat.postMessage', channel='U6N9L3ZSQ', text=text)
+    except (ImportError, KeyError):
+        pass
+
+
 onsuccess:
     print('All Finished')
+    slack('aln-wf: All Finished')
 
 
 onerror:
     print('Something went wrong, you need to re-run')
+    slack('aln-wf: Something went wrong, you need to re-run')
 
 
 ###############################################################################
 # Summary Rules
 ###############################################################################
-rule update_queue:
-    """Updates queue.
-
-    After running targets you need to update the queue. This job itereates over
-    outputs and moves ids around in the queing system.
-    """
-    run:
-        sys.path.insert(0, '../lib')
-        from ncbi_remap.io import add_table, remove_chunk, add_id, remove_id
-        from ncbi_remap.snakemake import check_alignment2, initialize_aln
-
-        def check_outputs(**kwargs):
-            tg = helpers.fill_patterns(patterns, kwargs)
-            for fname in utils.flatten(keepers(tg)):
-                if not os.path.exists(fname):
-                    return
-            kwargs.pop('strand')
-            return kwargs
-
-        store = pd.HDFStore(mystore)
-
-        # Initialize values if needed
-        initialize_aln(store)
-
-        done = []
-        for i, (srx, srr) in store['aln/queue'].iterrows():
-            curr = {'srx': srx, 'srr': srr, 'strand': ['first', 'second']}
-
-            if check_alignment2(store, patterns['hisat2']['bad'], **curr):
-                continue
-
-            val = check_outputs(**curr)
-            if val is not None:
-                done.append(val)
-
-        if len(done) > 0:
-            df = pd.DataFrame(done).drop_duplicates()
-
-            # Add to complete, add to alignment queue, remove from prealn queue
-            add_table(store, 'aln/complete', data=df)
-            remove_chunk(store, 'aln/queue', df.srr.tolist())
-
-        store.close()
-
-
-rule print_queue:
-    """Prints the current counts for the queue."""
-    run:
-        store = pd.HDFStore(mystore, mode='r')
-
-        def cnts(key):
-            if store.__contains__(key):
-                return store[key].value_counts()[True]
-            else:
-                return 0
-
-        pairs = [
-            ("ids in the system", store['ids'].shape[0]),
-            ("queued", store["aln/queue"].shape[0]),
-            ("completed", store['aln/complete'].shape[0]),
-            ("alignment bad", cnts('aln/alignment_bad')),
-        ]
-
-        report = '\nCurrent Queue Summary\n'
-        for k, v in pairs:
-            report += '{:,}\t\t\t{}\n'.format(v, k)
-
-        print(report)
-        store.close()
-
-
 rule aggregate:
     """Aggregate outputs from different tools."""
     threads: 8
@@ -440,7 +333,7 @@ rule hisat2_summary:
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.iloc[0, :]['per_alignment'] < .50:
-            fname = patterns['hisat2']['bad'].format(**wildcards)
+            fname = patterns['alignment_bad'].format(**wildcards)
             Path(fname).touch()
 
 
