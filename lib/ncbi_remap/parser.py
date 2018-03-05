@@ -107,7 +107,7 @@ def parse_picardCollect_summary(fname):
         'SAMPLE': np.float64,
         'UTR_BASES': np.int64,
     }
-    with open(pattern.format(srx=srx, srr=srr), 'r') as fh:
+    with open(fname, 'r') as fh:
         for l in fh:
             if l.startswith('#'):
                 continue
@@ -120,7 +120,7 @@ def parse_picardCollect_summary(fname):
             return None
         else:
             return pd.read_csv(StringIO(parsed), sep='\t', na_values='?',
-                             dtype=dtypes)
+                               dtype=dtypes)
 
 
 def parse_picardCollect_hist(fname):
@@ -142,14 +142,18 @@ def parse_picardCollect_hist(fname):
         if len(parsed) == 0:
             return None
         else:
-            return pd.read_csv(StringIO(parsed), sep='\t', index_col=0).T
+            df = pd.read_csv(StringIO(parsed), sep='\t', index_col=0).T
+            df.reset_index(drop=True, inplace=True)
+            df.columns = [f'pos_{x}' for x in range(101)]
+            return df
 
 
 def parse_featureCounts_counts(fname):
     """Parser for subread feature counts."""
     df = pd.read_csv(fname, sep='\t', comment='#')
     df.columns = ['FBgn', 'chr', 'start', 'end', 'strand', 'length', 'count']
-    return df[['FBgn', 'count']]
+    df.set_index('FBgn', inplace=True)
+    return df['count'].to_frame()
 
 
 def parse_featureCounts_jcounts(fname):
@@ -214,7 +218,7 @@ def parse_samtools_idxstats(fname):
     """Parser for samtools idxstats."""
     df = pd.read_csv(fname, sep='\t', header=None)
     df.columns = ['chrom', 'length', '# mapped reads', '# unmapped reads']
-    return df
+    return df.set_index('chrom')
 
 
 def parse_samtools_stats(fname):
