@@ -28,12 +28,12 @@ configfile: '../config/reference_config.yaml'
 # Build Sample Table
 ###############################################################################
 mystore = '../sra.h5'
-# store = pd.HDFStore(mystore, mode='r')
-# srxs = store['aln/queue'].srx.unique()[:1000]
-# mask = store['aln/queue'].srx.isin(srxs)
-# sample_table = store['aln/queue'][mask]
-# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
-# store.close()
+store = pd.HDFStore(mystore, mode='r')
+srxs = store['aln/queue'].srx.unique()
+mask = store['aln/queue'].srx.isin(srxs)
+sample_table = store['aln/queue'][mask]
+sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+store.close()
 
 # NOTE: pulling just flybase samples for building BedGraphs
 # sample_table = pd.read_csv('../output/flybase_samples.tsv', sep='\t')
@@ -49,12 +49,12 @@ mystore = '../sra.h5'
 
 # NOTE: Need to remove tmep files from some of the complete
 # 9,425 srx
-store = pd.HDFStore(mystore, mode='r')
-srxs = store['aln/complete'].srx.unique()[:5000]
-mask = store['aln/complete'].srx.isin(srxs)
-sample_table = store['aln/complete'][mask]
-sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
-store.close()
+# store = pd.HDFStore(mystore, mode='r')
+# srxs = store['aln/complete'].srx.unique()[:5000]
+# mask = store['aln/complete'].srx.isin(srxs)
+# sample_table = store['aln/complete'][mask]
+# sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
+# store.close()
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
@@ -97,90 +97,6 @@ onsuccess:
 onerror:
     print('Something went wrong, you need to re-run')
     slack('aln-wf: Something went wrong, you need to re-run')
-
-
-###############################################################################
-# Summary Rules
-###############################################################################
-rule aggregate:
-    """Aggregate outputs from different tools."""
-    threads: 8
-    run:
-        sys.path.insert(0, '../lib')
-        from ncbi_remap.logging import logger
-        from ncbi_remap.io import add_table
-        from ncbi_remap.snakemake import agg
-        from ncbi_remap.parser import (
-            parse_hisat2, parse_featureCounts_summary,
-            parse_picard_markduplicate_metrics, parse_samtools_stats,
-            parse_bamtools_stats, parse_featureCounts_counts,
-            parse_featureCounts_jcounts, parse_samtools_idxstats,
-        )
-
-        store = pd.HDFStore(mystore)
-        flags = store['aln/flags']
-        completed = flags[flags['flag_complete']].reset_index()[['srx', 'srr']]
-
-        # Hisat2
-        logger.info('Parsing Hisat2')
-        agg(store, 'aln/workflow/hisat2', parse_hisat2,
-            patterns['hisat2']['bam'] + '.log', completed)
-
-        # stats
-        logger.info('Parsing Other Stats')
-        logger.info('Parsing Other Stats - Samtools Stats')
-        agg(store, 'aln/workflow/samtools_stats', parse_samtools_stats,
-            patterns['srxMerge']['samtools_stats'], completed)
-
-        logger.info('Parsing Other Stats - Bamtools Stats')
-        agg(store, 'aln/workflow/bamtools_stats', parse_bamtools_stats,
-            patterns['srxMerge']['bamtools_stats'], completed)
-
-        # Feature Counts
-        logger.info('Parsing Feature Counts')
-        logger.info('Parsing Feature Counts - Summary')
-        agg(store, 'aln/workflow/feature_counts/summary',
-            parse_featureCounts_summary,
-            patterns['srxMerge']['feature_counts']['summary'],
-            completed)
-
-        logger.info('Parsing Feature Counts - Counts')
-        agg(store, 'aln/workflow/feature_counts/counts',
-            parse_featureCounts_counts,
-            patterns['srxMerge']['feature_counts']['counts'],
-            completed, large=True)
-
-        logger.info('Parsing Feature Counts - Junction Counts')
-        agg(store, 'aln/workflow/feature_counts/jcounts',
-            parse_featureCounts_jcounts,
-            patterns['srxMerge']['feature_counts']['jcounts'],
-            completed, large=True)
-
-        logger.info('Parsing Feature Counts Intergenic')
-        logger.info('Parsing Feature Counts Intergenic - Summary')
-        agg(store, 'aln/workflow/feature_counts/summary',
-            parse_featureCounts_summary,
-            patterns['srxMerge']['feature_counts_intergenic']['summary'],
-            completed)
-
-        logger.info('Parsing Feature Counts Intergenic - Counts')
-        agg(store, 'aln/workflow/feature_counts/counts',
-            parse_featureCounts_counts,
-            patterns['srxMerge']['feature_counts_intergenic']['counts'],
-            completed, large=True)
-
-        logger.info('Parsing Feature Counts Intergenic - Junction Counts')
-        agg(store, 'aln/workflow/feature_counts/jcounts',
-            parse_featureCounts_jcounts,
-            patterns['srxMerge']['feature_counts_intergenic']['jcounts'],
-            completed, large=True)
-
-        logger.info('Parsing Large Datasets')
-        logger.info('Parsing Other Stats - Samtools Index Stats')
-        agg(store, 'aln/workflow/samtools_idxstats', parse_samtools_idxstats,
-            patterns['srxMerge']['samtools_idxstats'], completed, large=True)
-
-        store.close()
 
 
 ###############################################################################
@@ -262,7 +178,7 @@ rule atropos:
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
     log:
         patterns['atropos']['r1'] + '.log'
-    threads: 2
+    threads: 4
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 2,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -329,7 +245,8 @@ rule hisat2_summary:
         from ncbi_remap.parser import parse_hisat2
         srx = wildcards.srx
         srr = wildcards.srr
-        df = parse_hisat2(srx, srr, input.fn + '.log')
+        fname = input.fn + '.log'
+        df = parse_hisat2(fname.format(srx=srx, srr=srr))
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.iloc[0, :]['per_alignment'] < .50:
