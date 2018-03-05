@@ -25,12 +25,22 @@ configfile: '../config/reference_config.yaml'
 ###############################################################################
 # Build Sample Table
 ###############################################################################
-mystore = '../sra_new.h5'
+with open('../output/rna_seq_srxs.txt', 'r') as fh:
+    rnaseq_srxs = fh.read().strip().split()
+
+mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
-queue = store['prealn/queue']
-srxs = queue.srx.unique()[:1000]
-sample_table = queue[queue.srx.isin(srxs)]
+srxs = [x for x in store['prealn/queue'].srx.unique() if x in rnaseq_srxs]
+mask = store['prealn/queue'].srx.isin(srxs)
+sample_table = store['prealn/queue'][mask]
 store.close()
+
+# mystore = '../sra_new.h5'
+# store = pd.HDFStore(mystore, mode='r')
+# queue = store['prealn/queue']
+# srxs = queue.srx.unique()[:1000]
+# sample_table = queue[queue.srx.isin(srxs)]
+# store.close()
 
 # NOTE: pulling just modENCODE samples for running tau and TSPS
 # sample_table = pd.read_csv('../output/modencode_samples.tsv', sep='\t')
