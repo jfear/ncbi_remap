@@ -18,8 +18,11 @@ sys.path.insert(0, '../lib')
 # from ncbi_remap.config import DATA_STORE
 from ncbi_remap.logging import logger
 from ncbi_remap.snakemake import get_patterns
+from ncbi_remap.queue import (
+    dask_run_srr_checker, dask_run_srr_parser, check_indicator_file,
+)
 
-DATA_STORE = '../sra_new.h5'
+DATA_STORE = '../sra.h5'
 
 
 def get_options():
@@ -148,15 +151,6 @@ def get_updated_db_ids():
     return df[['srx', 'srr']]
 
 
-def dask_run(ids, parser, *args, **kwargs):
-    """Helper function to run function using dask."""
-    futures = []
-    for idx, (srx, srr) in ids.iterrows():
-        futures.append(delayed(parser)(srx, srr, *args, **kwargs))
-
-    return daskClient.gather(daskClient.compute(futures))
-
-
 def dask_run_large_data(name, pattern, munger, parser):
     ids = store['prealn/complete']
     futures = []
@@ -168,24 +162,15 @@ def dask_run_large_data(name, pattern, munger, parser):
     return daskClient.gather(daskClient.compute(futures))
 
 
-def check_flag_file(srx, srr, pattern, *args, **kwargs):
+def check_flag_file(srx, srr, pattern):
     """Parse flag file and return value."""
-    fname = Path(pattern.format(srx=srx, srr=srr, **kwargs))
+    fname = Path(pattern.format(srx=srx, srr=srr))
     try:
         with fname.open() as fh:
             flag = fh.read().strip()
         return srx, srr, flag
     except FileNotFoundError:
         return srx, srr, np.nan
-
-
-def check_indicator_file(srx, srr, pattern, *args, **kwargs):
-    """Check if an indicator file is present."""
-    fname = Path(pattern.format(srx=srx, srr=srr, **kwargs))
-    if fname.exists():
-        return srx, srr
-
-    return np.nan, np.nan
 
 
 def check_abi_solid(srx, srr, *args, **kwargs):
@@ -216,55 +201,10 @@ def check_abi_solid(srx, srr, *args, **kwargs):
     logger.info('Abi Solid Complete')
 
 
-def initialize_store():
-    """Initialize the data store with ids and prealn/queue."""
-    logger.info('Initialize data store.')
-    logger.info('Querying database for ids.')
-    store['ids'] = get_updated_db_ids()
-    logger.info('Adding ids to store.')
-    store.put('prealn/queue', store['ids'], data_columns=True, format='table')
-    logger.info('Initialization complete')
-
-
-def append_store():
-    """Download new data and append to store."""
-    logger.info('Append new ids to data store.')
-    curr_ids = store['ids'].copy()
-
-    logger.info('Querying database for ids.')
-    ids = get_updated_db_ids()
-    store['ids'] = ids
-
-    # Sometimes an id is removed from the SRA, need to make sure to remove it
-    # from the queue.
-    srr_no_longer_in_store = curr_ids.srr.isin(ids.srr)
-    removed_ids = curr_ids[~srr_no_longer_in_store]
-
-    if len(removed_ids) > 0:
-        logger.info(
-            'There are {:,} ids no longer in the SRA.'.format(len(removed_ids))
-        )
-        srrs = removed_ids.srr
-        store.remove('prealn/queue', 'srr == srrs')
-
-    # Do not add ids already in the store back to the queue.
-    srr_already_in_store = ids.srr.isin(curr_ids.srr)
-    new_ids = ids[~srr_already_in_store]
-
-    if len(new_ids) == 0:
-        logger.info('There are no new ids.')
-        return
-
-    logger.info('There are {:,} new ids.'.format(len(new_ids)))
-    logger.info('Adding ids to store.')
-    store.append('prealn/queue', new_ids, data_columns=True, format='table')
-    logger.info('Initialization complete')
-
-
-def check_outputs(srx, srr, *args, **kwargs):
+def check_outputs(srx, srr, *args):
     """Check if output file is present."""
     for pattern in get_keepers():
-        fname = Path(pattern.format(srx=srx, srr=srr, **kwargs))
+        fname = Path(pattern.format(srx=srx, srr=srr))
         if not fname.exists():
             return np.nan, np.nan
     return srx, srr
@@ -273,7 +213,8 @@ def check_outputs(srx, srr, *args, **kwargs):
 def process_outputs():
     """Check if all output files are present and update queues."""
     logger.info('Checking outputs.')
-    res = dask_run(store['prealn/queue'], check_outputs)
+    res = dask_run_srr_checker(store['prealn/queue'], check_outputs, None,
+                               daskClient)
     ids = pd.DataFrame(res, columns=['srx', 'srr']).dropna()
 
     mask = store['prealn/queue'].srr.isin(ids.srr)
@@ -291,23 +232,20 @@ def process_flags():
     queue = store['prealn/queue']
 
     # flag files
-    for key in 'layout', 'strand':
+    for key in ['layout', 'strand']:
         logger.info(f'Checking {key} files.')
         if store.__contains__(key):
-            ids = queue[~queue.srr.isin(store[key].index.get_level_values('srr'))]
+            ids = queue[~queue.srr.isin(
+                store[key].index.get_level_values('srr')
+            )]
         else:
             ids = queue
-        dat = dask_run(ids, check_flag_file, patterns[key])
+        dat = dask_run_srr_checker(ids, check_flag_file, patterns[key],
+                                   daskClient)
         df = pd.DataFrame(dat, columns=['srx', 'srr', key])\
             .set_index(['srx', 'srr'])\
             .iloc[:, 0]\
             .dropna()
-
-        # Prevent duplicate entries in the store
-#         if store.__contains__(key):
-#             idx = store[key].index.get_level_values('srr')
-#             srr_already_in_store = df.index.get_level_values('srr').isin(idx)
-#             df = df[~srr_already_in_store]
 
         store.append(key, df, data_columns=True, format='t')
 
@@ -322,21 +260,17 @@ def process_flags():
             ids = queue[~queue.srr.isin(store[key].srr)]
         else:
             ids = queue
-        dat = dask_run(ids, check_indicator_file, patterns[key])
+        dat = dask_run_srr_checker(ids, check_indicator_file, patterns[key],
+                                   daskClient)
         df = pd.DataFrame(dat, columns=['srx', 'srr'])\
             .dropna()\
             .reset_index(drop=True)
 
-        # Prevent duplicate entries in the store
-#         if store.__contains__(key):
-#             idx = store[key].srr
-#             srr_already_in_store = df.srr.isin(idx)
-#             df = df[~srr_already_in_store]
-
+        # remove form queue because an indicator files indicates that
+        # something is something wrong. Using mask because querying a list of
+        # ids was not working.
         mask = queue.srr.isin(df.srr)
         cnt = mask.sum()
-        # remove form queue because an indicator files indicates that
-        # something is something wrong.
         if cnt > 0:
             store_key = 'prealn/' + key
             store.append(store_key, df, data_columns=True, format='t')
@@ -345,11 +279,183 @@ def process_flags():
             store.remove('prealn/queue', mask)
 
 
-def update_queue():
-    logger.info('Updating queue.')
-    process_flags()
-    process_outputs()
-    logger.info('Update complete')
+def munge_as_dataframe(srx, srrs, name, pattern, parser):
+    oname = Path(name.format(srx=srx))
+
+    if oname.exists():
+        return
+
+    dfs = []
+    for srr in srrs:
+        fname = pattern.format(srx=srx, srr=srr)
+        df = parser(fname)
+        dfs.append(df.assign(srx=srx, srr=srr))
+
+    if len(dfs) > 1:
+        df = pd.concat(dfs)
+    else:
+        df = dfs[0]
+
+    oname.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(oname.as_posix(), engine='pyarrow')
+
+
+def munge_big_data():
+    """Munge larger datasets for easier handling with dask.
+
+    Larger tables are not performant when added to the datastore. Dask does
+    well accessing multiple files on disk in parallel. Dask documentation
+    suggests to use the apache parquet. Here we munge the data and save it out
+    to the parquet format.
+    """
+    from ncbi_remap.parser import (
+        parse_samtools_idxstats,
+        parse_featureCounts_counts,
+        parse_featureCounts_jcounts,
+    )
+
+    logger.info(f'Building samtools idxstats files')
+    dask_run_large_data('output/samtools_idx_stats/{srx}.parquet',
+                        patterns['samtools_idxstats'],
+                        munge_as_dataframe,
+                        parse_samtools_idxstats)
+
+    logger.info(f'Building counts files')
+    dask_run_large_data('output/gene_counts/{srx}.parquet',
+                        patterns['feature_counts']['counts'],
+                        munge_as_dataframe,
+                        parse_featureCounts_counts)
+
+    logger.info(f'Building junction counts files')
+    dask_run_large_data('output/junction_counts/{srx}.parquet',
+                        patterns['feature_counts']['jcounts'],
+                        munge_as_dataframe,
+                        parse_featureCounts_jcounts)
+
+
+def agg_small(name, pattern, parser):
+    complete = store['prealn/complete']
+    key = 'prealn/workflow/' + name
+    logger.info(f'Checking {key} files.')
+
+    if store.__contains__(key):
+        srrs_not_processed = ~complete.srr.isin(
+            store[key].index.get_level_values('srr')
+        )
+        toRun = complete[srrs_not_processed]
+    else:
+        toRun = complete
+
+    dat = dask_run_srr_parser(toRun, parser, pattern, daskClient)
+    dfs = [x for x in dat if x is not None]
+    if len(dfs) > 0:
+        df = pd.concat(dfs)
+        try:
+            store.append(key, df, data_columns=True, format='t')
+        except ValueError:
+            # Sometimes data types don't match, use pandas to coerce.
+            tmp = store[key]
+            store.append(key, pd.concat([tmp, df]), data_columns=True,
+                         format='t', append=False)
+
+
+def add_small_data_to_store():
+    """Parse smaller datasets and add them to the store.
+
+    Smaller datasets are munged and added to their corresponding table in the
+    data store.
+    """
+    from ncbi_remap.parser import (
+        parse_fastq_summary, parse_fastq_screen, parse_hisat2,
+        parse_samtools_stats, parse_bamtools_stats,
+        parse_picard_markduplicate_metrics, parse_picardCollect_summary,
+        parse_picardCollect_hist, parse_featureCounts_summary
+    )
+
+    agg_small('fastq', patterns['fastq']['summary'], parse_fastq_summary)
+
+    agg_small('fastq_screen', patterns['fastq_screen'], parse_fastq_screen)
+
+    agg_small('hisat2', patterns['hisat2']['bam'] + '.log', parse_hisat2)
+
+    agg_small('samtools_stats', patterns['samtools_stats'],
+              parse_samtools_stats)
+
+    agg_small('bamtools_stats', patterns['bamtools_stats'],
+              parse_bamtools_stats)
+
+    agg_small('markduplicates',
+              patterns['picard']['markduplicates']['metrics'],
+              parse_picard_markduplicate_metrics)
+
+    agg_small('collectrnaseqmetrics/first',
+              patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
+              parse_picardCollect_summary)
+
+    agg_small('collectrnaseqmetrics/second',
+              patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
+              parse_picardCollect_summary)
+
+    agg_small(
+        'collectrnaseqmetrics/unstranded',
+        patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
+        parse_picardCollect_summary
+    )
+
+    agg_small(
+        'collectrnaseqmetrics/genebody',
+        patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
+        parse_picardCollect_hist
+    )
+
+    agg_small('feature_counts/summary',
+              patterns['feature_counts']['summary'],
+              parse_featureCounts_summary)
+
+
+def initialize_store():
+    """Initialize the data store with ids and prealn/queue."""
+    logger.info('Initialize data store.')
+    logger.info('Querying database for ids.')
+    store['ids'] = get_updated_db_ids()
+    logger.info('Adding ids to store.')
+    store.put('prealn/queue', store['ids'], data_columns=True, format='table')
+    logger.info('Initialization complete')
+
+
+def append_store():
+    """Download new ids and append to store."""
+    logger.info('Append new ids to data store.')
+    curr_ids = store['ids'].copy()
+
+    logger.info('Querying database for ids.')
+    ids = get_updated_db_ids()
+    store['ids'] = ids
+
+    # Sometimes an id is removed from the SRA, need to make sure to remove it
+    # from the queue.
+    srr_no_longer_in_store = ~curr_ids.srr.isin(ids.srr)
+    removed_ids = curr_ids[srr_no_longer_in_store]
+
+    if len(removed_ids) > 0:
+        logger.info(
+            'There are {:,} ids no longer in the SRA.'.format(len(removed_ids))
+        )
+        srrs = removed_ids.srr
+        store.remove('prealn/queue', 'srr == srrs')
+
+    # Only add ids not already in the store.
+    srr_not_in_store = ~ids.srr.isin(curr_ids.srr)
+    new_ids = ids[srr_not_in_store]
+
+    if len(new_ids) == 0:
+        logger.info('There are no new ids.')
+        return
+
+    logger.info('There are {:,} new ids.'.format(len(new_ids)))
+    logger.info('Adding ids to store.')
+    store.append('prealn/queue', new_ids, data_columns=True, format='table')
+    logger.info('Initialization complete')
 
 
 def print_queue():
@@ -395,149 +501,11 @@ def print_queue():
     print(report)
 
 
-def agg_small(name, pattern, func):
-    complete = store['prealn/complete']
-    key = 'prealn/workflow/' + name
-    logger.info(f'Checking {key} files.')
-
-    if store.__contains__(key):
-        srrs_already_processed = complete.srr.isin(store[key].index.get_level_values('srr'))
-        toRun = complete[~srrs_already_processed]
-    else:
-        toRun = complete
-
-    dat = dask_run(toRun, func, pattern)
-    dfs = [x for x in dat if x is not None]
-    if len(dfs) > 0:
-        df = pd.concat(dfs)
-        try:
-            store.append(key, df, data_columns=True, format='t')
-        except ValueError:
-            # Sometimes data types don't match, use pandas to coerce.
-            tmp = store[key]
-            store.append(key, pd.concat([tmp, df]), data_columns=True,
-                         format='t', append=False)
-
-
-def munge_as_series(srx, srrs, name, pattern, parser):
-    srx_dirname = Path(pattern).parents[1].as_posix().format(srx=srx)
-    oname = Path(srx_dirname, name)
-
-    if oname.exists():
-        return
-
-    srs = []
-    for srr in srrs:
-        sr = parser(srx, srr, pattern)
-        sr.index = sr.index.droplevel([0, 1])
-        sr.name = srr
-        srs.append(sr)
-
-    if len(srs) > 1:
-        df = pd.concat(srs, axis=1)
-    else:
-        df = sr.to_frame()
-
-    df.to_parquet(oname.as_posix(), engine='pyarrow')
-
-
-def munge_as_dataframe(srx, srrs, name, pattern, parser):
-    srx_dirname = Path(pattern).parents[1].as_posix().format(srx=srx)
-    oname = Path(srx_dirname, name)
-
-    if oname.exists():
-        return
-
-    dfs = []
-    for srr in srrs:
-        df = parser(srx, srr, pattern)
-        dfs.append(df)
-
-    if len(dfs) > 1:
-        df = pd.concat(dfs)
-
-    df.to_parquet(oname.as_posix(), engine='pyarrow')
-
-
-def add_small_data_to_store():
-    """Parse smaller datasets and add them to the store.
-
-    Smaller datasets are munged and added to their corresponding table in the
-    data store.
-    """
-    from ncbi_remap.parser import (
-        parse_fastq_summary, parse_fastq_screen, parse_hisat2,
-        parse_samtools_stats, parse_bamtools_stats,
-        parse_picard_markduplicate_metrics, parse_picardCollect_summary,
-        parse_featureCounts_summary
-    )
-
-    agg_small('fastq', patterns['fastq']['summary'], parse_fastq_summary)
-
-    agg_small('fastq_screen', patterns['fastq_screen'], parse_fastq_screen)
-
-    agg_small('hisat2', patterns['hisat2']['bam'] + '.log', parse_hisat2)
-
-    agg_small('samtools_stats', patterns['samtools_stats'],
-              parse_samtools_stats)
-
-    agg_small('bamtools_stats', patterns['bamtools_stats'],
-              parse_bamtools_stats)
-
-    agg_small('markduplicates',
-              patterns['picard']['markduplicates']['metrics'],
-              parse_picard_markduplicate_metrics)
-
-    agg_small('collectrnaseqmetrics/first',
-              patterns['picard']['collectrnaseqmetrics']['metrics']['first'],
-              parse_picardCollect_summary)
-
-    agg_small('collectrnaseqmetrics/second',
-              patterns['picard']['collectrnaseqmetrics']['metrics']['second'],
-              parse_picardCollect_summary)
-
-    agg_small(
-        'collectrnaseqmetrics/unstranded',
-        patterns['picard']['collectrnaseqmetrics']['metrics']['unstranded'],
-        parse_picardCollect_summary
-    )
-
-    agg_small('feature_counts/summary',
-              patterns['feature_counts']['summary'],
-              parse_featureCounts_summary)
-
-
-def munge_big_data():
-    """Munge larger datasets for easier handling with dask.
-
-    Larger tables are not performant when added to the datastore. Dask does
-    well accessing multiple files on disk in parallel. Dask documentation
-    suggests to use the apache parquet. Here we munge the data and save it out
-    to the parquet format.
-    """
-    from ncbi_remap.parser import (
-        parse_samtools_idxstats,
-        parse_featureCounts_counts,
-        parse_featureCounts_jcounts,
-    )
-
-    logger.info(f'Building samtools idxstats files')
-    dask_run_large_data('srr_samtools_idxstats.parquet',
-                        patterns['samtools_idxstats'],
-                        munge_as_dataframe,
-                        parse_samtools_idxstats)
-
-    logger.info(f'Building counts files')
-    dask_run_large_data('srr_counts.parquet',
-                        patterns['feature_counts']['counts'],
-                        munge_as_series,
-                        parse_featureCounts_counts)
-
-    logger.info(f'Building junction counts files')
-    dask_run_large_data('srr_jcounts.parquet',
-                        patterns['feature_counts']['jcounts'],
-                        munge_as_dataframe,
-                        parse_featureCounts_jcounts)
+def update_queue():
+    logger.info('Updating queue.')
+    process_flags()
+    process_outputs()
+    logger.info('Update complete')
 
 
 def updated_data_tables():
@@ -564,7 +532,8 @@ if __name__ == '__main__':
         elif args.queue_print:
             print_queue()
         elif args.queue_abi:
-            dask_run(store['prealn/queue'], check_abi_solid)
+            dask_run_srr_checker(store['prealn/queue'], check_abi_solid, None,
+                                 daskClient)
     elif args.command == 'data':
         updated_data_tables()
 
