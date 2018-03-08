@@ -23,7 +23,6 @@ import gzip
 import shutil as sh
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from snakemake.shell import shell
@@ -68,25 +67,29 @@ if check_fastq(t2):
             sh.copyfileobj(f_in, f_out)
 else:
     R2md5 = R2Libsize = R2avgLen = None
+    R2Abi = False
     Path(output.fq2).touch()
 
 # Save summaries
 df = pd.DataFrame([[R1md5, R1Libsize, R1avgLen, R2md5, R2Libsize, R2avgLen]],
-                  columns=['md5_R1', 'libsize_R1', 'avgLen_R1', 'md5_R2', 'libsize_R2', 'avgLen_R2'])
+                  columns=['md5_R1', 'libsize_R1', 'avgLen_R1', 'md5_R2',
+                           'libsize_R2', 'avgLen_R2'])
 
 df.to_csv(output.summary, sep='\t', index=False)
 
 # Figure out flags
-if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & (R2avgLen is None):
+if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & \
+        (R2avgLen is None):
     # R2 does not exists so SE
     put_flag(output.flag, 'SE')
 
-elif (R2Libsize is None)  & (R2avgLen is None):
+elif (R2Libsize is None) & (R2avgLen is None):
     # SE but R1 looks bad, flag as download bad
     fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
     Path(fname).touch()
 
-elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & (R2avgLen > 10):
+elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & \
+        (R2avgLen > 10):
     if R1Libsize == R2Libsize:
         # Both reads look good so PE
         put_flag(output.flag, 'PE')
