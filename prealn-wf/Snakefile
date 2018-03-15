@@ -31,7 +31,7 @@ with open('../output/rna_seq_srxs.txt', 'r') as fh:
 mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = [x for x in store['prealn/queue'].srx.unique() if x in rnaseq_srxs]
-mask = store['prealn/queue'].srx.isin(srxs)
+mask = store['prealn/queue'].srx.isin(srxs[:3000])
 sample_table = store['prealn/queue'][mask]
 store.close()
 
@@ -232,7 +232,8 @@ rule hisat2_summary:
         from ncbi_remap.parser import parse_hisat2
         srx = wildcards.srx
         srr = wildcards.srr
-        df = parse_hisat2(srx, srr, input.fn + '.log')
+        fname = input.fn + '.log'
+        df = parse_hisat2(fname.format(srx=srx, srr=srr))
         df.to_csv(output.tsv, sep='\t', index=False)
 
         if df.ix[0, 'per_alignment'] < .50:
@@ -328,9 +329,11 @@ rule collectrnaseqmetrics_agg:
         from ncbi_remap.parser import parse_picardCollect_summary
         srx = wildcards.srx
         srr = wildcards.srr
-        dfU = parse_picardCollect_summary(srx, srr, input.unstranded)
-        dfF = parse_picardCollect_summary(srx, srr, input.first)
-        dfS = parse_picardCollect_summary(srx, srr, input.second)
+        dfU = parse_picardCollect_summary(input.unstranded.format(srx=srx,
+                                                                  srr=srr))
+        dfF = parse_picardCollect_summary(input.first.format(srx=srx, srr=srr))
+        dfS = parse_picardCollect_summary(input.second.format(srx=srx,
+                                                              srr=srr))
 
         if dfF.PCT_CORRECT_STRAND_READS.values[0] >= .75:
             flag = 'same_strand'
