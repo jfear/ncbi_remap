@@ -19,8 +19,9 @@ for i in range(STATUS_ATTEMPTS):
     except sp.CalledProcessError as e:
         logger.error("sacct process error")
         logger.error(e)
-    except IndexError as e:
+    except (IndexError, OSError) as e:
         pass
+
     # Try getting job with scontrol instead in case sacct is misconfigured
     try:
         sctrl_res = sp.check_output(shlex.split("scontrol -o show job {}".format(jobid)))
