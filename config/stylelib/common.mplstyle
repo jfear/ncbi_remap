@@ -2,3 +2,4 @@ ps.fonttype: 42
 pdf.fonttype: 42
 svg.fonttype: none
 font.sans-serif: Arial, Helvetica, DejaVu Sans, Bitstream Vera Sans, Computer Modern Sans Serif, Lucida Grande, Verdana, Geneva, Lucid, Avant Garde, sans-serif
+figure.dpi: 300

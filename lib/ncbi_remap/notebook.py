@@ -16,8 +16,8 @@ from .plotting import add_styles
 
 class Nb(object):
     def __init__(self, nb_name=None, project_dir=None, subproject_dir=None,
-                 config_dir=None, ref_dir=None, fig_dir=None, table_dir=None,
-                 formats=None, styles=None, styles_wide=None, styles_full=None,
+                 config_dir=None, ref_dir=None, fig_dir=None, formats=None,
+                 styles=None, styles_wide=None, styles_full=None,
                  watermark=None, **kwargs):
         """Helper method for working consistently in notebook.
 
@@ -39,8 +39,6 @@ class Nb(object):
             Name of the subproject directory for placing output.
         fig_dir : str
             Name of the figures directory.
-        table_dir : str
-            Name of the tables directory.
         formats : str or list
             Default list of formats to use for plotting. For example 'png' or
             ['png', 'svg'].
@@ -67,8 +65,6 @@ class Nb(object):
             Name of the references directory.
         fig_dir : str
             Name of the figures directory.
-        table_dir : str
-            Name of the tables directory.
         formats : str or list
             Default list of formats to use for plotting. For example 'png' or
             ['png', 'svg'].
@@ -107,7 +103,6 @@ class Nb(object):
         self.config_dir = config_dir
         self.ref_dir = ref_dir
         self.fig_dir = fig_dir
-        self.table_dir = table_dir
         self.formats = formats
         self.styles = styles
         self.styles_wide = styles_wide
@@ -139,7 +134,7 @@ class Nb(object):
                                 f'{assembly}_{tag}.fb_synonym')
 
         # Add useful mappers
-        _annot = pd.read_csv(self.annot, sep='\t', index_col=1)
+        _annot = pd.read_csv(self.annot, sep='\t', index_col=1).fillna('nan')
         self.fbgn2symbol = _annot['gene_symbol'].to_dict()
         self.symbol2fbgn = {v: k for k, v in self.fbgn2symbol.items()}
 
@@ -232,6 +227,13 @@ class Nb(object):
             Additional arguments to pass to Nb.
 
         """
+        # Set seurat_dir to subproject_dir if it was None.
+        if subproject_dir is None:
+            subproject_dir = Path(PROJECT_DIR, 'output').as_posix()
+
+        fig_dir = Path(subproject_dir, 'figures')
+        fig_dir.mkdir(parents=True, exist_ok=True)
+
         # set defaults
         defaults = {
             'nb_name': nb_name,
@@ -239,19 +241,20 @@ class Nb(object):
             'subproject_dir': subproject_dir,
             'config_dir': CONFIG_DIR,
             'ref_dir': REFERENCES_DIR,
-            'fig_dir': './figures',
-            'table_dir': './tables',
-            'formats': ['png', 'pdf', 'svg'],
-            'styles': ['notebook', 'paper'],
-            'styles_wide': ['notebook-wide', 'paper-wide'],
-            'styles_full': ['notebook-full', 'paper-full'],
+            'fig_dir': fig_dir.as_posix(),
+            'formats': ['png', 'pdf'],
+            'styles': ['notebook', 'talk'],
             'watermark': watermark
         }
 
-        defaults.update(kwargs)
-
         # Import external config
         defaults.update(config)
+        defaults.update(kwargs)
+
+        # Add wide and full styles
+        _styles = defaults['styles']
+        defaults['styles_wide'] = [x + '-wide' for x in _styles]
+        defaults['styles_full'] = [x + '-full' for x in _styles]
 
         return cls(**defaults)
 
@@ -265,14 +268,15 @@ class Nb(object):
         if self.nb_name is not None:
             fname = '_'.join([self.nb_name, fname])
 
-        return os.path.join(self.table_dir, fname)
+        return os.path.join(self.subproject_dir, fname)
 
     def __repr__(self):
         return str(self)
 
     def __str__(self):
-        keys = ['nb_name', 'project_dir', 'config_dir', 'fig_dir', 'table_dir',
-                'formats', 'styles', 'styles_wide', 'styles_full', 'date']
+        keys = ['nb_name', 'project_dir', 'config_dir', 'subproject_dir',
+                'fig_dir', 'formats', 'styles', 'styles_wide',
+                'styles_full', 'date']
         keys.extend(self._config_attrs)
         res = []
         for key in keys:

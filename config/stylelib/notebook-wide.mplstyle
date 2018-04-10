@@ -1,6 +1,7 @@
 axes.labelsize: 11.0
 axes.titlesize: 12.0
 figure.figsize: 10.0, 5.5
+figure.dpi: 100
 grid.linewidth: 1.0
 legend.fontsize: 10.0
 lines.linewidth: 1.75
