@@ -11,5 +11,5 @@ hisat2:
   gres: "lscratch:250"
 
 convertBedGraphToBigWig:
-  gres: "lscratch:300"
+  gres: "lscratch:500"
 

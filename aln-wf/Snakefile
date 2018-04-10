@@ -346,7 +346,7 @@ rule featurecounts_intergenic:
         extra_se = '-J -t gene '
     threads: 2
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 2,
+      mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 1
     log:
         patterns['srxMerge']['feature_counts_intergenic']['counts'] + '.log'
@@ -409,8 +409,8 @@ rule bamCoverage:
         extra=_param_bamCoverage
     threads: 4
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8,
-      time_hr=lambda wildcards, attempt: attempt * 4
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 12
     conda:
         "conda.yaml"
     wrapper:
@@ -451,7 +451,7 @@ rule convertBedGraphToBigWig:
     output:
         bigwig='{prefix}.bw'
     conda:
-        'conda.yaml'
+        'conda_ucsc.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 2,
       time_hr=lambda wildcards, attempt: attempt * 1

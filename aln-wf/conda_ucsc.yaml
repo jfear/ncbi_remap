@@ -1,0 +1,9 @@
+channels:
+- bioconda
+- conda-forge
+- defaults
+- lcdb
+- jfear
+dependencies:
+- ucsc-bedsort=357=1
+- ucsc-bedgraphtobigwig=357=1
