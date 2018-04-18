@@ -127,7 +127,7 @@ rule fastq_screen:
     """Check for contamination."""
     input:
         fastq = patterns['fastq']['r1'],
-        dm6 =config['references']['dmel']['bowtie2'],
+        dm6 = config['references']['dmel']['bowtie2'],
         hg19 = config['references']['human']['bowtie2'],
         wolbachia = config['references']['wolbachia']['bowtie2'],
         ecoli = config['references']['ecoli']['bowtie2'],
