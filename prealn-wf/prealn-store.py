@@ -48,7 +48,7 @@ def get_options():
         dest='port',
         action='store',
         type=int,
-        default=27022,
+        default=27017,
         help='Mongo database port [Optional].'
     )
     parser_init.add_argument(
