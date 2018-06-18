@@ -35,7 +35,7 @@ with open('../output/rna_seq_srxs.txt', 'r') as fh:
 # sample_table = store['prealn/queue'][mask]
 # store.close()
 
-mystore = '../sra_new.h5'
+mystore = '../sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 queue = store['prealn/queue']
 srxs = queue.srx.unique()[:3000]
