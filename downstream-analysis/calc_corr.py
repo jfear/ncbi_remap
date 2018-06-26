@@ -17,12 +17,12 @@ from ncbi_remap.logging import logger
 
 DEBUG = False
 DEBUG_N = 1000
-cache = Path('corr.cache')
+cache = Path('output/corr.cache')
 
 
 def cleanup():
     fnames = [
-        Path('dask_info.json'),
+        Path('output/dask_info.json'),
         Path('output/gene_counts_corr.parquet'),
     ]
     for fname in fnames:
@@ -40,7 +40,7 @@ def start_cluster():
                            memory_limit=f'{mem}GB')
 
     client = Client(cluster)
-    with open('dask_info.json', 'w') as fh:
+    with open('output/dask_info.json', 'w') as fh:
         fh.write(dumps(client._scheduler_identity, indent=True))
 
     return client
@@ -148,8 +148,8 @@ def main():
 
 
 if __name__ == '__main__':
-    cleanup()
     Path('output').mkdir(exist_ok=True)
+    cleanup()
 
     if cache.exists():
         use_corr()
