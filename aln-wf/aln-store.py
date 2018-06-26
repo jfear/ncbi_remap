@@ -126,7 +126,7 @@ def process_outputs():
 def process_flags():
     """Check all flag and indicator files and store results."""
     # indicator files
-    for key in ['alignment_bad', ]:
+    for key in ['alignment_bad', 'bigwig_bad', ]:
         queue = store['aln/queue']
         logger.info(f'Checking {key} files.')
         if store.__contains__(key):
@@ -305,6 +305,7 @@ def print_queue():
         ("queued", "aln/queue"),
         ("completed", 'aln/complete'),
         ("alignment bad", 'aln/alignment_bad'),
+        ("bigwig bad", 'aln/bigwig_bad'),
     ]
     parsed = [parse_pairs(k, v) for k, v in pairs]
 

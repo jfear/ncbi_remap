@@ -37,6 +37,7 @@ srxMerge:
 layout: ../prealn-wf/output/samples/{srx}/{srr}/LAYOUT
 strand: ../prealn-wf/output/samples/{srx}/{srr}/STRAND
 alignment_bad: output/samples/{srx}/{srr}/ALIGNMENT_BAD
+bigwig_bad: output/samples/{srx}/BIGWIG_BAD
 chromSizes_fb: ../output/dmel_r6-11.flybase.chromsizes
 intergenic:
   bed: ../output/dmel_r6-11.intergenic.bed
