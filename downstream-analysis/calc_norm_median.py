@@ -15,7 +15,7 @@ from ncbi_remap.logging import logger
 from ncbi_remap.normalization import cpm
 
 
-DEBUG = True
+DEBUG = False
 DEBUG_N = 1000
 
 
