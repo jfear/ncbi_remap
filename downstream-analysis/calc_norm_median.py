@@ -46,11 +46,14 @@ def get_samples():
 
 @delayed
 def get_norm_counts(srx):
+    data = []
     # Gene level counts
     gene = pd.read_parquet(f'../aln-wf/output/gene_counts/{srx}.parquet')
     gene.reset_index(inplace=True)
     gene[['FBgn', 'srx', 'count']].copy()
     gene['var_type'] = 'gene'
+    if gene.size > 0:
+        data.append(gene)
 
     # junction level counts
     chroms = ['chrX', 'chr2L', 'chr2R', 'chr3L', 'chr3R', 'chr4', 'chrY']
@@ -61,6 +64,8 @@ def get_norm_counts(srx):
     junc.dropna(inplace=True)
     junc = junc.groupby(['FBgn', 'srx'])['count'].sum().reset_index()
     junc['var_type'] = 'junction'
+    if junc.size > 0:
+        data.append(junc)
 
     # intergenic counts
     inter_annot = pd.read_csv(
@@ -76,12 +81,24 @@ def get_norm_counts(srx):
     inter.reset_index(inplace=True)
     inter = inter[['FBgn', 'srx', 'count']].copy()
     inter['var_type'] = 'intergenic'
+    if inter.size > 0:
+        data.append(inter)
 
     # combine, normalize, aggregate
-    df = pd.concat([gene, junc, inter], sort=True)
+    df = pd.concat(data, sort=True)
     norm = cpm(df.set_index(['FBgn', 'srx', 'var_type']), log='log10').reset_index()
     medians = norm.groupby(['srx', 'var_type']).median().unstack()
     medians.columns = medians.columns.droplevel(0)
+
+    # If missing any type set to 0
+    cols = medians.columns
+    if 'gene' not in cols:
+        medians['gene'] = 0.0
+    elif 'junction' not in cols:
+        medians['junction'] = 0.0
+    elif 'intergenic' not in cols:
+        medians['intergenic'] = 0.0
+
     return medians
 
 
