@@ -1,7 +1,8 @@
 """Snakemake implementation."""
+from pathlib import Path
+
 import pandas as pd
 from scipy.stats import spearmanr
-
 
 store = pd.HDFStore('../sra.h5', mode='r')
 samples = store['aln/complete'].srx.unique().tolist()[::-1]
