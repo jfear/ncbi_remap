@@ -14,8 +14,6 @@ import pandas as pd
 from dask import delayed
 from dask.distributed import Client
 
-sys.path.insert(0, '../lib')
-# from ncbi_remap.config import DATA_STORE
 from ncbi_remap.logging import logger
 from ncbi_remap.snakemake import get_patterns
 from ncbi_remap.queue import (

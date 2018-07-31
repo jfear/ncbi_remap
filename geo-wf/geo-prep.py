@@ -12,13 +12,12 @@ from pymongo import MongoClient
 from dask import delayed
 from dask.distributed import Client, LocalCluster
 
-sys.path.insert(0, '../lib')
 from ncbi_remap.logging import logger
 from ncbi_remap.config import memory
 
 
 DEBUG = False
-OUTDIR = Path('/media/psf/Promise_Pegasus/fearjm/ncbi_remap/geo-wf/justin.fear@nih.gov')
+OUTDIR = Path('output/justin.fear@nih.gov')
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 if DEBUG:
