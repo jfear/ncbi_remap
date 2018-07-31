@@ -24,6 +24,7 @@ website/content
 _build
 .*
 dask-worker-space
+*.egg-info
 
 # Files
 notebook/*.html
