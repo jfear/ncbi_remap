@@ -1,4 +1,50 @@
-#!/usr/bin/env python
+"""Alignment workflow.
+
+The goal of the alignment workflow is to use parameters determined in the
+pre-alignment workflow and processing files. This workflow uses a queue in
+`../sra.h5`. To update the queue you need to run `./aln-store.py queue update
+-j 8`. The major file types output by the alignment workflow include:
+
+* Strand specific BigWig tracks
+* Gene level coverage counts and junction counts
+* Intergenic coverage counts and junction counts
+
+Rules
+-----
+targets
+    create a list of desired output files
+intergenic
+    create an intergenic bed and gtf based on the flybase gtf
+fastq_dump
+    download fastq file from SRA, determine if the file is pair-end or
+    single-end and count the number of reads and average read length
+atropos
+    trim illumina adapters and low quality bases (<20) from fastq file, remove
+    reads that have fewer than 25 bp
+hisat2_splice_site
+    create set of splice sites using the flybase gtf
+hisat2
+    align reads to the flybase reference
+hisat2_summary
+    parse alignment log and determine if the alignment failed (<50% aligned)
+expMerge
+    merge bams (SRRs) to the library (SRX) level
+feature_counts
+    count the number of reads that overlap genic regions and junction counts
+featurecounts_intergenic
+    count the number of reads that overlap intergenic regions and junction
+    counts
+run_stats
+    calculate basic stats with `samtools stats`, `samtools idxstats`, and
+    `bamtools stats`
+bamCoverage
+    create strand specific coverage tracks (bedgraph) using deeptools
+convertToFlybase
+    convert bedgraph chromosome names (UCSC format) to flybase chromosome names
+convertBedGraphToBigWig
+    convert begraph to bigwig
+"""
+
 import os
 import sys
 from pathlib import Path
@@ -10,7 +56,6 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
-sys.path.insert(0, '../lib')
 from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
 # Setup tempdir to work with lscratch
