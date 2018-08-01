@@ -18,6 +18,7 @@ def main():
     }
 
     df.rename(char_map, axis=1, inplace=True)
+    df['molecule'] = 'total RNA'
     df[HEADER].to_csv(OUTPUT, sep='\t')
 
 
