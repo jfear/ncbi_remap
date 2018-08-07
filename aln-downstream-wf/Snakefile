@@ -1,0 +1,46 @@
+""" Downstream analysis for the alignment workflow results.
+
+This is where I conduct all downstream analysis for the alignment workflow.
+
+Rules
+-----
+targets
+    create a list of desired output files
+gene_lengths
+    create a file containing gene lengths from feature counts
+aggregate_gene_counts
+    aggregates the gene counts files into a single matrix
+normalize_gene_counts
+    normalizes gene counts using CPM, TPM, or RPKM
+"""
+
+rule targets:
+    input:
+        'output/gene_counts_wide.parquet',
+        'output/gene_lengths.parquet',
+        'output/gene_counts_wide_cpm.parquet',
+        'output/gene_counts_wide_rpkm.parquet',
+        'output/gene_counts_wide_tpm.parquet',
+
+
+rule gene_lengths:
+    output: 'output/gene_lengths.parquet'
+    script: 'scripts/gene_lengths.py'
+
+
+rule aggregate_gene_counts:
+    output: 'output/gene_counts_wide.parquet',
+    script: 'scripts/aggregate_genic_counts.py'
+
+
+rule normalize_gene_counts:
+    input:
+        gene_lens=rules.gene_lengths.output,
+        gene_counts=rules.aggregate_gene_counts.output,
+    output:
+        cpm='output/gene_counts_wide_cpm.parquet',
+        rpkm='output/gene_counts_wide_rpkm.parquet',
+        tpm='output/gene_counts_wide_tpm.parquet',
+    script: 'scripts/normalize_genic_counts.py'
+
+# vim: set ft=snakemake.python
