@@ -28,10 +28,10 @@ body: None
 body tissue: None
 body wall muscle: muscle
 brain: brain
-brain gl: brian
+brain gl: brain
 brain without ventral nerve cord: brain
-brains: brian
-brian: brian
+brains: brain
+brian: brain
 carcass: carcass
 carcass fat body: fat body
 carcass female: carcass
@@ -45,7 +45,7 @@ digestive system: digestive system
 dissected brain: brain
 dissected midgut (30x): midgut
 dissected testis: testis
-dissected ventral nerve cord: ventral nerver cord
+dissected ventral nerve cord: ventral nerve cord
 dorsal mesothoracic disc: dorsal mesothoracic disc
 dorsal organ ganglia: dorsal organ ganglia
 early glial cells: None
@@ -204,14 +204,14 @@ total brains from adult flys (2-4 days post-eclosion): brain
 total embryo: embryo
 total tissue: None
 unfertilized egg: egg
-ventral nerve cord: ventral nerver cord
+ventral nerve cord: ventral nerve cord
 virgin female carcass: carcass
 virgin female ovary: ovary
 virgin male carcass: carcass
 virgin testes: testis
-vnc containing tumorigenic neuroblasts: ventral nerver cord
-vnc containing tumorigenic neuroblasts over-expressing chinmo: ventral nerver cord
-vnc containing tumorigenic neuroblasts with decreased chinmo: ventral nerver cord
+vnc containing tumorigenic neuroblasts: ventral nerve cord
+vnc containing tumorigenic neuroblasts over-expressing chinmo: ventral nerve cord
+vnc containing tumorigenic neuroblasts with decreased chinmo: ventral nerve cord
 wd: whole body
 whole: whole body
 whole 0-2 hour embryo: embryo

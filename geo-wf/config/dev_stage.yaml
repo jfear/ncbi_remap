@@ -105,7 +105,7 @@ stage13-16: embryonic stage 9-15 h (ael)
 
 # Larva
 1st instar larvae: first instar larval stage
-2nd instar stage: second instart larval stage
+2nd instar stage: second instar larval stage
 3rd instar: third instar larval stage
 3rd instar larva: third instar larval stage
 3rd instar larvae: third instar larval stage
@@ -119,13 +119,13 @@ first instar larva stage: first instar larval stage
 first-instar larvae (mixed sex): first instar larval stage
 l1: first instar larval stage
 larvae l1: first instar larval stage
-first-instar larvae: first instar larval stagee
+first-instar larvae: first instar larval stage
 larva: larval stage
 larvae: larval stage
 larval: larval stage
 larval stage: larval stage
-larvae l2: second instart larval stage
-l2: second instart larval stage
+larvae l2: second instar larval stage
+l2: second instar larval stage
 feeding mid-third instar larva: third instar larval stage
 l3: third instar larval stage
 l3 larva: third instar larval stage
