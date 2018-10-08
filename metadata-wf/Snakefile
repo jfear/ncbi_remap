@@ -1,0 +1,17 @@
+""" Metadata processing workflows.
+
+Rules
+-----
+targets
+    create a list of desired output files
+free_text_library_strategy
+    Parse free text for additional library strategy information
+"""
+
+rule targets:
+    input:
+        'output/free_text_library_strategy.parquet',
+
+rule free_text_library_strategy:
+    output: 'output/free_text_library_strategy.parquet'
+    script: 'scripts/free_text_library_strategy.py'
