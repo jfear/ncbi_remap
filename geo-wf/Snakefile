@@ -38,6 +38,7 @@ rule rnaseq_metadata:
     output: 'output/rnaseq_metadata.tsv'
     script: 'scripts/rnaseq_metadata.py'
 
+
 rule rnaseq_sample_section:
     input: 'output/rnaseq_metadata.tsv'
     output: 'output/rnaseq_sample_section.tsv'
