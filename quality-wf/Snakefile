@@ -1,0 +1,24 @@
+"""Downstream analysis of Quality Control Metrics.
+
+Rules
+-----
+srx_rank_quality
+    Take various quality metrics from prealn-wf and aln-wf and create a ranking
+    of samples by quality.
+
+"""
+
+subworkflow metadata:
+    workdir: '../metadata-wf'
+    snakefile: '../metadata-wf/Snakefile'
+
+
+rule targets:
+    input:
+        'output/rnaseq_srx_quality_ranks.tsv'
+
+
+rule rnaseq_srx_rank_quality:
+    input: metadata('output/munge_library_strategy_from_mongo.parquet')
+    output: 'output/rnaseq_srx_quality_ranks.tsv'
+    script: 'scripts/rnaseq_srx_rank_quality.py'
