@@ -6,7 +6,7 @@ __license__ = "MIT"
 import sys
 from snakemake.shell import shell
 
-sys.path.insert(0, '../lib')
+sys.path.insert(0, '../src')
 from ncbi_remap.snakemake import get_flag
 
 inputs = snakemake.input

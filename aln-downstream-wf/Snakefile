@@ -21,6 +21,7 @@ rule targets:
         'output/gene_counts_wide_cpm.parquet',
         'output/gene_counts_wide_rpkm.parquet',
         'output/gene_counts_wide_tpm.parquet',
+        'output/gene_count_spearman_corr.parquet',
 
 
 rule gene_lengths:
@@ -57,10 +58,19 @@ rule aggregate_sum_intergenic_counts:
     resources: mem_gb=20
     script: 'scripts/aggregate_sum_intergenic_counts.py'
 
+
 rule aggregate_sum_junction_counts:
     output: 'output/aggregate_junction_counts.parquet'
     threads: 12
     resources: mem_gb=20
     script: 'scripts/aggregate_sum_junction_counts.py'
+
+
+rule calc_corr:
+    input: rules.aggregate_gene_counts.output[0]
+    output: 'output/gene_count_spearman_corr.parquet'
+    resources: mem_gb=150
+    script: 'scripts/calc_corr.py'
+
 
 # vim: set ft=snakemake.python

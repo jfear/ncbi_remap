@@ -27,7 +27,7 @@ import pandas as pd
 
 from snakemake.shell import shell
 
-sys.path.insert(0, '../lib')
+sys.path.insert(0, '../src')
 from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats, fastq_abi_solid
 from ncbi_remap.snakemake import put_flag
 
