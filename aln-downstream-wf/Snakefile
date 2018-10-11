@@ -57,6 +57,7 @@ rule aggregate_sum_intergenic_counts:
     resources: mem_gb=20
     script: 'scripts/aggregate_sum_intergenic_counts.py'
 
+
 rule aggregate_sum_junction_counts:
     output: 'output/aggregate_junction_counts.parquet'
     threads: 12
