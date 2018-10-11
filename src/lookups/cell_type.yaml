@@ -1,0 +1,172 @@
+0-2 hour embryo: None
+1182-4h: None
+16c follicle cell type of the ovary: follicle
+3-86-gal4: None
+all cell type in brain: None
+all embryonic cell type: None
+alpha/beta kenyon cell type (c739-gal4): alpha/beta kenyon
+bg3: BG3
+bg3 cell type: BG3
+c739-gal4/uas-gfp background: alpha/beta kenyon
+caudal visceral mesoderm (cvm) cell type: caudal visceral mesoderm
+cca: CCa
+cg0239-gal4/uas-gfp background: neuron
+cholinergic neuron (cha gal4 driver): cholinergic neuron
+circadian neuron (pdf gal4 driver): circadian neuron
+cl.8: Cl.8
+cme l1: CME L1
+cme w1 cl.8+: Cl.8
+cme w2: CME W2
+cmel1 cell type: CME L1
+cns midline: None
+cultured cell type of embryonic origin: embryonic
+d.mel-2: S2
+d1: D1
+da neurons: DA neuron
+dal (g0431-gal4): neuron
+dal-gal4/uas-gfp background: neuron
+dh44 neuron: neuron
+dissociated cell type: None
+dl1: S1
+dm-d17-c3 third instar larva cell type: D17-c3
+dmbg3-c2: BG3-c2
+dmd20 cell type: D20
+dmd32 cell type: D32
+dmd4 cell type: D4
+dmel-2: S2
+dopaminergic neuron (th gal4 driver): dopaminergic neuron
+drosophila s2 cell type: S2
+drsc-s2: S2-DRSC
+dx: DX
+e-cs: E-CS
+e-or: E-OR
+e10::egfp positive: None
+embryo derived cell type: embryonic
+embryo-derived: embryonic
+enteroblast: enteroblast
+epithelial cell type: epithelial
+esg-positive stem-progenitor cell: gut progenitor
+ez2-2 ;e(z) temperature sensitive cell type: EZ2-2
+facs sorted midgut progenitor cell type: midgut progenitor
+fat body: None
+female head: None
+follicle cell type: follicle
+g1: G1
+g2: G2
+g386-gal4/uas-gfp background: neuron
+gabaergic neuron (gad gal4 driver): gabaergic neuron
+gamma kenyon cell type (np1131-gal4): gamma kenyon
+gfp labeled regenerating blastema cell type: blastema
+gfp labeled wing disc pouch cell type: wing disc pouch
+gfp-positive facs-sorted cell type from brains of 3rd instar larva: None
+glia: glia
+gm2: GM2
+gm2 cell type: GM2
+gm3: GM3
+head: None
+head extract: None
+hek 293t: HEK-293t
+intestinal progenitor cell type: gut progenitor
+intestinal stem cell type: gut progenitor
+intestinal stem cell type/progenitor cell type: gut progenitor
+jupiter: Jupiter
+kc: Kc167
+kc167: Kc167
+lamina neurons: lamina neuron
+late embryo-derived cell type: embryonic
+late embryo-derived cell type stably transfected with ha::abda: embryonic
+late embryonic stage cell type: embryonic
+mbn2: mbn2
+mbn2 cell type: mbn2
+mcw12: MCW12
+ml-dmbg1-c1: BG1-c1
+ml-dmbg2-c2: BG2-c2
+ml-dmbg3-c2: BG3-c2
+ml-dmd1-c4: D1-c4
+ml-dmd11: D11
+ml-dmd16-c3: D16-c3
+ml-dmd17-c3: D17-c3
+ml-dmd20-c5: D20-c5
+ml-dmd21: D21
+ml-dmd23-c4: D23-c4
+ml-dmd32: D32
+ml-dmd4-c1: D4-c1
+ml-dmd8: D8
+ml-dmd9: D9
+ml83-26: ML83-26
+mldmd16 c3 cell type: D16-c3
+n/a: None
+neuroblast: neuroblast
+neuroblasts: neuroblast
+neuron: neuron
+neuron (differentiated daughter cell type): neuron
+neuron (elav gal4 driver): neuron
+neurons: neuron
+non-caudal visceral mesoderm (cvm) cell type: None
+non-hemocytes (hc): None
+non-midline: None
+not applicable: None
+np1131-gal4/uas-gfp background: neuron
+ok107-gal4 cell type: neuron
+oocytes: oocyte
+osc: OSC
+osc cell type: OSC
+oss: OSS
+oss cell type: OSS
+ovarian somatic cell type (osc): OSC
+ovarian somatic sheath cell type (oss): OSS
+ovarian somatic sheet cell type (oss): OSS
+ovariectomized carcass: None
+ovary: None
+ovary somatic sheet cell type  (oss): OSS
+pdf+ neurons: neuron
+pharate: None
+photoreceptor neurons: photoreceptor neuron
+pr8: PR8
+pten x: Pten-X
+r1: R1
+r27g01-gal4: neuron
+r27g01-gal4/uas-gfp background: neuron
+r4: R4
+r5: R5
+r57c10-gal4 cell type: neuron
+r71d08-gal4/uas-gfp background: neuron
+ras[v12]-h3: Ras[V12]-H3
+ras[v12]-h7: Ras[V12]-H7
+ras[v12];wts[rnai]: Ras[V12]; wts[RNAi]
+rasv12 cell type (r3): Ras[V12]-H3
+rasv12 cell type (r7): Ras[V12]-H7
+retinal cone cell type: retinal cone
+retinal photoreceptors: retinal photoreceptor
+rumi[26] ras[v12]-4: rumi[26] Ras[V12]-4
+s-2r+: S2R+
+s1: S1
+s2: S2
+s2 cell: S2
+s2 cell type: S2
+s2 atcc clr-1963 lot#5054622: S2
+s2-drsc: S2-DRSC
+s2;schneiders drosophila line 2;marco blanchettes lab: S2
+s2r+: S2R+
+s2r+ cell type: S2R+
+s2r+ embryonic cell type: S2R+
+s3: S3
+salivary gland cell type: salivary gland
+schneider 2 cell type: S2
+schneider 2 cell-line: S2
+schneider line 2 (s2): S2
+schneider line 2 (s2) cell type: S2
+sg4: Sg4
+sl2: S2
+tdc2-gal4 cell type: neuron
+testis: None
+type ii nbs/inps/gmcs (no neurons): type II neuroblast
+type ii nbs/nb-like revertant cell type/inps: type II neuroblast
+type ii neuroblast: type II neuroblast
+type ii neuroblasts: type II neuroblast
+uas-gfp background: None
+v2 (r71d08-gal4): neuron
+v3 (cg0239-gal4): neuron
+whole dissected ovaries: None
+whole flies: None
+wrr-1 cell type: Ras[V12]; wts[RNAi]

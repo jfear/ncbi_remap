@@ -1,0 +1,51 @@
+""" Metadata processing workflows.
+
+Rules
+-----
+targets
+    create a list of desired output files
+free_text_library_strategy
+    Parse free text for additional library strategy information
+munge_library_strategy_from_mongo
+    Pulls out the author supplied metadata field for library strategy
+build_library_strategy_feature_set
+    Creates a Feature matrix for machine learning library strategy
+random_forest_library_strategy
+    Random Forest to learn library startegy
+
+"""
+rule targets:
+    input:
+        'output/free_text_library_strategy.parquet',
+        'output/munge_library_strategy_from_mongo.parquet',
+        'output/random_forest_library_strategy.parquet',
+
+
+rule free_text_library_strategy:
+    output: 'output/free_text_library_strategy.parquet'
+    script: 'scripts/free_text_library_strategy.py'
+
+
+rule munge_library_strategy_from_mongo:
+    output:
+        'output/munge_library_strategy_from_mongo.parquet',
+        'output/mongo_library_strategy_summary_table.tsv',
+    script: 'scripts/munge_library_strategy_from_mongo.py'
+
+
+rule build_library_strategy_feature_set:
+    output: 'output/build_library_strategy_feature_set.parquet'
+    script: 'scripts/build_library_strategy_feature_set.py'
+
+
+rule random_forest_library_strategy:
+    input:
+        labels=rules.munge_library_strategy_from_mongo.output[0],
+        features=rules.build_library_strategy_feature_set.output[0],
+    output:
+        learning_curve='output/random_forest_library_strategy_learning_curve.svg',
+        metrics='output/random_forest_library_strategy_metrics.tsv',
+        feature_importances='output/random_forest_library_strategy_feature_importance.tsv',
+        pred='output/random_forest_library_strategy.parquet',
+        pred_other='output/random_forest_library_strategy_other.parquet',
+    script: 'scripts/random_forest_library_strategy.py'

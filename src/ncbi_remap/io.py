@@ -2,6 +2,7 @@
 """ Set of helper scripts for file handling """
 from typing import Union
 from yaml import load
+from collections.abc import Mapping
 
 import numpy as np
 import pandas as pd
@@ -441,3 +442,35 @@ class remapDesign(object):
         else:
             m = x.split('_')[0]
             return (m[0], int(m[1:])+100)
+
+
+class LazyDict(Mapping):
+    """LazyDictionary which runs a function when called.
+
+    Based on answer here: https://stackoverflow.com/questions/16669367/setup-dictionary-lazily
+
+    Examples
+    --------
+    >>> settings = LazyDict({'expensive1': (expensive_to_compute, 1), 'expensive2': (expensive_to_compute, 2)})
+
+    """
+    def __init__(self, *args, **kwargs):
+        self._func_dict = dict(*args, **kwargs)
+        self._dat_dict = dict()
+
+    def __getitem__(self, key):
+        if self._dat_dict.get(key):
+            return self._dat_dict[key]
+
+        func, arg = self._func_dict.__getitem__(key)
+        self._dat_dict[key] = func(arg)
+        return self._dat_dict[key]
+
+    def __iter__(self):
+        return iter(self._func_dict)
+
+    def __len__(self):
+        return len(self._func_dict)
+
+    def keys(self):
+        return self._func_dict.keys()

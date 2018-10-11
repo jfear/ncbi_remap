@@ -35,7 +35,7 @@ def start_cluster():
                            memory_limit=f'{mem}GB')
 
     client = Client(cluster)
-    with open('data/dask_info.json', 'w') as fh:
+    with open('dask_info.json', 'w') as fh:
         fh.write(dumps(client._scheduler_identity, indent=True))
 
     return client
@@ -98,8 +98,6 @@ def copy_files(files):
     for k, v in files.items():
         fname = v['fname']
         ftype = v['ftype']
-        # Calculate hashes
-        _hash = md5sum(fname)
 
         # GEO wants us to use plus/minus instead of first/second
         if ftype == 'BigWig':
@@ -107,14 +105,18 @@ def copy_files(files):
         else:
             _name = fname.name
 
-        hashes.append((_name, ftype, _hash))
         new = Path(OUTDIR, _name)
 
-        # Copy files
-        if DEBUG:
+        # If the file exists then skip
+        if new.exists():
             continue
 
-        if new.exists():
+        # Calculate hashes
+        _hash = md5sum(fname)
+        hashes.append((_name, ftype, _hash))
+
+        # If DEBUG then don't copy files
+        if DEBUG:
             continue
 
         shutil.copy(fname, new)
@@ -189,7 +191,7 @@ def main():
         return
 
     logger.info('Writing out hash table')
-    df.to_csv(Path(OUTDIR, 'md5sum.tsv'), sep='\t')
+    df.to_csv(Path(OUTDIR, 'md5sum.tsv', mode='a'), sep='\t')
 
 
 if __name__ == '__main__':
