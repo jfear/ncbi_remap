@@ -34,3 +34,4 @@ lib/test_xml.xml
 *.h5
 *.log
 *.bak
+dask_info.json
