@@ -88,7 +88,13 @@ def main(ncbi):
         for token in doc:
             if token in known_strategies:
                 token_strategies.add(token)
-        doc_strategies.append('|'.join(list(token_strategies)))
+
+        string = '|'.join(sorted(list(token_strategies)))
+
+        if string == '':
+            string = np.nan
+
+        doc_strategies.append(string)
 
     # Output table
     df = pd.DataFrame(doc_strategies, index=np.asarray(documents)[:, 0])
