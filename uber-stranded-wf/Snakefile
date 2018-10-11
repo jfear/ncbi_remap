@@ -15,8 +15,8 @@ subworkflow quality:
 rule targets:
     input:
         'output/uber_srxs.txt',
-        'output/uber_stranded.flybase.plus.bw',
-        'output/uber_stranded.flybase.minus.bw',
+#         'output/uber_stranded.flybase.plus.bw',
+#         'output/uber_stranded.flybase.minus.bw',
 
 
 rule uber_srxs:
@@ -25,7 +25,7 @@ rule uber_srxs:
         quality=quality('output/rnaseq_srx_quality_ranks.tsv'),
     output: 'output/uber_srxs.txt'
     params:
-        strand_cutoff=.99,
+        strand_cutoff=.996,
         quality_cutoff=60,
     script: 'scripts/uber_srxs.py'
 
