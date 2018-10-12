@@ -27,7 +27,7 @@ workdir: '.'
 with open('../uber-stranded-wf/output/uber_srxs.txt') as fh:
     srxs = fh.read().strip().split('\n')
 #srxs = pd.read_csv('../output/flybase_samples_annot_RNA-Seq.tsv', sep='\t').srx.tolist()
-grp_size = 50
+grp_size = 10
 
 
 def grouper(iterable, n, fillvalue=None):
