@@ -4,7 +4,10 @@
 # I then entered values with their correct mapping in this table.
 3c: 3C-Seq
 3c-seq: 3C-Seq
-3prime: 3Prime-Seq
+3prime-seq: 3Prime-Seq
+5prime-seq: 5Prime-Seq
+5prime-capped: CAP-Seq
+3p-seq: 3P-Seq
 4c: 4C-Seq
 4c-seq: 4C-Seq
 amplicon-seq: AMPLICON
@@ -17,24 +20,21 @@ chip-seq: ChIP-Seq
 chirp-seq: ChiRP-Seq
 click-seq: PAC-Seq
 clip-seq: CLIP-Seq
-clone: CLONE
 cloneend: CLONEEND
-cloned: CLONEEND
 cts: CTS
 damid-seq: DamID-Seq
+damid: DamID-Seq
 degradome-seq: PARE-Seq
 dhs-seq: DNase-Hypersensitivity
 dip-seq: DIP-Seq
 dna-seq: DNA-Seq
 dnase-seq: DNase-Seq
 drip-seq: DRIP-Seq
-end-seq: END-Seq
 est: EST
 faire-seq: FAIRE-Seq
 finishing: FINISHING
 flcnda: FL-cDNA
 gdna-seq: DNA-Seq
-genome-seq: WGS
 grid-seq: GRID-Seq
 gro-seq: GRO-Seq
 hic: HiC-Seq
@@ -46,7 +46,7 @@ ice-seq: ICE-Seq
 iclip-seq: iCLIP-Seq
 immunoprecipitation-seq: IP-Seq
 ip-seq: IP-Seq
-kilo-seq: Kilo-Seq
+kilo-seq: EST
 map-seq: MAP-Seq
 mbd-seq: MDB-Seq
 medip-seq: MeDIP-Seq
@@ -88,7 +88,8 @@ stap-seq: STAP-Seq
 starr-seq: STARR-Seq
 start-seq: Start-Seq
 syntheticlongread: Synthetic-Long-Read
-tada-seq: TADA-Seq
+tada-seq: DamID-Seq
+tada: DamID-Seq
 tail-seq: TAIL-Seq
 tmp-seq: TMP-Seq
 tn-seq: TN-Seq
