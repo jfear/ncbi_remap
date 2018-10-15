@@ -15,8 +15,14 @@ subworkflow quality:
 rule targets:
     input:
         'output/uber_srxs.txt',
-#         'output/uber_stranded.flybase.plus.bw',
-#         'output/uber_stranded.flybase.minus.bw',
+        'output/uber_stranded.plus.bw',
+        'output/uber_stranded.minus.bw',
+        'output/uber_stranded.plus_scaled.bw',
+        'output/uber_stranded.minus_scaled.bw',
+#         'output/uber_stranded.plus_scaled_threshold1.bw',
+#         'output/uber_stranded.minus_scaled_threshold1.bw',
+#         'output/uber_stranded.plus_scaled_threshold10.bw',
+#         'output/uber_stranded.minus_scaled_threshold10.bw',
 
 
 rule uber_srxs:
@@ -30,72 +36,90 @@ rule uber_srxs:
     script: 'scripts/uber_srxs.py'
 
 
-rule bigWigMerge_plus:
-    input: rules.uber_srxs.output[0]
-    output: temp('output/uber_stranded.plus.bg')
-    resources:
-        mem_gb = lambda wildcards, attempt: attempt * 20,
-        time_hr = lambda wildcards, attempt: attempt * 4
-    run:
-        with open(input[0]) as fh:
-            srxs = fh.read().strip().split('\n')
+def _bigWigMerge(wildcards):
+    if wildcards['strand'] == 'plus':
+        strand = 'first'
+    else:
+        strand = 'second'
 
-        files = []
-        for srx in srxs:
-            files.append(f'../aln-wf/output/samples/{srx}/{srx}.first.bw')
-        fnames = ' '.join(files)
-        cmd = f'bigWigMerge {fnames} {output[0]}'
-        print(cmd)
-        shell(cmd)
+    with open('output/uber_srxs.txt') as fh:
+        srxs = fh.read().strip().split('\n')
+
+    files = []
+    for srx in srxs:
+        files.append(f'../aln-wf/output/samples/{srx}/{srx}.flybase.{strand}.bw')
+
+    return files
 
 
-rule bigWigMerge_minus:
-    input: rules.uber_srxs.output[0]
-    output: temp('output/uber_stranded.minus.bg')
-    resources:
-        mem_gb = lambda wildcards, attempt: attempt * 20,
-        time_hr = lambda wildcards, attempt: attempt * 4
-    run:
-        with open(input[0]) as fh:
-            srxs = fh.read().strip().split('\n')
-
-        files = []
-        for srx in srxs:
-            files.append(f'../aln-wf/output/samples/{srx}/{srx}.second.bw')
-        fnames = ' '.join(files)
-        shell(f'bigWigMerge {fnames} {output[0]}')
-
-
-###############################################################################
-# Make FlyBase Version
-###############################################################################
-rule convertToFlybase:
-    input: 'output/uber_stranded.{strand}.bg'
-    output: temp('output/uber_stranded.flybase.{strand}.bg')
-    conda:
-        'conda.yaml'
-    resources:
-        mem_gb = lambda wildcards, attempt: attempt * 8,
-        time_hr = lambda wildcards, attempt: attempt * 1
-    shell:
-        'chrom_convert '
-        '--from UCSC '
-        '--to FlyBase '
-        '--fileType BED '
-        '-i {input[0]} '
-        '-o {output[0]}'
-
-
-rule bgToBw:
+rule bigWigMerge:
     input:
-        bg = 'output/uber_stranded.flybase.{strand}.bg',
-        chrom = '../output/dmel_r6-11.flybase.chromsizes',
-    output: 'output/uber_stranded.flybase.{strand}.bw'
-    conda:
-        'conda.yaml'
-    resources:
-        mem_gb = lambda wildcards, attempt: attempt * 8,
-        time_hr = lambda wildcards, attempt: attempt * 1
-    shell:
-        'bedSort {input.bg} $TMPDIR/sort.bg && '
-        'bedGraphToBigWig $TMPDIR/sort.bg {input.chrom} {output[0]}'
+        srxs=rules.uber_srxs.output[0],
+        fnames=_bigWigMerge,
+        chromsizes='../output/dmel_r6-11.flybase.chromsizes'
+    output: 'output/uber_stranded.{strand,plus|minus}.bw'
+    threads: 8
+    shell: """
+        bigWigMerge \
+            --input {input.fnames} \
+            --output {output[0]} \
+            --chromSizes {input.chromsizes} \
+            --threads {threads} \
+            --region X:0-23,542,271
+    """
+
+
+rule bigWigMerge_scale:
+    input:
+        srxs=rules.uber_srxs.output[0],
+        fnames=_bigWigMerge,
+        chromsizes='../output/dmel_r6-11.flybase.chromsizes'
+    output: 'output/uber_stranded.{strand,plus|minus}_scaled.bw'
+    threads: 8
+    shell: """
+        bigWigMerge \
+            --input {input.fnames} \
+            --output {output[0]} \
+            --chromSizes {input.chromsizes} \
+            --threads {threads} \
+            --scale \
+            --region X:0-23,542,271
+    """
+
+
+rule bigWigMerge_scale_theshold:
+    input:
+        srxs=rules.uber_srxs.output[0],
+        fnames=_bigWigMerge,
+        chromsizes='../output/dmel_r6-11.flybase.chromsizes'
+    output: 'output/uber_stranded.{strand,plus|minus}_scaled_threshold1.bw'
+    threads: 8
+    shell: """
+        bigWigMerge \
+            --input {input.fnames} \
+            --output {output[0]} \
+            --chromSizes {input.chromsizes} \
+            --threads {threads} \
+            --scale \
+            --threshold 1 \
+            --region X:0-23,542,271
+    """
+
+
+rule bigWigMerge_scale_theshold10:
+    input:
+        srxs=rules.uber_srxs.output[0],
+        fnames=_bigWigMerge,
+        chromsizes='../output/dmel_r6-11.flybase.chromsizes'
+    output: 'output/uber_stranded.{strand,plus|minus}_scaled_threshold10.bw'
+    threads: 8
+    shell: """
+        bigWigMerge \
+            --input {input.fnames} \
+            --output {output[0]} \
+            --chromSizes {input.chromsizes} \
+            --threads {threads} \
+            --scale \
+            --threshold 10 \
+            --region X:0-23,542,271
+    """
