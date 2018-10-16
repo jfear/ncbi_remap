@@ -75,8 +75,7 @@ rule bigWigMerge:
             --output {output[0]} \
             --chromSizes {input.chromsizes} \
             --threads {threads} \
-            --agg {wildcards.agg_func} \
-            --region X:0-23,542,271
+            --agg {wildcards.agg_func}
     """
 
 
