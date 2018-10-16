@@ -15,10 +15,20 @@ subworkflow quality:
 rule targets:
     input:
         'output/uber_srxs.txt',
-        'output/uber_stranded.plus.bw',
-        'output/uber_stranded.minus.bw',
-        'output/uber_stranded.plus_scaled.bw',
-        'output/uber_stranded.minus_scaled.bw',
+        'output/uber_stranded.plus_sum.bw',
+        'output/uber_stranded.minus_sum.bw',
+        'output/uber_stranded.plus_max.bw',
+        'output/uber_stranded.minus_max.bw',
+        'output/uber_stranded.plus_median.bw',
+        'output/uber_stranded.minus_median.bw',
+        'output/uber_stranded.plus_mean.bw',
+        'output/uber_stranded.minus_mean.bw',
+        'output/uber_stranded.plus_75.bw',
+        'output/uber_stranded.minus_75.bw',
+        'output/uber_stranded.plus_95.bw',
+        'output/uber_stranded.minus_95.bw',
+#         'output/uber_stranded.plus_scaled.bw',
+#         'output/uber_stranded.minus_scaled.bw',
 #         'output/uber_stranded.plus_scaled_threshold1.bw',
 #         'output/uber_stranded.minus_scaled_threshold1.bw',
 #         'output/uber_stranded.plus_scaled_threshold10.bw',
@@ -46,7 +56,7 @@ def _bigWigMerge(wildcards):
         srxs = fh.read().strip().split('\n')
 
     files = []
-    for srx in srxs:
+    for srx in srxs[:100]:
         files.append(f'../aln-wf/output/samples/{srx}/{srx}.flybase.{strand}.bw')
 
     return files
@@ -57,7 +67,7 @@ rule bigWigMerge:
         srxs=rules.uber_srxs.output[0],
         fnames=_bigWigMerge,
         chromsizes='../output/dmel_r6-11.flybase.chromsizes'
-    output: 'output/uber_stranded.{strand,plus|minus}.bw'
+    output: 'output/uber_stranded.{strand,plus|minus}_{agg_func,sum|mean|median|max|75|95}.bw'
     threads: 8
     shell: """
         bigWigMerge \
@@ -65,6 +75,7 @@ rule bigWigMerge:
             --output {output[0]} \
             --chromSizes {input.chromsizes} \
             --threads {threads} \
+            --agg {wildcards.agg_func} \
             --region X:0-23,542,271
     """
 

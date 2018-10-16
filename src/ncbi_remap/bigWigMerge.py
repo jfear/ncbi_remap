@@ -6,6 +6,7 @@ from logging import DEBUG, INFO
 import multiprocessing as mp
 from collections import OrderedDict
 from itertools import groupby
+from functools import partial
 
 import numpy as np
 import pyBigWig
@@ -40,6 +41,10 @@ def arguments():
 
     parser.add_argument("--threads", dest="nthreads", type=int, action='store', default=1, required=False,
                         help="Number of threads to use.")
+
+    parser.add_argument("--agg", dest="func", type=str, action='store', default='sum', required=False,
+                        choices=['sum', 'mean', 'median', 'max', '75', '95'],
+                        help="Type of aggregatition to use [sum default].")
 
     parser.add_argument("--scale", dest="scale", action='store_true', required=False,
                         help="Scale reads by the number of files input.")
@@ -123,11 +128,14 @@ class BedGraphEntry(object):
             _pos += len(list(v))
             self.ends.append(_pos)
 
+    def clean_dtypes(self):
+        self.values = [float(val) for val in self.values]
+
     def __iter__(self):
         return (x for x in [self.chroms, self.starts, self.ends, self.values])
 
 
-def create_entry(args, chrom, start, end):
+def create_entry_w_callback(args, chrom, start, end):
     pool = mp.Pool(processes=args.nthreads)
     sumArray = Sum(args, start, end)
     for input in args.input:
@@ -137,6 +145,51 @@ def create_entry(args, chrom, start, end):
 
     sumArray.adjust()
     return sumArray.values
+
+
+def unpacking_apply_along_axis(arguments):
+    func1d, axis, arr = arguments
+    return np.apply_along_axis(func1d, axis, arr)
+
+
+def aggregate(args, dat):
+    if args.func == 'sum':
+        func = np.sum
+    elif args.func == 'mean':
+        func = np.mean
+    elif args.func == 'median':
+        func = np.median
+    elif args.func == 'max':
+        func = np.max
+    elif args.func == '75':
+        func = partial(np.percentile, q=75)
+    elif args.func == '95':
+        func = partial(np.percentile, q=95)
+
+    return func(dat, axis=1)
+
+
+def create_entry(args, chrom, start, end, chunksize=1e6):
+    _start = start
+    chunks = []
+    while True:
+        _end = int(min(end, _start + chunksize))
+        logger.debug(f'Coords: {start}-{_end}')
+        pool = mp.Pool(processes=args.nthreads)
+        res = np.column_stack(
+            pool.map_async(partial(parse_bigWig, chrom=chrom, start=_start, end=_end), args.input).get(999999)
+        )
+        pool.close()
+        pool.join()
+
+        chunks.append(aggregate(args, res))
+
+        if _end == end:
+            break
+        else:
+            _start = _end
+
+    return np.concatenate(chunks)
 
 
 def main():
@@ -166,8 +219,9 @@ def main():
             entry = create_entry(args, chrom, start, end)
             bedGraph.add_entry(chrom, start, end, entry)
 
+    bedGraph.clean_dtypes()
     with pyBigWig.open(args.output, 'w') as out:
         out.addHeader(chromSizes)
-        out.addEntries(*bedGraph, validate=False)
+        out.addEntries(*bedGraph)
 
     logger.info('Script Complete')
