@@ -56,7 +56,7 @@ def _bigWigMerge(wildcards):
         srxs = fh.read().strip().split('\n')
 
     files = []
-    for srx in srxs[:100]:
+    for srx in srxs:
         files.append(f'../aln-wf/output/samples/{srx}/{srx}.flybase.{strand}.bw')
 
     return files
