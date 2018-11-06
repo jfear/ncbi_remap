@@ -12,13 +12,14 @@ build_library_strategy_feature_set
     Creates a Feature matrix for machine learning library strategy
 random_forest_library_strategy
     Random Forest to learn library startegy
+select_library_strategy
+    Takes library strategy annotations from SRA, metadata, random forest and
+    selects the best category.
 
 """
 rule targets:
     input:
-        'output/free_text_library_strategy.parquet',
-        'output/munge_library_strategy_from_mongo.parquet',
-        'output/random_forest_library_strategy.parquet',
+        'output/select_library_strategy.parquet'
 
 
 rule free_text_library_strategy:
@@ -49,3 +50,13 @@ rule random_forest_library_strategy:
         pred='output/random_forest_library_strategy.parquet',
         pred_other='output/random_forest_library_strategy_other.parquet',
     script: 'scripts/random_forest_library_strategy.py'
+
+
+rule select_library_strategy:
+    input:
+        sra=rules.munge_library_strategy_from_mongo.output[0],
+        free_text=rules.free_text_library_strategy.output[0],
+        forest=rules.random_forest_library_strategy.output['pred'],
+        other=rules.random_forest_library_strategy.output['pred_other'],
+    output: 'output/select_library_strategy.parquet'
+    script: 'scripts/select_library_strategy.py'

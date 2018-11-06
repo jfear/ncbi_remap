@@ -12,4 +12,10 @@ setup(
     url='https://github.com/jfear/ncbi_remap',
     packages=['ncbi_remap'],
     license="MIT license",
+    entry_points={
+        'console_scripts':
+        [
+            'bigWigMerge = ncbi_remap.bigWigMerge:main',
+        ],
+    },
 )

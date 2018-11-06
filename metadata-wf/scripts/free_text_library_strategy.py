@@ -25,12 +25,18 @@ from ncbi_remap.nlp import lookups
 def get_documents(doc):
     srx = doc['_id']
     del doc['_id']
+
+    for k, v in doc.items():
+        if v is None:
+            doc[k] = ''
+
     txt = ' '.join(doc.values()).lower()\
         .replace('_', ' ')\
         .replace('hi-c', 'hic')\
         .replace('3-c', '3c')\
         .replace('4-c', '4c')\
         .replace("3'", '3prime')\
+        .replace("5'", '5prime')\
         .replace('-', ' ')\
         .replace('sequencing', 'seq')\
         .replace('sequenced', 'seq')\
@@ -48,12 +54,13 @@ def main(ncbi):
     documents = [get_documents(x) for x in ncbi.aggregate([
         {
             '$project': {
-                'title': '$sra.study.title',
-                'abstract': '$sra.study.abstract',
-                'type': '$sra.study.study_type',
+                #'title': '$sra.study.title',
+                #'abstract': '$sra.study.abstract',
+                #'type': '$sra.study.study_type',
                 'exp_title': '$sra.experiment.title',
                 'exp_design': '$sra.experiment.design',
                 'exp_library_name': '$sra.experiment.library_name',
+                'exp_construction': '$sra.experiment.library_construction_protocol',
             }
         },
     ])]
@@ -84,14 +91,25 @@ def main(ncbi):
     known_strategies = set(lookups['library_strategy'].values())
     doc_strategies = []
     for doc in tokenized_documents:
-        token_strategies = set()
+        token_strategies = []
         for token in doc:
             if token in known_strategies:
-                token_strategies.add(token)
+                token_strategies.append(token)
 
-        string = '|'.join(sorted(list(token_strategies)))
+        # count the number of times a strategy appears and keep only the top ones.
+        arr, cnt = np.unique(np.array(token_strategies), return_counts=True)
+        cnts = list(zip(arr, cnt))
+        # Pull out the best(s) library strategy based on number occurances
+        if len(cnts) > 0:
+            keeps = []
+            high = 0
+            for v, c in sorted(cnts, key=lambda x: x[1], reverse=True):
+                if c >= high:
+                    keeps.append(v)
+                    high = c
 
-        if string == '':
+            string = '|'.join(keeps)
+        else:
             string = np.nan
 
         doc_strategies.append(string)
