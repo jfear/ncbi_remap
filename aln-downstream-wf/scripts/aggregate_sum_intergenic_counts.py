@@ -9,7 +9,7 @@ mem = int(np.floor(mem))
 
 
 def main(client):
-    ddf = dd.read_parquet('../aln-wf/output/intergenic_counts/*.parquet').groupby('srx').sum()
+    ddf = dd.read_parquet('../output/aln-wf/intergenic_counts/*.parquet').groupby('srx').sum()
     ddf.to_parquet(snakemake.output[0], write_index=True)
 
 

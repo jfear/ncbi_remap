@@ -15,7 +15,7 @@ chroms = ['chrX', 'chr2L', 'chr2R', 'chr3L', 'chr3L', 'chr3R', 'chr4', 'chrY']
 
 @delayed
 def parse_juncs(srx):
-    fname = f'../aln-wf/output/junction_counts/{srx}.parquet'
+    fname = f'../output/aln-wf/junction_counts/{srx}.parquet'
     df = pd.read_parquet(fname).query(f'Site1_chr == {chroms}')
     if df.shape[0] == 0:
         return srx, 0
@@ -24,7 +24,7 @@ def parse_juncs(srx):
 
 
 def main(client):
-    pth = Path('../aln-wf/output/junction_counts')
+    pth = Path('../output/aln-wf/junction_counts')
     srxs = [x.stem for x in pth.glob('*.parquet')]
     work = map(parse_juncs, srxs)
     futures = client.compute(work)

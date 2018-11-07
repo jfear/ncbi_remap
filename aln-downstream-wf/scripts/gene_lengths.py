@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
-aln_wf = next(Path('../aln-wf/output/samples').iterdir())
+aln_wf = next(Path('../output/aln-wf/samples').iterdir())
 fname = next(aln_wf.glob('*.bam.counts'))
 df = pd.read_csv(fname, sep='\t', comment='#', usecols=['Geneid', 'Length']).set_index('Geneid')
 df.index.name = 'FBgn'

@@ -5,7 +5,7 @@ really slow to work with. Here I parse all of these files and combine them into
 a single parquet file. A nice feature of parquet is that it is a column score,
 so you can easily import a specific set of columns using:
 
-`pd.read_parquet('../../aln-downstream-wf/output/gene_counts_wide.parquet', columns=['SRX00000', 'SRX00001'])`
+`pd.read_parquet('../../output/aln-downstream-wf/gene_counts_wide.parquet', columns=['SRX00000', 'SRX00001'])`
 
 This process takes a long time (~1h) and uses a lot of RAM. I process all of
 the files in batches (chunks) and save the intermediate files to a cache. The
@@ -68,7 +68,7 @@ def merge_chunks():
 
 
 def main():
-    files = list(Path('../aln-wf/output/gene_counts').glob('*.parquet'))
+    files = list(Path('../output/aln-wf/gene_counts').glob('*.parquet'))
 
     logger.info(f'Parsing {len(files):,} files in chunks of 3,000')
     groups = grouper(files, 3000, fillvalue=None)

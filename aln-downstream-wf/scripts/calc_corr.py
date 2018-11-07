@@ -13,7 +13,7 @@ def main(client):
     with open('../output/rna_seq_srxs.txt') as fh:
         rnaseq_srx = fh.read().split('\n')
 
-    cnts = pd.read_parquet('output/gene_counts_wide.parquet', columns=rnaseq_srx)
+    cnts = pd.read_parquet('../output/aln-downstream-wf/gene_counts_wide.parquet', columns=rnaseq_srx)
     corr = cnts.corr(method='spearman')
     corr.to_parquet(snakemake.output[0])
     #corr = cnts.corr().compute()
