@@ -24,7 +24,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 
-with open('../uber-stranded-wf/output/uber_srxs.txt') as fh:
+with open('../output/uber-stranded-wf/uber_srxs.txt') as fh:
     srxs = fh.read().strip().split('\n')
 #srxs = pd.read_csv('../output/flybase_samples_annot_RNA-Seq.tsv', sep='\t').srx.tolist()
 grp_size = 10
@@ -46,15 +46,15 @@ def grouper(iterable, n, fillvalue=None):
 
 
 patterns = {
-    'lvl1_bg': 'output/lvl1_{strand}_{num}.bg',
-    'lvl1_bw': 'output/lvl1_{strand}_{num}.bw',
-    'lvl2_bg': 'output/lvl2_{strand}_{num}.bg',
-    'lvl2_bw': 'output/lvl2_{strand}_{num}.bw',
-    'lvl3_bg': 'output/{strand}.bg',
-    'lvl3_bw': 'output/{strand}.bw',
-    'flybase_bg': 'output/fb_{strand}.bg',
-    'flybase_bw_plus': 'output/fb_plus.bw',
-    'flybase_bw_minus': 'output/fb_minus.bw',
+    'lvl1_bg': '../output/stranded-bigwig-wf/lvl1_{strand}_{num}.bg',
+    'lvl1_bw': '../output/stranded-bigwig-wf/lvl1_{strand}_{num}.bw',
+    'lvl2_bg': '../output/stranded-bigwig-wf/lvl2_{strand}_{num}.bg',
+    'lvl2_bw': '../output/stranded-bigwig-wf/lvl2_{strand}_{num}.bw',
+    'lvl3_bg': '../output/stranded-bigwig-wf/{strand}.bg',
+    'lvl3_bw': '../output/stranded-bigwig-wf/{strand}.bw',
+    'flybase_bg': '../output/stranded-bigwig-wf/fb_{strand}.bg',
+    'flybase_bw_plus': '../output/stranded-bigwig-wf/fb_plus.bw',
+    'flybase_bw_minus': '../output/stranded-bigwig-wf/fb_minus.bw',
     'orig': '../aln-wf/output/samples/{srx}/{srx}.{strand}.bw',
     'chrom': '/data/LCDB/lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes',
     'fb_chrom': '../output/dmel_r6-11.flybase.chromsizes'
@@ -220,7 +220,7 @@ rule bgToBw_lvl3:
     conda:
         'conda.yaml'
     output:
-        bw = 'output/{strand,first|second}.bw',
+        bw = '../output/stranded-bigwig-wf/{strand,first|second}.bw',
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 8,
         time_hr = lambda wildcards, attempt: attempt * 1
@@ -233,7 +233,7 @@ rule bgToBw_lvl3:
 ###############################################################################
 rule convertToFlybase:
     input:
-        bg = 'output/{strand}.bg'
+        bg = '../output/stranded-bigwig-wf/{strand}.bg'
     output:
         bedgraph = patterns['flybase_bg']
     conda:
@@ -252,7 +252,7 @@ rule convertToFlybase:
 
 rule bgToBw_plus:
     input:
-        bg = 'output/fb_first.bg',
+        bg = '../output/stranded-bigwig-wf/fb_first.bg',
         chrom = patterns['fb_chrom']
     output:
         bw = patterns['flybase_bw_plus']
@@ -267,7 +267,7 @@ rule bgToBw_plus:
 
 rule bgToBw_minus:
     input:
-        bg = 'output/fb_second.bg',
+        bg = '../output/stranded-bigwig-wf/fb_second.bg',
         chrom = patterns['fb_chrom']
     output:
         bw = patterns['flybase_bw_minus']
