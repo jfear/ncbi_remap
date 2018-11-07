@@ -1,14 +1,14 @@
 fastq:
-  r1: ../prealn-wf/output/samples/{srx}/{srr}/{srr}_1.fastq.gz
-  r2: ../prealn-wf/output/samples/{srx}/{srr}/{srr}_2.fastq.gz
-  summary: ../prealn-wf/output/samples/{srx}/{srr}/{srr}.fastq.tsv
+  r1: ../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz
+  r2: ../output/prealn-wf/samples/{srx}/{srr}/{srr}_2.fastq.gz
+  summary: ../output/prealn-wf/samples/{srx}/{srr}/{srr}.fastq.tsv
 
 atropos:
   r1: ../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz
   r2: ../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz
 
 hisat2:
-  splice_sites: ../prealn-wf/output/known_splice_sites_r6-11.txt
+  splice_sites: ../output/prealn-wf/known_splice_sites_r6-11.txt
   bam: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam
   bai: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai
   summary: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.tsv
@@ -34,8 +34,8 @@ srxMerge:
   bigWigFlyBase: ../output/aln-wf/samples/{srx}/{srx}.flybase.{strand}.bw
 
 # MISC Files
-layout: ../prealn-wf/output/samples/{srx}/{srr}/LAYOUT
-strand: ../prealn-wf/output/samples/{srx}/{srr}/STRAND
+layout: ../output/prealn-wf/samples/{srx}/{srr}/LAYOUT
+strand: ../output/prealn-wf/samples/{srx}/{srr}/STRAND
 alignment_bad: ../output/aln-wf/samples/{srx}/{srr}/ALIGNMENT_BAD
 bigwig_bad: ../output/aln-wf/samples/{srx}/BIGWIG_BAD
 chromSizes_fb: ../output/dmel_r6-11.flybase.chromsizes
