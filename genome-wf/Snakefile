@@ -21,7 +21,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 # import config
-configfile: '../config/reference_config.yml'
+configfile: '../config/reference_config.yaml'
 
 
 ################################################################################
