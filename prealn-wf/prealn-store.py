@@ -357,19 +357,19 @@ def munge_big_data():
     )
 
     logger.info(f'Building samtools idxstats files')
-    dask_run_large_data('output/samtools_idx_stats/{srx}.parquet',
+    dask_run_large_data('output/prealn-wf/samtools_idx_stats/{srx}.parquet',
                         patterns['samtools_idxstats'],
                         munge_as_dataframe,
                         parse_samtools_idxstats)
 
     logger.info(f'Building counts files')
-    dask_run_large_data('output/gene_counts/{srx}.parquet',
+    dask_run_large_data('output/prealn-wf/gene_counts/{srx}.parquet',
                         patterns['feature_counts']['counts'],
                         munge_as_dataframe,
                         parse_featureCounts_counts)
 
     logger.info(f'Building junction counts files')
-    dask_run_large_data('output/junction_counts/{srx}.parquet',
+    dask_run_large_data('output/prealn-wf/junction_counts/{srx}.parquet',
                         patterns['feature_counts']['jcounts'],
                         munge_as_dataframe,
                         parse_featureCounts_jcounts)
