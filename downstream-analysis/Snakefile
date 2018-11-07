@@ -9,24 +9,24 @@ samples = store['aln/complete'].srx.unique().tolist()[::-1]
 store.close()
 
 rule targets:
-    input: expand('output/samples/{srx}.parquet', srx=samples)
+    input: expand('../output/downstream-analysis/samples/{srx}.parquet', srx=samples)
 
 
 rule calc_corr:
-    output: 'output/samples/{srx}.parquet'
+    output: '../output/downstream-analysis/samples/{srx}.parquet'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 2,
       time_hr=lambda wildcards, attempt: attempt * 2
     run:
         srx1 = wildcards.srx
         idx = samples.index(srx1) + 1
-        pth1 = Path(f'../aln-wf/output/gene_counts/{srx1}.parquet')
+        pth1 = Path(f'../output/aln-wf/gene_counts/{srx1}.parquet')
         df1 = pd.read_parquet(pth1).set_index('srx', append=True)
 
         res = [(srx1, srx1, 1.0), ]
         if idx < len(samples):
             for srx2 in samples[idx:]:
-                pth2 = Path(f'../aln-wf/output/gene_counts/{srx2}.parquet')
+                pth2 = Path(f'../output/aln-wf/gene_counts/{srx2}.parquet')
                 df2 = pd.read_parquet(pth2).set_index('srx', append=True)
                 df = pd.concat([df1, df2]).unstack()
                 _corr, _ = spearmanr(df)
