@@ -19,6 +19,6 @@ rule targets:
 
 
 rule rnaseq_srx_rank_quality:
-    input: metadata('../output/quality-wf/munge_library_strategy_from_mongo.parquet')
+    input: metadata('../output/metadata-wf/munge_library_strategy_from_mongo.parquet')
     output: '../output/quality-wf/rnaseq_srx_quality_ranks.tsv'
     script: 'scripts/rnaseq_srx_rank_quality.py'
