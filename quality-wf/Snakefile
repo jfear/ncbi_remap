@@ -15,10 +15,10 @@ subworkflow metadata:
 
 rule targets:
     input:
-        'output/rnaseq_srx_quality_ranks.tsv'
+        '../output/quality-wfrnaseq_srx_quality_ranks.tsv'
 
 
 rule rnaseq_srx_rank_quality:
-    input: metadata('output/munge_library_strategy_from_mongo.parquet')
-    output: 'output/rnaseq_srx_quality_ranks.tsv'
+    input: metadata('../output/quality-wfmunge_library_strategy_from_mongo.parquet')
+    output: '../output/quality-wfrnaseq_srx_quality_ranks.tsv'
     script: 'scripts/rnaseq_srx_rank_quality.py'
