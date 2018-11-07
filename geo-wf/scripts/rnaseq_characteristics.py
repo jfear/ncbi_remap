@@ -13,7 +13,7 @@ import pandas as pd
 from ncbi_remap.sample_lists import get_complete_rnaseq
 from ncbi_remap.mongo import mongo_connect
 
-OUTPUT = 'output/rnaseq_characteristics.tsv'
+OUTPUT = '../output/geo-wf/rnaseq_characteristics.tsv'
 
 
 def normalize_columns(attrs, replace_dict):

@@ -17,7 +17,7 @@ from ncbi_remap.config import memory
 
 
 DEBUG = False
-OUTDIR = Path('output/justin.fear@nih.gov')
+OUTDIR = Path('../output/geo-wf/justin.fear@nih.gov')
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
 if DEBUG:
@@ -144,27 +144,27 @@ def main():
     for srx in rnaseq:
         files = {
             'firstFB': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.flybase.first.bw'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw'),
                 'ftype': 'BigWig',
             },
             'secondFB': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.flybase.second.bw'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw'),
                 'ftype': 'BigWig',
             },
             'gene': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.bam.counts'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.bam.counts'),
                 'ftype': 'abundance measurements',
             },
             'geneJunc': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.bam.counts.jcounts'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.bam.counts.jcounts'),
                 'ftype': 'abundance measurements',
             },
             'inter': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.bam.intergenic.counts'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts'),
                 'ftype': 'abundance measurements',
             },
             'interJunc': {
-                'fname': Path(f'../aln-wf/output/samples/{srx}/{srx}.bam.intergenic.counts.jcounts'),
+                'fname': Path(f'../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.jcounts'),
                 'ftype': 'abundance measurements',
             },
         }
