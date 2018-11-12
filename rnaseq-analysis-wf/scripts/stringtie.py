@@ -24,4 +24,6 @@ cmd = f"""stringtie \
     -p {snakemake.threads} \
     -o {snakemake.output[0]}
 """
+
+print(cmd)
 shell(cmd)
