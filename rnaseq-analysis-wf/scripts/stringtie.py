@@ -7,7 +7,11 @@ from ncbi_remap.snakemake import get_flag
 
 pth = Path(f'../output/prealn-wf/samples/{snakemake.wildcards.srx}')
 glob = list(pth.glob('*/STRAND'))
-strand = get_flag(glob[0])
+
+try:
+    strand = get_flag(glob[0])
+except IndexError:
+    strand = ''
 
 if strand == 'samestrand':
     param = '--rf'
