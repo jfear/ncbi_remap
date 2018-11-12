@@ -28,7 +28,6 @@ rule targets:
 rule stringTie:
     input:
         bam = '../output/aln-wf/samples/{srx}/{srx}.bam',
-        strand = '../output/prealn-wf/samples/{srx}/STRAND',
         gtf = config['references']['dmel']['gtf'],
     output: patterns['stringtie']
     threads: 2
