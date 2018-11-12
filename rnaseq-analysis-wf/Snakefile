@@ -2,7 +2,7 @@
 
 Workflow for generating downstream files on RNA-Seq data specifically.
 """
-from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
+import pandas as pd
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
@@ -17,6 +17,9 @@ configfile: '../config/reference_config.yaml'
 patterns = {
     'stringtie': '../output/rnaseq-analysis-wf/{srx}.stringtie.gtf',
 }
+
+metadata = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
+srxs = metadata[metadata.Fear_et_al_library_strategy.str.contains('RNA-Seq')].index.tolist()
 
 rule targets:
     input: expand(patterns['stringtie'], srx=srxs)
