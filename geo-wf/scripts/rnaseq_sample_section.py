@@ -1,6 +1,6 @@
 import pandas as pd
 
-OUTPUT = 'output/rnaseq_sample_section.tsv'
+OUTPUT = '../output/geo-wf/rnaseq_sample_section.tsv'
 HEADER = ['title', 'organism', 'study', 'runs', 'GEO Experiment', 'GEO Sample', 'BioSample ID', 'BioProject',
           'pubmed', 'pubmed_title', 'pubmed_citation', 'pubmed_authors', 'contact',
           'characteristics: sex', 'characteristics: developmental stage', 'characteristics: tissue',
@@ -8,7 +8,7 @@ HEADER = ['title', 'organism', 'study', 'runs', 'GEO Experiment', 'GEO Sample', 
 
 
 def main():
-    df = pd.read_csv('output/rnaseq_metadata.tsv', sep='\t', index_col=0)
+    df = pd.read_csv('../output/geo-wf/rnaseq_metadata.tsv', sep='\t', index_col=0)
 
     char_map = {
         'sex': 'characteristics: sex',

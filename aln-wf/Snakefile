@@ -449,7 +449,7 @@ rule bamCoverage:
         bam=patterns['srxMerge']['bam'],
         bai=patterns['srxMerge']['bai']
     output:
-        temp('output/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
+        temp('../output/aln-wf/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
     params:
         extra=_param_bamCoverage
     threads: 4

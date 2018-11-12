@@ -214,26 +214,26 @@ def munge_big_data():
     )
 
     logger.info(f'Building samtools idxstats files')
-    dask_run_large_data('output/samtools_idxstats/{srx}.parquet',
+    dask_run_large_data('../output/aln-wf/samtools_idxstats/{srx}.parquet',
                         patterns['srxMerge']['samtools_idxstats'],
                         munge_as_dataframe,
                         parse_samtools_idxstats)
 
     logger.info(f'Building counts files')
-    dask_run_large_data('output/gene_counts/{srx}.parquet',
+    dask_run_large_data('../output/aln-wf/gene_counts/{srx}.parquet',
                         patterns['srxMerge']['feature_counts']['counts'],
                         munge_as_dataframe,
                         parse_featureCounts_counts)
 
     logger.info(f'Building junction counts files')
-    dask_run_large_data('output/junction_counts/{srx}.parquet',
+    dask_run_large_data('../output/aln-wf/junction_counts/{srx}.parquet',
                         patterns['srxMerge']['feature_counts']['jcounts'],
                         munge_as_dataframe,
                         parse_featureCounts_jcounts)
 
     logger.info(f'Building intergenic counts files')
     dask_run_large_data(
-        'output/intergenic_counts/{srx}.parquet',
+        '../output/aln-wf/intergenic_counts/{srx}.parquet',
         patterns['srxMerge']['feature_counts_intergenic']['counts'],
         munge_as_dataframe,
         parse_featureCounts_counts

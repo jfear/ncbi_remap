@@ -19,23 +19,23 @@ select_library_strategy
 """
 rule targets:
     input:
-        'output/select_library_strategy.parquet'
+        '../output/metadata-wf/select_library_strategy.parquet'
 
 
 rule free_text_library_strategy:
-    output: 'output/free_text_library_strategy.parquet'
+    output: '../output/metadata-wf/free_text_library_strategy.parquet'
     script: 'scripts/free_text_library_strategy.py'
 
 
 rule munge_library_strategy_from_mongo:
     output:
-        'output/munge_library_strategy_from_mongo.parquet',
-        'output/mongo_library_strategy_summary_table.tsv',
+        '../output/metadata-wf/munge_library_strategy_from_mongo.parquet',
+        '../output/metadata-wf/mongo_library_strategy_summary_table.tsv',
     script: 'scripts/munge_library_strategy_from_mongo.py'
 
 
 rule build_library_strategy_feature_set:
-    output: 'output/build_library_strategy_feature_set.parquet'
+    output: '../output/metadata-wf/build_library_strategy_feature_set.parquet'
     script: 'scripts/build_library_strategy_feature_set.py'
 
 
@@ -44,11 +44,11 @@ rule random_forest_library_strategy:
         labels=rules.munge_library_strategy_from_mongo.output[0],
         features=rules.build_library_strategy_feature_set.output[0],
     output:
-        learning_curve='output/random_forest_library_strategy_learning_curve.svg',
-        metrics='output/random_forest_library_strategy_metrics.tsv',
-        feature_importances='output/random_forest_library_strategy_feature_importance.tsv',
-        pred='output/random_forest_library_strategy.parquet',
-        pred_other='output/random_forest_library_strategy_other.parquet',
+        learning_curve='../output/metadata-wf/random_forest_library_strategy_learning_curve.svg',
+        metrics='../output/metadata-wf/random_forest_library_strategy_metrics.tsv',
+        feature_importances='../output/metadata-wf/random_forest_library_strategy_feature_importance.tsv',
+        pred='../output/metadata-wf/random_forest_library_strategy.parquet',
+        pred_other='../output/metadata-wf/random_forest_library_strategy_other.parquet',
     script: 'scripts/random_forest_library_strategy.py'
 
 
@@ -58,5 +58,5 @@ rule select_library_strategy:
         free_text=rules.free_text_library_strategy.output[0],
         forest=rules.random_forest_library_strategy.output['pred'],
         other=rules.random_forest_library_strategy.output['pred_other'],
-    output: 'output/select_library_strategy.parquet'
+    output: '../output/metadata-wf/select_library_strategy.parquet'
     script: 'scripts/select_library_strategy.py'

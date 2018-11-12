@@ -29,7 +29,7 @@ def start_cluster():
                            memory_limit=f'{mem}GB')
 
     client = Client(cluster)
-    with open('output/dask_info.json', 'w') as fh:
+    with open('../output/downstream-analysis/dask_info.json', 'w') as fh:
         fh.write(dumps(client._scheduler_identity, indent=True))
 
     return client
@@ -48,7 +48,7 @@ def get_samples():
 def get_norm_counts(srx):
     data = []
     # Gene level counts
-    gene = pd.read_parquet(f'../aln-wf/output/gene_counts/{srx}.parquet')
+    gene = pd.read_parquet(f'../output/aln-wf/gene_counts/{srx}.parquet')
     gene.reset_index(inplace=True)
     gene[['FBgn', 'srx', 'count']].copy()
     gene['var_type'] = 'gene'
@@ -57,7 +57,7 @@ def get_norm_counts(srx):
 
     # junction level counts
     chroms = ['chrX', 'chr2L', 'chr2R', 'chr3L', 'chr3R', 'chr4', 'chrY']
-    junc = pd.read_parquet(f'../aln-wf/output/junction_counts/{srx}.parquet')
+    junc = pd.read_parquet(f'../output/aln-wf/junction_counts/{srx}.parquet')
     junc = junc.query(f'Site1_chr == {chroms} & Site1_chr == Site2_chr')
     junc = junc[['PrimaryGene', 'srx', 'count']].copy()
     junc.columns = ['FBgn', 'srx', 'count']
@@ -76,7 +76,7 @@ def get_norm_counts(srx):
         index_col='FBgn'
     )
     inter_names = inter_annot.query(f'chrom == {chroms}').index.unique().tolist()
-    inter = pd.read_parquet(f'../aln-wf/output/intergenic_counts/{srx}.parquet')
+    inter = pd.read_parquet(f'../output/aln-wf/intergenic_counts/{srx}.parquet')
     inter = inter.query(f'FBgn == {inter_names}')
     inter.reset_index(inplace=True)
     inter = inter[['FBgn', 'srx', 'count']].copy()
@@ -124,12 +124,12 @@ def main():
         client.close()
 
     logger.info('Saving results')
-    df.to_parquet('output/counts_norm_median.parquet')
+    df.to_parquet('../output/downstream-analysis/counts_norm_median.parquet')
 
 
 if __name__ == '__main__':
     try:
-        Path('output').mkdir(parents=True, exist_ok=True)
+        Path('../output/downstream-analysis').mkdir(parents=True, exist_ok=True)
         main()
     except KeyboardInterrupt:
         logger.info('Interrupted')

@@ -31,7 +31,7 @@ def start_cluster():
                            memory_limit=f'{mem}GB')
 
     client = Client(cluster)
-    with open('output/dask_info.json', 'w') as fh:
+    with open('../output/downstream-analysis/dask_info.json', 'w') as fh:
         fh.write(dumps(client._scheduler_identity, indent=True))
 
     return client
@@ -54,8 +54,8 @@ def calc_corr(pairs):
             res.append((srx1, srx2, 1.0))
             continue
 
-        pth1 = Path(f'../aln-wf/output/gene_counts/{srx1}.parquet')
-        pth2 = Path(f'../aln-wf/output/gene_counts/{srx2}.parquet')
+        pth1 = Path(f'../output/aln-wf/gene_counts/{srx1}.parquet')
+        pth2 = Path(f'../output/aln-wf/gene_counts/{srx2}.parquet')
 
         df1 = pd.read_parquet(pth1).set_index('srx', append=True)
         df2 = pd.read_parquet(pth2).set_index('srx', append=True)
@@ -71,7 +71,7 @@ def calc_corr(pairs):
 def save_data(srx, _corr):
     df = pd.DataFrame(_corr, columns=['srx1', 'srx2', '_corr'])
     df.set_index(['srx1', 'srx2'], inplace=True)
-    df.to_parquet(f'output/samples/{srx}_corr.parquet')
+    df.to_parquet(f'../output/downstream-analysis/samples/{srx}_corr.parquet')
     return None
 
 
@@ -88,7 +88,7 @@ def main():
         logger.info('Building Job List')
         work = []
         for i, srx in enumerate(srxs):
-            if Path(f'output/samples/{srx}_corr.parquet').exists():
+            if Path(f'../output/downstream-analysis/samples/{srx}_corr.parquet').exists():
                 continue
             pairs = product([srx,], samples[i:])
             _corr = calc_corr(pairs)
@@ -104,17 +104,17 @@ def main():
         client.close()
 
     logger.info('Munging into dataframe')
-    df = dd.read_parquet('output/samples/*_corr.parquet').compute()
+    df = dd.read_parquet('../output/downstream-analysis/samples/*_corr.parquet').compute()
     df = df.sort_index(level=['srx1', 'srx2']).unstack().copy()
     df.columns = df.columns.droplevel(0)
 
     logger.info('Saving results')
-    df.to_parquet('output/gene_counts_corr.parquet')
+    df.to_parquet('../output/downstream-analysis/gene_counts_corr.parquet')
 
 
 if __name__ == '__main__':
     try:
-        Path('output/samples').mkdir(parents=True, exist_ok=True)
+        Path('../output/downstream-analysis/samples').mkdir(parents=True, exist_ok=True)
         main()
     except KeyboardInterrupt:
         logger.info('Interrupted')

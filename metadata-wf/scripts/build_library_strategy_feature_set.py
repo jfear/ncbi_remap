@@ -74,15 +74,15 @@ dat_by_srr_no_na = dat_by_srr.fillna(dat_by_srr.mean().to_dict(), axis=0)
 dat_by_srr_no_na.shape
 
 # FeatureCount Coverage Counts
-genic = pd.read_parquet('../aln-downstream-wf/output/aggregate_genic_counts.parquet').reindex(srxs)['count']
+genic = pd.read_parquet('../../output/aln-downstream-wf/aggregate_genic_counts.parquet').reindex(srxs)['count']
 genic.name = 'genic'
 genic = genic.astype(np.float64)
 
-intergenic = pd.read_parquet('../aln-downstream-wf/output/aggregate_intergenic_counts.parquet').reindex(srxs)['count']
+intergenic = pd.read_parquet('../../output/aln-downstream-wf/aggregate_intergenic_counts.parquet').reindex(srxs)['count']
 intergenic.name = 'intergenic'
 intergenic = intergenic.astype(np.float64)
 
-junctions = pd.read_parquet('../aln-downstream-wf/output/aggregate_junction_counts.parquet').reindex(srxs)['count']
+junctions = pd.read_parquet('../../output/aln-downstream-wf/aggregate_junction_counts.parquet').reindex(srxs)['count']
 junctions.name = 'junctions'
 junctions = junctions.astype(np.float64)
 

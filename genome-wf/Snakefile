@@ -21,7 +21,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 workdir: '.'
 
 # import config
-configfile: '../config/reference_config.yml'
+configfile: '../config/reference_config.yaml'
 
 
 ################################################################################
@@ -38,11 +38,11 @@ sample_table = sample_table.sample(n=30, random_state=42).copy()
 
 # Patterns
 patterns = {
-    'fastq': '../prealn-wf/output/samples/{srx}/{srr}/{srr}_1.fastq.gz',
-    'bam': 'output/samples/{srx}/{srr}.fq.bam',
-    'bai': 'output/samples/{srx}/{srr}.fq.bam.bai',
-    'bedGraph': 'output/samples/{srx}/{srr}.fq.bam.bedgraph',
-    'merged': 'output/genome_cov.bedgraph',
+    'fastq': '../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz',
+    'bam': '../output/genome-wf/samples/{srx}/{srr}.fq.bam',
+    'bai': '../output/genome-wf/samples/{srx}/{srr}.fq.bam.bai',
+    'bedGraph': '../output/genome-wf/samples/{srx}/{srr}.fq.bam.bedgraph',
+    'merged': '../output/genome-wf/genome_cov.bedgraph',
 
     # MISC Files
     'chromSizes': '../output/dm6.chrom.sizes',

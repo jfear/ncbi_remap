@@ -13,7 +13,7 @@ HEADER = ['title', 'organism', 'study', 'runs', 'GEO Experiment', 'GEO Sample', 
           'pubmed', 'pubmed_title', 'pubmed_citation', 'pubmed_authors', 'contact',
           'sex', 'developmental stage', 'tissue', 'cell type', 'molecule', 'description', 'raw file', ]
 
-OUTPUT = 'output/rnaseq_metadata.tsv'
+OUTPUT = '../output/geo-wf/rnaseq_metadata.tsv'
 
 
 def get_sample_info(samples):
@@ -133,12 +133,12 @@ def main():
     clean_title(metadata)
 
     # bag of words: keywords created using TfIDF
-    bow = pd.read_parquet('output/bow.parquet')
+    bow = pd.read_parquet('../output/geo-wf/bow.parquet')
     bow.index.name = 'sample_name'
     bow.columns = ['description']
 
     # Hand cleaned characteristics
-    characteristics = pd.read_csv('output/rnaseq_characteristics.tsv', sep='\t', index_col=0)
+    characteristics = pd.read_csv('../output/geo-wf/rnaseq_characteristics.tsv', sep='\t', index_col=0)
     characteristics.index.name = 'sample_name'
 
     # TODO: Add QC metrics

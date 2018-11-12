@@ -56,10 +56,10 @@ def main():
 
     # Remove files
     for srx in srxs:
-        pth1 = Path(f'../aln-wf/output/samples/{srx}/{srx}.bam')
+        pth1 = Path(f'../output/aln-wf/samples/{srx}/{srx}.bam')
         tracker_bam.remove(pth1)
 
-        pth2 = Path(f'../aln-wf/output/samples/{srx}/{srx}.bam.bai')
+        pth2 = Path(f'../output/aln-wf/samples/{srx}/{srx}.bam.bai')
         tracker_bai.remove(pth2)
 
     # Report Summary
@@ -69,7 +69,7 @@ def main():
 
 def not_rnaseq_srxs(complete):
     """Create a list of non RNA-Seq SRXs."""
-    metadata = pd.read_parquet('../metadata-wf/output/select_library_strategy.parquet')
+    metadata = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
     metadata = metadata.reindex(complete)
     mask = metadata.Fear_et_al_library_strategy.str.contains('RNA-Seq') | \
         metadata.Fear_et_al_library_strategy.str.contains('EST')

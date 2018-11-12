@@ -16,7 +16,7 @@ from ncbi_remap.logging import logger
 from ncbi_remap.mongo import mongo_connect
 from ncbi_remap.sample_lists import get_complete
 
-OUTPUT = 'output/bow.parquet'
+OUTPUT = '../output/geo-wf/bow.parquet'
 
 def parse_document(doc):
     srx = doc['srx']

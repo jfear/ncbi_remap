@@ -3,45 +3,45 @@ workdir: '.'
 
 rule targets:
     input:
-        'output/justin.fear@nih.gov/md5sum.tsv',
-        #'output/justin.fear@nih.gov_chip/md5sum.tsv',
-        'output/bow.parquet',
-        'output/rnaseq_characteristics.tsv',
-        'output/rnaseq_metadata.tsv',
-        'output/rnaseq_sample_section.tsv',
+        '../output/geo-wf/justin.fear@nih.gov/md5sum.tsv',
+        #'../output/geo-wf/justin.fear@nih.gov_chip/md5sum.tsv',
+        '../output/geo-wf/bow.parquet',
+        '../output/geo-wf/rnaseq_characteristics.tsv',
+        '../output/geo-wf/rnaseq_metadata.tsv',
+        '../output/geo-wf/rnaseq_sample_section.tsv',
 
 
 rule rnaseq_md5sum:
-    output: 'output/justin.fear@nih.gov/md5sum.tsv'
+    output: '../output/geo-wf/justin.fear@nih.gov/md5sum.tsv'
     script: 'scripts/rnaseq_md5sum.py'
 
 
 rule chipseq_md5sum:
-    output: 'output/justin.fear@nih.gov_chip/md5sum.tsv'
+    output: '../output/geo-wf/justin.fear@nih.gov_chip/md5sum.tsv'
     script: 'scripts/chipseq_md5sum.py'
 
 
 rule bow:
-    output: 'output/bow.parquet'
+    output: '../output/geo-wf/bow.parquet'
     script: 'scripts/bag_of_words.py'
 
 
 rule characteristic:
-    output: 'output/rnaseq_characteristics.tsv',
+    output: '../output/geo-wf/rnaseq_characteristics.tsv',
     script: 'scripts/rnaseq_characteristics.py'
 
 
 rule rnaseq_metadata:
     input:
-        'output/bow.parquet',
-        'output/rnaseq_characteristics.tsv',
-    output: 'output/rnaseq_metadata.tsv'
+        '../output/geo-wf/bow.parquet',
+        '../output/geo-wf/rnaseq_characteristics.tsv',
+    output: '../output/geo-wf/rnaseq_metadata.tsv'
     script: 'scripts/rnaseq_metadata.py'
 
 
 rule rnaseq_sample_section:
-    input: 'output/rnaseq_metadata.tsv'
-    output: 'output/rnaseq_sample_section.tsv'
+    input: '../output/geo-wf/rnaseq_metadata.tsv'
+    output: '../output/geo-wf/rnaseq_sample_section.tsv'
     script: 'scripts/rnaseq_sample_section.py'
 
 # vim: set ft=python.snakemake
