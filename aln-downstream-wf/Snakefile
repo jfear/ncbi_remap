@@ -36,8 +36,8 @@ rule aggregate_gene_counts:
 
 rule normalize_gene_counts:
     input:
-        gene_lens=rules.gene_lengths.output,
-        gene_counts=rules.aggregate_gene_counts.output,
+        gene_lens=rules.gene_lengths.output[0],
+        gene_counts=rules.aggregate_gene_counts.output[0],
     output:
         cpm='../output/aln-downstream-wf/gene_counts_wide_cpm.parquet',
         rpkm='../output/aln-downstream-wf/gene_counts_wide_rpkm.parquet',

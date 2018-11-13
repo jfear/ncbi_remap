@@ -21,7 +21,7 @@ drop_label = Ycnts.index[Ycnts < 50].tolist()
 
 for label in drop_label:
     Y[Y == label] = 'OTHER'
-    
+
 # Split out OTHER
 Y_OTHER = Y[Y == 'OTHER'].copy()
 features_OTHER = features.reindex(Y_OTHER.index).dropna()
@@ -40,15 +40,15 @@ X_train, X_test, Y_train, Y_test = train_test_split(X, Y_enc, stratify=Y_enc, ra
 # Initialize classifier
 clf =  RandomForestClassifier(n_estimators=200, oob_score=True)
 
-# Now I am trying to figure out how training many samples are needed to 
+# Now I am trying to figure out how training many samples are needed to
 # have good performance. To do this I use Learning Curve.
 train_sizes, train_scores, test_scores = learning_curve(
-    clf, 
-    X_train, 
-    Y_train, 
-    cv=5, 
-    train_sizes=np.linspace(0.001, 1, 20), 
-    n_jobs=-1, 
+    clf,
+    X_train,
+    Y_train,
+    cv=5,
+    train_sizes=np.linspace(0.001, 1, 20),
+    n_jobs=-1,
 )
 
 train_mean = np.mean(train_scores, axis=1)
@@ -80,7 +80,7 @@ with open(snakemake.output['metrics'], 'w') as fh:
 importances = pd.Series(clf.feature_importances_, index=features.columns).sort_values(ascending=False)
 importances.to_csv(snakemake.output['feature_importances'], sep='\t')
 
-# Make predictions on all data and OTHER using a 20-fold cross validation approach. 
+# Make predictions on all data and OTHER using a 20-fold cross validation approach.
 # Here I am using only 20% of the data for training given the learning curve results above.
 n = 20
 Y_res = np.empty((Y_enc.shape[0], n), dtype=object)
@@ -90,7 +90,7 @@ for i in range(n):
     clf.fit(X_train, Y_train)
     Y_pred = clf.predict(X)
     Y_res[:, i] = encoder.inverse_transform(Y_pred)
-    
+
     Y_pred2 = clf.predict(features_OTHER.values)
     Y_res_other[:, i] = encoder.inverse_transform(Y_pred2)
 
