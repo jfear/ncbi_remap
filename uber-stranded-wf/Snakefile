@@ -159,7 +159,7 @@ def _get_uber_srxs():
 
 rule mergeBam:
     """Merge a large number of bams together."""
-    input: expand(patterns['bam'], srx=_get_uber_srxs())
+    input: expand(patterns['bam'], srx=_get_uber_srxs()[:10])
     output: '../output/uber-stranded-wf/uber_stranded_merged.bam'
     threads: 12
     script: 'scripts/merge_bam.py'
@@ -172,7 +172,7 @@ rule stringTie_merged:
     strandedness may cause problems.
     """
     input:
-        bam = rules.bamMerge.output[0],
+        bam = rules.mergeBam.output[0],
         gtf = config['references']['dmel']['gtf'],
     output: '../output/uber-stranded-wf/uber_stranded_merged.stringtie.gtf'
     threads: 2

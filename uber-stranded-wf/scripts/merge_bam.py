@@ -1,5 +1,6 @@
 """Script to run samtools merge on a large number of BAMs."""
 import os
+from time import sleep
 from tempfile import NamedTemporaryFile
 
 from snakemake.shell import shell
@@ -7,12 +8,13 @@ from snakemake.shell import shell
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-threads = snakemake.get('threads', 1)
+threads = snakemake.threads
 
 bams = list(snakemake.input)
 
-tmp = NamedTemporaryFile(mode='w', dir=TMPDIR)
+tmp = NamedTemporaryFile(mode='w', dir=TMPDIR, delete=False)
 tmp.write('\n'.join(bams))
+tmp.close()
 
 cmd = f"""samtools merge \
     -b {tmp.name} \
@@ -23,4 +25,5 @@ cmd = f"""samtools merge \
 print(cmd)
 shell(cmd)
 
-tmp.close()
+os.unlink(tmp.name)
+
