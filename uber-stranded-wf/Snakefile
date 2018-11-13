@@ -2,6 +2,20 @@
 
 """
 
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
+
+# import config
+configfile: '../config/reference_config.yaml'
+
+patterns = {
+    'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
+}
+
 subworkflow metadata:
     workdir: '../metadata-wf'
     snakefile: '../metadata-wf/Snakefile'
@@ -136,33 +150,33 @@ rule bigWigMerge_scale_theshold10:
     """
 
 
-def _bamMergeList(wildcards):
+def _get_uber_srxs():
     with open('../output/uber-stranded-wf/uber_srxs.txt') as fh:
         srxs = fh.read().strip().split('\n')
 
-    files = []
-    for srx in srxs:
-        files.append(f'../output/aln-wf/samples/{srx}/{srx}.bam')
-
-    return files
+    return srxs
 
 
-rule bamMergeList:
-    input:
-        srxs = rules.uber_srxs.output[0],
-        fnames = _bamMergeList,
-    output: '../output/uber-stranded-wf/uber_straned_bam_list.txt'
-    run:
-        with open(output[0], 'w') as fh:
-            fh.write('\n'.join(input.fnames))
-
-
-rule bamMerge:
-    input: rules.bamMergeList.output[0]
+rule mergeBam:
+    """Merge a large number of bams together."""
+    input: expand(patterns['bam'], srx=_get_uber_srxs())
     output: '../output/uber-stranded-wf/uber_stranded_merged.bam'
-    shell: """
-        samtools merge \
-            -b {input[0]} \
-            {output[0]}
+    threads: 12
+    script: 'scripts/merge_bam.py'
 
+
+rule stringTie_merged:
+    """Create a StringTie GTF from a merged set of BAMs.
+
+    This should get around any coverage issues, but differences in
+    strandedness may cause problems.
     """
+    input:
+        bam = rules.bamMerge.output[0],
+        gtf = config['references']['dmel']['gtf'],
+    output: '../output/uber-stranded-wf/uber_stranded_merged.stringtie.gtf'
+    threads: 2
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
+    script: 'scripts/stringtie.py'
