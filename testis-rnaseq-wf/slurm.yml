@@ -1,0 +1,5 @@
+__default__:
+  time_hr: 1
+  mem_gb: 2
+  gres: "lscratch:80"
+  partition: 'norm'
