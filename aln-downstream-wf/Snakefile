@@ -22,7 +22,9 @@ rule targets:
         '../output/aln-downstream-wf/gene_counts_wide_rpkm.parquet',
         '../output/aln-downstream-wf/gene_counts_wide_tpm.parquet',
         '../output/aln-downstream-wf/gene_count_spearman_corr.parquet',
-
+        '../output/aln-downstream-wf/aggregate_genic_counts.parquet',
+        '../output/aln-downstream-wf/aggregate_intergenic_counts.parquet',
+        '../output/aln-downstream-wf/aggregate_junction_counts.parquet',
 
 rule gene_lengths:
     output: '../output/aln-downstream-wf/gene_lengths.parquet'
@@ -48,28 +50,36 @@ rule normalize_gene_counts:
 rule aggregate_sum_genic_counts:
     output: '../output/aln-downstream-wf/aggregate_genic_counts.parquet'
     threads: 12
-    resources: mem_gb=20
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 20,
+        time_hr = lambda wildcards, attempt: attempt * 8
     script: 'scripts/aggregate_sum_genic_counts.py'
 
 
 rule aggregate_sum_intergenic_counts:
     output: '../output/aln-downstream-wf/aggregate_intergenic_counts.parquet'
     threads: 12
-    resources: mem_gb=20
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 20,
+        time_hr = lambda wildcards, attempt: attempt * 8
     script: 'scripts/aggregate_sum_intergenic_counts.py'
 
 
 rule aggregate_sum_junction_counts:
     output: '../output/aln-downstream-wf/aggregate_junction_counts.parquet'
     threads: 12
-    resources: mem_gb=20
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 20,
+        time_hr = lambda wildcards, attempt: attempt * 8
     script: 'scripts/aggregate_sum_junction_counts.py'
 
 
 rule calc_corr:
     input: rules.aggregate_gene_counts.output[0]
     output: '../output/aln-downstream-wf/gene_count_spearman_corr.parquet'
-    resources: mem_gb=150
+    resources:
+        mem_gb = 150,
+        time_hr = lambda wildcards, attempt: attempt * 8
     script: 'scripts/calc_corr.py'
 
 
