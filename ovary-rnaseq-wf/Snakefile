@@ -1,0 +1,68 @@
+"""Downstream analysis for RNA-Seq data.
+
+Workflow for generating downstream files on RNA-Seq data specifically.
+"""
+import os
+import numpy as np
+import pandas as pd
+
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID', ''))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+# Set working dir
+workdir: '.'
+
+# import config
+configfile: '../config/reference_config.yaml'
+
+patterns = {
+    'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
+    'bamList': '../output/ovary-rnaseq-wf/ovary_bams.txt',
+    'merged_bam': '../output/ovary-rnaseq-wf/ovary.bam',
+    'stringtie': '../output/ovary-rnaseq-wf/ovary.stringtie.gtf',
+}
+
+with open('../output/notebook/2018-11-13_prep_for_dataclub_ovary_rnaseq.txt') as fh:
+    srxs = fh.read().strip().split('\n')
+
+
+rule targets:
+    input: patterns['stringtie']
+
+
+def _bamList(wildcards):
+    fnames = []
+    for srx in srxs:
+        fnames.append(patterns['bam'].format(srx=srx))
+    return fnames
+
+
+rule bamList:
+    input: _bamList
+    output: patterns['bamList']
+    run:
+        with open(output[0], 'w') as fh:
+            fh.write('\n'.join(input))
+
+
+rule mergeBam:
+    input: rules.bamList.output[0]
+    output: patterns['merged_bam']
+    threads: 12
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 10,
+        time_hr = lambda wildcards, attempt: attempt * 24
+    shell: "samtools merge -b {input} -@ {threads} {output[0]}"
+
+
+rule stringTie:
+    input:
+        bam = rules.mergeBam.output[0],
+        gtf = config['references']['dmel']['gtf'],
+    output: patterns['stringtie']
+    threads: 12
+    resources:
+        mem_gb = lambda wildcards, attempt: attempt * 42,
+        time_hr = lambda wildcards, attempt: attempt * 24
+    shell: "stringtie {input.bam} -G {input.gtf} -p {threads} -j 100 -c 100 -o {output[0]}"
