@@ -56,6 +56,8 @@ rule mergeBam:
     shell: "samtools merge -b {input} -@ {threads} {output[0]}"
 
 
+#TODO: Add Bam sort and index
+
 rule stringTie:
     input:
         bam = rules.mergeBam.output[0],
@@ -66,3 +68,8 @@ rule stringTie:
         mem_gb = lambda wildcards, attempt: attempt * 32,
         time_hr = lambda wildcards, attempt: attempt * 12
     shell: "stringtie {input.bam} -G {input.gtf} -p {threads} -j 100 -c 100 -o {output[0]}"
+
+
+ #TODO: Add depptools bamCoverage
+
+ #TODO: Add bedGraphToBigWig
