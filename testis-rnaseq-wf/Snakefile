@@ -65,8 +65,8 @@ rule stringTie:
     output: patterns['stringtie']
     threads: 12
     resources:
-        mem_gb = lambda wildcards, attempt: attempt * 32,
-        time_hr = lambda wildcards, attempt: attempt * 12
+        mem_gb = lambda wildcards, attempt: attempt * 62,
+        time_hr = lambda wildcards, attempt: attempt * 24
     shell: "stringtie {input.bam} -G {input.gtf} -p {threads} -o {output[0]}"
 
 
