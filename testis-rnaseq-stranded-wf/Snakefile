@@ -18,12 +18,12 @@ configfile: '../config/reference_config.yaml'
 
 patterns = {
     'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
-    'bamList': '../output/testis-pe-rnaseq-wf/testis_bams.txt',
-    'merged_bam': '../output/testis-pe-rnaseq-wf/testis.bam',
-    'stringtie': '../output/testis-pe-rnaseq-wf/testis.stringtie.gtf',
+    'bamList': '../output/testis-rnaseq-stranded-wf/testis_bams.txt',
+    'merged_bam': '../output/testis-rnaseq-stranded-wf/testis.bam',
+    'stringtie': '../output/testis-rnaseq-stranded-wf/testis.stringtie.gtf',
 }
 
-with open('../output/notebook/2018-12-17_testis_pe_libraries.txt') as fh:
+with open('../output/notebook/2018-12-17_testis_stranded_libraries.txt') as fh:
     srxs = fh.read().strip().split('\n')
 
 
