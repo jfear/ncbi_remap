@@ -26,6 +26,7 @@ patterns = {
 with open('../output/notebook/2018-11-13_prep_for_dataclub_testis_rnaseq.txt') as fh:
     srxs = fh.read().strip().split('\n')
 
+localrules: targets, bamList
 
 rule targets:
     input: patterns['stringtie']
