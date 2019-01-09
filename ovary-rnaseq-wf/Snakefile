@@ -41,6 +41,9 @@ def _bamList(wildcards):
 rule bamList:
     input: _bamList
     output: patterns['bamList']
+    resources:
+        mem_gb = 1,
+        time_hr = 1
     run:
         with open(output[0], 'w') as fh:
             fh.write('\n'.join(input))
