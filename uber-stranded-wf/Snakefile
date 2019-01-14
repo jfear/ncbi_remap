@@ -1,9 +1,7 @@
-"""Aggregated BigWig of extremely well stranded files.
-
-"""
+"""Aggregated BigWig of extremely well stranded files."""
 
 # Setup tempdir to work with lscratch
-TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID', ''))
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
@@ -12,36 +10,47 @@ workdir: '.'
 # import config
 configfile: '../config/reference_config.yaml'
 
-patterns = {
+
+
+# Make sure to run the make_srx_list workflow first, otherwise this file won't be there to import.
+
+#subworkflow make_srxs:
+#    workdir: '.'
+#    snakefile: '../make_srx_list.snake'
+#
+#
+#rule run_make_srxs:
+#  input: make_srxs('../output/uber-stranded-wf/uber_srxs.txt')
+#
+
+with open('../output/uber-stranded-wf/uber_srxs.txt') as fh:
+    SRXS = fh.read().strip().split('\n')
+
+
+PATTERNS = {
     'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
+    'raw_bigwig': {
+        'plus': '../output/uber-stranded-wf/samples/{srx}.plus.bw',
+        'minus': '../output/uber-stranded-wf/samples/{srx}.minus.bw',
+    }
 }
-
-subworkflow metadata:
-    workdir: '../metadata-wf'
-    snakefile: '../metadata-wf/Snakefile'
-
-
-subworkflow quality:
-    workdir: '../quality-wf'
-    snakefile: '../quality-wf/Snakefile'
-
 
 rule targets:
     input:
-        '../output/uber-stranded-wf/uber_srxs.txt',
-        '../output/uber-stranded-wf/uber_stranded.plus_sum.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_sum.bw',
-        '../output/uber-stranded-wf/uber_stranded.plus_max.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_max.bw',
-        '../output/uber-stranded-wf/uber_stranded.plus_median.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_median.bw',
-        '../output/uber-stranded-wf/uber_stranded.plus_mean.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_mean.bw',
-        '../output/uber-stranded-wf/uber_stranded.plus_75.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_75.bw',
-        '../output/uber-stranded-wf/uber_stranded.plus_95.bw',
-        '../output/uber-stranded-wf/uber_stranded.minus_95.bw',
-        '../output/uber-stranded-wf/uber_stranded_merged.bam'
+        expand(PATTERNS['raw_bigwig']['plus'], srx=SRXS[:10]),
+#        '../output/uber-stranded-wf/uber_stranded.plus_sum.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_sum.bw',
+#        '../output/uber-stranded-wf/uber_stranded.plus_max.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_max.bw',
+#        '../output/uber-stranded-wf/uber_stranded.plus_median.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_median.bw',
+#        '../output/uber-stranded-wf/uber_stranded.plus_mean.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_mean.bw',
+#        '../output/uber-stranded-wf/uber_stranded.plus_75.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_75.bw',
+#        '../output/uber-stranded-wf/uber_stranded.plus_95.bw',
+#        '../output/uber-stranded-wf/uber_stranded.minus_95.bw',
+#        '../output/uber-stranded-wf/uber_stranded_merged.bam'
 #         '../output/uber-stranded-wf/uber_stranded.plus_scaled.bw',
 #         '../output/uber-stranded-wf/uber_stranded.minus_scaled.bw',
 #         '../output/uber-stranded-wf/uber_stranded.plus_scaled_threshold1.bw',
@@ -50,15 +59,20 @@ rule targets:
 #         '../output/uber-stranded-wf/uber_stranded.minus_scaled_threshold10.bw',
 
 
-rule uber_srxs:
-    input:
-        libstrat=metadata('../output/metadata-wf/random_forest_library_strategy.parquet'),
-        quality=quality('../output/quality-wf/rnaseq_srx_quality_ranks.tsv'),
-    output: '../output/uber-stranded-wf/uber_srxs.txt'
-    params:
-        strand_cutoff=.99,
-        quality_cutoff=60,
-    script: 'scripts/uber_srxs.py'
+rule raw_bigwig:
+    """Create a non-normalized bedgraph"""
+    input: PATTERNS['bam']
+    output:
+        plus = PATTERNS['raw_bigwig']['plus'],
+        minus = PATTERNS['raw_bigwig']['minus']
+    threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
+    shell: """
+        bamCoverage -b {input[0]} -o {output.plus} -of bigwig -bs 1 --numberOfProcessors {threads} --filterRNAstrand forward && \
+        bamCoverage -b {input[0]} -o {output.minus} -of bigwig -bs 1 --numberOfProcessors {threads}  --filterRNAstrand reverse
+    """
 
 
 def _bigWigMerge(wildcards):
@@ -67,11 +81,8 @@ def _bigWigMerge(wildcards):
     else:
         strand = 'second'
 
-    with open('../output/uber-stranded-wf/uber_srxs.txt') as fh:
-        srxs = fh.read().strip().split('\n')
-
     files = []
-    for srx in srxs:
+    for srx in SRXS:
         files.append(f'../output/aln-wf/samples/{srx}/{srx}.flybase.{strand}.bw')
 
     return files
@@ -79,11 +90,13 @@ def _bigWigMerge(wildcards):
 
 rule bigWigMerge:
     input:
-        srxs=rules.uber_srxs.output[0],
         fnames=_bigWigMerge,
         chromsizes='../output/dmel_r6-11.flybase.chromsizes'
     output: '../output/uber-stranded-wf/uber_stranded.{strand,plus|minus}_{agg_func,sum|mean|median|max|75|95}.bw'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell: """
         bigWigMerge \
             --input {input.fnames} \
@@ -96,11 +109,13 @@ rule bigWigMerge:
 
 rule bigWigMerge_scale:
     input:
-        srxs=rules.uber_srxs.output[0],
         fnames=_bigWigMerge,
         chromsizes='../output/dmel_r6-11.flybase.chromsizes'
     output: '../output/uber-stranded-wf/uber_stranded.{strand,plus|minus}_scaled.bw'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell: """
         bigWigMerge \
             --input {input.fnames} \
@@ -114,11 +129,13 @@ rule bigWigMerge_scale:
 
 rule bigWigMerge_scale_theshold:
     input:
-        srxs=rules.uber_srxs.output[0],
         fnames=_bigWigMerge,
         chromsizes='../output/dmel_r6-11.flybase.chromsizes'
     output: '../output/uber-stranded-wf/uber_stranded.{strand,plus|minus}_scaled_threshold1.bw'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell: """
         bigWigMerge \
             --input {input.fnames} \
@@ -133,11 +150,13 @@ rule bigWigMerge_scale_theshold:
 
 rule bigWigMerge_scale_theshold10:
     input:
-        srxs=rules.uber_srxs.output[0],
         fnames=_bigWigMerge,
         chromsizes='../output/dmel_r6-11.flybase.chromsizes'
     output: '../output/uber-stranded-wf/uber_stranded.{strand,plus|minus}_scaled_threshold10.bw'
     threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
     shell: """
         bigWigMerge \
             --input {input.fnames} \
@@ -150,18 +169,14 @@ rule bigWigMerge_scale_theshold10:
     """
 
 
-def _get_uber_srxs():
-    with open('../output/uber-stranded-wf/uber_srxs.txt') as fh:
-        srxs = fh.read().strip().split('\n')
-
-    return srxs
-
-
 rule mergeBam:
     """Merge a large number of bams together."""
-    input: expand(patterns['bam'], srx=_get_uber_srxs()[:10])
+    input: expand(PATTERNS['bam'], srx=SRXS)
     output: '../output/uber-stranded-wf/uber_stranded_merged.bam'
     threads: 12
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 1
     script: 'scripts/merge_bam.py'
 
 
@@ -176,6 +191,9 @@ rule stringTie_merged:
         gtf = config['references']['dmel']['gtf'],
     output: '../output/uber-stranded-wf/uber_stranded_merged.stringtie.gtf'
     threads: 2
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 8,
+      time_hr=lambda wildcards, attempt: attempt * 1
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1

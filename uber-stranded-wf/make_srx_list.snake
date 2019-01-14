@@ -1,0 +1,35 @@
+# Setup tempdir to work with lscratch
+TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+
+# import config
+configfile: '../config/reference_config.yaml'
+
+
+subworkflow metadata:
+    workdir: '../metadata-wf'
+    snakefile: '../metadata-wf/Snakefile'
+
+
+subworkflow quality:
+    workdir: '../quality-wf'
+    snakefile: '../quality-wf/Snakefile'
+
+
+rule targets:
+    input:
+        '../output/uber-stranded-wf/uber_srxs.txt',
+
+
+rule uber_srxs:
+    input:
+        libstrat=metadata('../output/metadata-wf/random_forest_library_strategy.parquet'),
+        quality=quality('../output/quality-wf/rnaseq_srx_quality_ranks.tsv'),
+    output: '../output/uber-stranded-wf/uber_srxs.txt'
+    params:
+        strand_cutoff=.99,
+        quality_cutoff=60,
+    script: 'scripts/uber_srxs.py'
+
+
