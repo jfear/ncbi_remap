@@ -21,6 +21,7 @@ patterns = {
     'stringtie_merged': '../output/rnaseq-analysis-wf/merged.stringtie.gtf',
 }
 
+# TODO prioritize modENCODE for Claire
 metadata = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
 srxs = metadata[metadata.Fear_et_al_library_strategy.str.contains('RNA-Seq')].index.tolist()
 
@@ -67,3 +68,53 @@ rule stringTie_merged:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
     script: 'scripts/stringtie.py'
+
+
+def _salmon(wildcards):
+    # TODO need to add logic to make a list of FASTQs if it is PE or SE
+    pass
+
+
+rule salmon:
+    """Quantify reads coming from transcripts with Salmon"""
+    input:
+        fastq=_salmon,
+        index=# TODO add salmon ref,
+    output:
+        # TODO add list of salmon outputs to patterns
+        #c.patterns['salmon']
+    params:
+        # TODO update these params to point to correct locations
+        #index_dir=os.path.dirname(c.refdict[c.organism][config['salmon']['tag']]['salmon']),
+        #outdir=os.path.dirname(c.patterns['salmon'])
+    log:
+        # TODO add back logging
+        #c.patterns['salmon'] + '.log'
+    run:
+        # TODO read through options and make sure these are what you want to use.
+        paired = len(input.fastq) == 2
+        if paired:
+            shell(
+                'salmon quant '
+                '--index {params.index_dir} '
+                '--output {params.outdir} '
+                '--threads {threads} '
+                '--libType=A '
+                '--gcBias '
+                '--seqBias '
+                '-1 {input.fastq[0]} '
+                '-2 {input.fastq[1]} '
+                '&> {log}'
+            )
+        else:
+            shell(
+                'salmon quant '
+                '--index {params.index_dir} '
+                '--output {params.outdir} '
+                '--threads {threads} '
+                '--libType=A '
+                '--gcBias '
+                '--seqBias '
+                '-r {input.fastq} '
+                '&> {log}'
+            )
