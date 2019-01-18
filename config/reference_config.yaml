@@ -7,6 +7,7 @@ references:
     hisat2: /data/LCDB/lcdb-references/dmel/r6-11/hisat2/dmel_r6-11.1.ht2
     refflat: /data/LCDB/lcdb-references/dmel/r6-11/gtf/dmel_r6-11.refflat
     chromSizes: /data/LCDB/lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes
+    salmon: /data/LCDB/lcdb-references/dmel/r6-11_transcriptome/salmon/dmel_r6-11_transcriptome/hash.bin
   rRNA:
     bowtie2: /data/LCDB/lcdb-references/dmel/rRNA/bowtie2/dmel_rRNA.1.bt2
   wolbachia:

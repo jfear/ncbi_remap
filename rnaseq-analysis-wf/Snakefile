@@ -3,6 +3,9 @@
 Workflow for generating downstream files on RNA-Seq data specifically.
 """
 import pandas as pd
+from pathlib import Path
+
+from ncbi_remap.snakemake import get_flag
 
 # Setup tempdir to work with lscratch
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
@@ -16,9 +19,11 @@ configfile: '../config/reference_config.yaml'
 
 patterns = {
     'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
-    'stringtie': '../output/rnaseq-analysis-wf/{srx}.stringtie.gtf',
+    'stringtie': '../output/rnaseq-analysis-wf/individual_stringtie/{srx}.stringtie.gtf',
     'merged_bam': '../output/rnaseq-analysis-wf/merged.bam',
-    'stringtie_merged': '../output/rnaseq-analysis-wf/merged.stringtie.gtf',
+    'stringtie_merged': '../output/rnaseq-analysis-wf/aggregate_stringtie/merged.stringtie.gtf',
+    'salmon': '../output/rnaseq-analysis-wf/individual_salmon/{srx}.salmon/quant.sf',
+    'fastq': '../output/rnaseq-analysis-wf/fastqs/{srx}_1.fastq.gz',
 }
 
 # TODO prioritize modENCODE for Claire
@@ -70,26 +75,23 @@ rule stringTie_merged:
     script: 'scripts/stringtie.py'
 
 
-def _salmon(wildcards):
-    # TODO need to add logic to make a list of FASTQs if it is PE or SE
-    pass
+rule fastq_dump:
+    output: patterns['fastq']
+    script: 'scripts/fastq_dump_for_salmon.py'
 
 
 rule salmon:
     """Quantify reads coming from transcripts with Salmon"""
     input:
-        fastq=_salmon,
-        index=# TODO add salmon ref,
+        fastq_r1=rules.fastq_dump.output[0],
+        index=config['references']['salmon'],
     output:
-        # TODO add list of salmon outputs to patterns
-        #c.patterns['salmon']
+        patterns['salmon']
     params:
-        # TODO update these params to point to correct locations
-        #index_dir=os.path.dirname(c.refdict[c.organism][config['salmon']['tag']]['salmon']),
-        #outdir=os.path.dirname(c.patterns['salmon'])
+        index_dir = str(Path(config['references']['salmon']).parent),
+        outdir=str(Path(patterns['salmon']).parent)
     log:
-        # TODO add back logging
-        #c.patterns['salmon'] + '.log'
+        patterns['salmon'] + '.log'
     run:
         # TODO read through options and make sure these are what you want to use.
         paired = len(input.fastq) == 2
