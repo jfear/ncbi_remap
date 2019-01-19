@@ -18,20 +18,28 @@ workdir: '.'
 configfile: '../config/reference_config.yaml'
 
 patterns = {
+    'fastq': '../output/rnaseq-analysis-wf/fastqs/{srx}/{srx}_1.fastq.gz',
     'bam': '../output/aln-wf/samples/{srx}/{srx}.bam',
     'stringtie': '../output/rnaseq-analysis-wf/individual_stringtie/{srx}.stringtie.gtf',
     'merged_bam': '../output/rnaseq-analysis-wf/merged.bam',
     'stringtie_merged': '../output/rnaseq-analysis-wf/aggregate_stringtie/merged.stringtie.gtf',
-    'salmon': '../output/rnaseq-analysis-wf/individual_salmon/{srx}.salmon/quant.sf',
-    'fastq': '../output/rnaseq-analysis-wf/fastqs/{srx}_1.fastq.gz',
+    'salmon': '../output/rnaseq-analysis-wf/salmon_counts/{srx}.salmon/quant.sf',
+
 }
 
-# TODO prioritize modENCODE for Claire
-metadata = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
-srxs = metadata[metadata.Fear_et_al_library_strategy.str.contains('RNA-Seq')].index.tolist()
+# TODO change back to full list
+#metadata = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
+#srxs = metadata[metadata.Fear_et_al_library_strategy.str.contains('RNA-Seq')].index.tolist()[10]
+
+# Prioritize modENCODE
+modENCODE = pd.read_csv('../output/modENCODE_sampletable.tsv', sep='\t', index_col=0)
+srxs = modENCODE[modENCODE.modENCODE_type.str.contains('RNA-seq')].index.tolist()
+
 
 rule targets:
-    input: expand(patterns['stringtie'], srx=srxs)
+    input:
+#        expand(patterns['stringtie'], srx=srxs),
+        expand(patterns['salmon'], srx=srxs),
 
 
 rule stringTie:
@@ -77,42 +85,54 @@ rule stringTie_merged:
 
 rule fastq_dump:
     output: patterns['fastq']
+    log: patterns['fastq'] + '.log'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 4
     script: 'scripts/fastq_dump_for_salmon.py'
 
 
 rule salmon:
     """Quantify reads coming from transcripts with Salmon"""
     input:
-        fastq_r1=rules.fastq_dump.output[0],
-        index=config['references']['salmon'],
+        fastq = rules.fastq_dump.output[0],
+        index = config['references']['dmel']['salmon'],
     output:
         patterns['salmon']
-    params:
-        index_dir = str(Path(config['references']['salmon']).parent),
-        outdir=str(Path(patterns['salmon']).parent)
     log:
         patterns['salmon'] + '.log'
+    threads: 12
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
     run:
-        # TODO read through options and make sure these are what you want to use.
-        paired = len(input.fastq) == 2
+        fastqs = [
+            str(pth)
+            for pth in Path(input.fastq).parent.glob('*.fastq.gz')
+        ]
+
+        index_dir = str(Path(input.index).parent)
+        outdir = str(Path(output[0]).parent)
+
+        paired = len(fastqs) == 2
         if paired:
             shell(
                 'salmon quant '
-                '--index {params.index_dir} '
-                '--output {params.outdir} '
+                '--index {index_dir} '
+                '--output {outdir} '
                 '--threads {threads} '
                 '--libType=A '
                 '--gcBias '
                 '--seqBias '
-                '-1 {input.fastq[0]} '
-                '-2 {input.fastq[1]} '
+                '-1 {fastqs[0]} '
+                '-2 {fastqs[1]} '
                 '&> {log}'
             )
         else:
             shell(
                 'salmon quant '
-                '--index {params.index_dir} '
-                '--output {params.outdir} '
+                '--index {index_dir} '
+                '--output {outdir} '
                 '--threads {threads} '
                 '--libType=A '
                 '--gcBias '
