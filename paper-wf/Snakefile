@@ -2,61 +2,61 @@
 
 rule all:
     input:
-        'data/fbgn2symbol.pkl',
-        'data/symbol2fbgn.pkl',
-        'output/paper-wf-wf/fig1.svg',
+        '../output/paper-wf/fbgn2symbol.pkl',
+        '../output/paper-wf/symbol2fbgn.pkl',
+        '../output/paper-wf/fig1.svg',
 
 
 rule fbgn2symbol:
-    output: 'data/fbgn2symbol.pkl'
+    output: '../output/paper-wf/fbgn2symbol.pkl'
     script: 'scripts/parse_fbgn2symbol.py'
 
 
 rule symbol2fbgn:
     input: rules.fbgn2symbol.output[0]
-    output: 'data/symbol2fbgn.pkl'
+    output: '../output/paper-wf/symbol2fbgn.pkl'
     script: 'scripts/convert_fbgn2symbol_to_symbol2fbgn.py'
 
 
 rule results_table:
-    input: '../sra.h5'
-    output: 'data/results.parquet'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/results.parquet'
     script: 'scripts/results_table.py'
 
 
 rule plot_pie_layout:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/pie_layout.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/pie_layout.svg'
     script: 'scripts/plot-pie-layout.py'
 
 
 rule plot_pie_strand:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/pie_strand.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/pie_strand.svg'
     script: 'scripts/plot-pie-strand.py'
 
 
 rule plot_pie_layout_strand:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/pie_layout_strand.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/pie_layout_strand.svg'
     script: 'scripts/plot-pie-layout-strand.py'
 
 
 rule plot_dist_mapping:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/dist_mapping.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/dist_mapping.svg'
     script: 'scripts/plot-dist-mapping.py'
 
 
 rule plot_dist_lib_size:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/dist_lib_size.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/dist_lib_size.svg'
     script: 'scripts/plot-dist-lib-size.py'
 
 
 rule plot_dist_dups:
-    input: '../sra.h5'
-    output: 'output/paper-wf-wf/dist_dups.svg'
+    input: '../output/sra.h5'
+    output: '../output/paper-wf/dist_dups.svg'
     script: 'scripts/plot-dist-dups.py'
 
 
@@ -66,5 +66,7 @@ rule fig1:
         mapping=rules.plot_dist_mapping.output[0],
         libsize=rules.plot_dist_lib_size.output[0],
         dups=rules.plot_dist_dups.output[0],
-    output: 'output/paper-wf-wf/fig1.svg'
+        fbgn2symbol=rules.fbgn2symbol.output[0],
+        symbol2fbgn=rules.symbol2fbgn.output[0],
+    output: '../output/paper-wf/fig1.svg'
     script: 'scripts/fig1.py'

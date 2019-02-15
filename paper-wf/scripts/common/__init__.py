@@ -21,10 +21,10 @@ mpl.style.use(['common', 'paper'])
 
 # make mappers
 try:
-    with Path('data/fbgn2symbol.pkl').open('rb') as fh:
+    with Path('../output/paper-wf/fbgn2symbol.pkl').open('rb') as fh:
         fbgn2symbol = load(fh)
 
-    with Path('data/symbol2fbgn.pkl').open('rb') as fh:
+    with Path('../output/paper-wf/symbol2fbgn.pkl').open('rb') as fh:
         symbol2fbgn = load(fh)
 except FileNotFoundError:
     print('Please make sure to run the rules fbgn2symbol and symbol2fbgn first.')
