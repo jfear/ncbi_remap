@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 # Connect to data store
-store = pd.HDFStore('../sra.h5', mode='r')
+store = pd.HDFStore('../output/sra.h5', mode='r')
 
 # Generate a list of completed SRXs
 srxs = store['aln/complete'].srx.unique().tolist()

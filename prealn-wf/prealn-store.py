@@ -64,7 +64,7 @@ from ncbi_remap.queue import (
     dask_run_srr_checker, dask_run_srr_parser, check_indicator_file,
 )
 
-DATA_STORE = '../sra.h5'
+DATA_STORE = '../output/sra.h5'
 
 
 def get_options():

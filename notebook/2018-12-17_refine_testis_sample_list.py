@@ -35,7 +35,7 @@ from ncbi_remap.plotting import make_figs
 nbconfig = Nb.setup_notebook()
 
 # Connect to data store
-store = pd.HDFStore('../sra.h5', mode='r')
+store = pd.HDFStore('../output/sra.h5', mode='r')
 
 # %%
 # Get a list of Testis Libraries

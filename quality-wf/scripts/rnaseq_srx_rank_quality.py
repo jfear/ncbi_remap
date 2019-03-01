@@ -9,7 +9,7 @@ useful for building the aggregated sets.
 import pandas as pd
 
 # Connect to data store
-store = pd.HDFStore('../sra.h5', mode='r')
+store = pd.HDFStore('../output/sra.h5', mode='r')
 
 # I only want to focus on the RNA-Seq samples
 libstrat = pd.read_parquet(snakemake.input[0]).iloc[:, 0]

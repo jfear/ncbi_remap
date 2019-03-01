@@ -46,7 +46,7 @@ class Tracker:
 
 def main():
     # Get list of completed SRXs
-    store = pd.HDFStore('../sra.h5', mode='r')
+    store = pd.HDFStore('../output/sra.h5', mode='r')
     complete = store['aln/complete'].srx.values
     srxs = not_rnaseq_srxs(complete)
 

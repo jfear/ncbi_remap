@@ -20,7 +20,7 @@ def getOptions():
     parser.add_argument('--db', dest='db', action='store', default='sra2', required=False, help='Name of the database. [sra2]')
     parser.add_argument('--collection', dest='collection', action='store', default='ncbi', required=False, help='Name of the collection. [ncbi]')
     parser.add_argument('--store', dest='store', action='store', default='../config/sra.h5', required=False,
-                        help='Hostname with mongo database. [../sra.h5]')
+                        help='Hostname with mongo database. [../output/sra.h5]')
     args = parser.parse_args()
     return args
 

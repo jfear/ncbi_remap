@@ -2,7 +2,7 @@
 
 The goal of the alignment workflow is to use parameters determined in the
 pre-alignment workflow and processing files. This workflow uses a queue in
-`../sra.h5`. To update the queue you need to run `./aln-store.py queue update
+`../output/sra.h5`. To update the queue you need to run `./aln-store.py queue update
 -j 8`. The major file types output by the alignment workflow include:
 
 * Strand specific BigWig tracks
@@ -72,7 +72,7 @@ configfile: '../config/reference_config.yaml'
 ###############################################################################
 # Build Sample Table
 ###############################################################################
-mystore = '../sra.h5'
+mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['aln/queue'].srx.unique()
 mask = store['aln/queue'].srx.isin(srxs[:5000])

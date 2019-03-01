@@ -8,7 +8,7 @@ strand_cutoff = float(snakemake.params['strand_cutoff'])
 quality_cutoff = int(snakemake.params['quality_cutoff'])
 
 # Connect to data store
-store = pd.HDFStore('../sra.h5', mode='r')
+store = pd.HDFStore('../output/sra.h5', mode='r')
 
 # Get extremely well stranded libraries
 well_stranded = store.select(

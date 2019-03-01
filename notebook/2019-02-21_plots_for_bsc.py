@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 0.8.6
+#       jupytext_version: 1.0.0
 #   kernelspec:
 #     display_name: Python [conda env:ncbi_remap]
 #     language: python
@@ -107,7 +107,7 @@ def plot(fname='../output/notebook/2019-02-21_lib_strategy_features.svg', force=
 
     g.savefig(fname, bbox_inches='tight')
     
-plot()
+plot(force=True)
 
 # %%
 mapper = {
@@ -122,7 +122,7 @@ subset = (
     .query('strategy == ["RNA-Seq", "EST", "ChIP-Seq", "WGS"]')
     .assign(strategy = lambda df: df.strategy.map(mapper))
 )
-    
+
 
 # %%
 g = (
@@ -233,12 +233,12 @@ subset = (
     .query('strategy == ["RNA-Seq", "EST", "ChIP-Seq", "WGS"]')
     .assign(strategy = lambda df: df.strategy.map(mapper))
 )
-    
+
 
 # %%
 g = jointplot_w_hue(subset, 'PCT_INTRONIC_BASES', 'PCT_INTERGENIC_BASES', 
                     hue='strategy', colormap=sns.color_palette('tab10'),
-                    figsize=(10, 10), scatter_kws=dict(s=50, alpha=.5, edgecolor='k', lw=.1)
+                    figsize=(10, 10), scatter_kws=dict(s=50, alpha=.5, edgecolor='k', lw=.1, rasterized=True)
                    )
 plt.savefig('../output/notebook/2019-02-21_lib_strategy_intron_inter.svg', bbox_inches='tight')
 
@@ -280,7 +280,7 @@ subset = (
 # %%
 g = jointplot_w_hue(subset, 'MEDIAN_CV_COVERAGE', 'PERCENT_DUPLICATION', 
                     hue='strategy', colormap=sns.color_palette('tab10', n_colors=10)[3:5],
-                    figsize=(10, 10), scatter_kws=dict(s=50, alpha=.5, edgecolor='k', lw=.1)
+                    figsize=(10, 10), scatter_kws=dict(s=50, alpha=.5, edgecolor='k', lw=.1, rasterized=True)
                    )
 plt.savefig('../output/notebook/2019-02-21_lib_strategy_dup_cv.svg', bbox_inches='tight')
 

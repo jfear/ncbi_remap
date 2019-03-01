@@ -7,7 +7,7 @@ from ncbi_remap.mongo import mongo_connect
 
 def get_complete():
     logger.info('Connecting to store and getting list of complete samples')
-    store = pd.HDFStore('../sra.h5', mode='r')
+    store = pd.HDFStore('../output/sra.h5', mode='r')
     srxs = store['aln/complete'].srx.unique().tolist()
     store.close()
     return srxs

@@ -38,7 +38,7 @@ nbconfig = Nb.setup_notebook()
 
 # %%
 # Connect to data store
-store = pd.HDFStore('../sra.h5', mode='r')
+store = pd.HDFStore('../output/sra.h5', mode='r')
 
 
 # %%
