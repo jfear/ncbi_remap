@@ -46,12 +46,12 @@ if __name__ == '__main__':
 
     logger.info('Querying Database.')
     df = pd.DataFrame(list(ncbi.aggregate([
-        {'$unwind': '$sra.run'},
+        {'$unwind': '$runs'},
         {
             '$project': {
                 '_id': 0,
-                'srx': '$_id',
-                'srr': '$sra.run.run_id'
+                'srx': '$srx',
+                'srr': '$runs.srr'
             }
         }
     ])))

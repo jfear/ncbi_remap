@@ -18,7 +18,7 @@ libstrat = pd.DataFrame(list(ncbi.aggregate([
     {
         '$project': {
             '_id': 0,
-            'srx': '$_id',
+            'srx': '$srx',
             'library_strategy': '$sra.experiment.library_strategy'
         }
     }

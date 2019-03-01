@@ -77,13 +77,13 @@ records = ncbi.aggregate([
             'sra.experiment.library_strategy': 'RNA-Seq'
         }
     },
-    {'$unwind': {'path': '$sra.run'}},
+    {'$unwind': {'path': '$runs'}},
     {
         '$project': {
                 '_id': False,
-                'srx': '$_id',
-                'srr': '$sra.run.run_id',
-                'date': '$sra.run.load_date',
+                'srx': '$srx',
+                'srr': '$runs.srr',
+                'date': '$runs.load_date',
                 'contacts': {'$arrayElemAt': [{'$arrayElemAt': ['$biosample.contacts', 0]}, 0]},
                 'first_name': '$sra.organization.first_name',
                 'last_name': '$sra.organization.last_name'

@@ -28,11 +28,11 @@ def get_sample_info(samples):
         {
             '$project': {
                 '_id': 0,
-                'sample_name': '$_id',
+                'sample_name': '$srx',
                 'title': '$sra.sample.title',
                 'organism': '$sra.sample.scientific_name',
                 'study': '$sra.study.study_id',
-                'runs': '$sra.run.run_id',
+                'runs': '$runs.srr',
                 'GEO Experiment': '$sra.study.GEO',
                 'GEO Sample': '$sra.sample.GEO',
                 'BioSample ID': '$sra.sample.BioSample',
@@ -43,7 +43,7 @@ def get_sample_info(samples):
                 'pubmed_authors': '$pubmed.authors',
                 'contact': '$biosample.contacts',
                 'molecule': '$sra.experiment.library_selection',
-                'raw file': '$_id',
+                'raw file': '$srx',
             }
         }
 

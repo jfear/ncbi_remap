@@ -56,14 +56,14 @@ ncbi = db['ncbi']
 df = (
     pd.DataFrame(list(
         ncbi.aggregate([
-            {'$unwind': {'path': '$sra.run'}},
+            {'$unwind': {'path': '$runs'}},
             {
                 '$project': {
                     '_id': False,
-                    'srx': '$_id',
-                    'srr': '$sra.run.run_id',
-                    'date': '$sra.run.load_date',
-                    'size_MB': '$sra.run.size_MB'
+                    'srx': '$srx',
+                    'srr': '$runs.srr',
+                    'date': '$runs.load_date',
+                    'size_MB': '$runs.size_MB'
                 }
             },
         ])

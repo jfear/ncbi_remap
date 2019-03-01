@@ -174,18 +174,18 @@ def get_updated_db_ids():
     # Dump all ids out of database
     df = pd.DataFrame(list(ncbi.aggregate([
         {
-            '$unwind': '$sra.run'
+            '$unwind': '$runs'
         },
         {
             '$match': {
-                'sra.run.run_id': {'$exists': 1}
+                'runs.srr': {'$exists': 1}
             }
         },
         {
             '$project': {
                 '_id': 0,
-                'srx': '$_id',
-                'srr': '$sra.run.run_id'
+                'srx': '$srx',
+                'srr': '$runs.srr'
             }
         },
     ])))

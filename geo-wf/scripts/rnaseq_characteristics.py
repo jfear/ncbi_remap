@@ -41,7 +41,7 @@ def get_attributes(samples):
         {
             '$project': {
                 '_id': 0,
-                'srx': '$_id',
+                'srx': '$srx',
                 'title': '$sra.sample.title',
                 'name': '$sra.sample.attributes.name',
                 'value': '$sra.sample.attributes.value'

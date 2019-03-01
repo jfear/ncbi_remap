@@ -44,7 +44,7 @@ def create_documents(samples):
         {
             '$project': {
                 '_id': 0,
-                'srx': '$_id',
+                'srx': '$srx',
                 'sample_title': '$sra.sample.title',
                 'attrs': '$sra.sample.attributes',
             }
