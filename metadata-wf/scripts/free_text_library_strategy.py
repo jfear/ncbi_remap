@@ -130,6 +130,6 @@ if __name__ == '__main__':
         host = 'localhost'
 
     mongoClient = MongoClient(host=host, port=27017)
-    db = mongoClient['sra']
+    db = mongoClient['sramongo']
     ncbi = db['ncbi']
     main(ncbi)

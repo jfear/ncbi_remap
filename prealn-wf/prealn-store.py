@@ -168,7 +168,7 @@ def get_updated_db_ids():
     """Pull out SRX, SRR from mongo."""
     from pymongo import MongoClient
     mongoClient = MongoClient(host=args.host, port=args.port)
-    db = mongoClient['sra']
+    db = mongoClient['sramongo']
     ncbi = db['ncbi']
 
     # Dump all ids out of database

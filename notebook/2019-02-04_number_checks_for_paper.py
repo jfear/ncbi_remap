@@ -44,7 +44,7 @@ store = pd.HDFStore('../output/sra.h5', mode='r')
 # %%
 from pymongo import MongoClient
 mongoClient = MongoClient(host='localhost', port=27017)
-db = mongoClient['sra']
+db = mongoClient['sramongo']
 ncbi = db['ncbi']
 
 # %%
