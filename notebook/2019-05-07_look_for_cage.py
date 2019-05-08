@@ -5,7 +5,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.2'
-#       jupytext_version: 1.0.0
+#       jupytext_version: 1.0.3
 #   kernelspec:
 #     display_name: Python [conda env:ncbi_remap]
 #     language: python
@@ -51,6 +51,28 @@ ncbi = db['ncbi']
 df = pd.read_parquet('../output/metadata-wf/select_library_strategy.parquet')
 
 # %%
-df.to_csv('/home/fearjm/Downloads/fear_sra_ML_categories.csv')
+
+# %%
+sel = pd.DataFrame(list(ncbi.aggregate([
+    {
+        '$project': {
+            '_id': 0,
+            'library_selection': '$library_selection',
+            'srx': '$srx'
+        }
+    }
+])))
+
+# %%
+cage_srxs = sel.query('library_selection == "CAGE"').srx.values
+
+# %%
+cage_srxs.shape
+
+# %%
+metadata = pd.read_csv('../output/geo-wf/rnaseq_metadata.tsv', sep='\t', index_col=0).drop('raw file', axis=1)
+
+# %%
+df.reindex(cage_srxs).join(metadata).to_csv('~/Downloads/fear_SRA_CAGE_samples.csv')
 
 # %%
