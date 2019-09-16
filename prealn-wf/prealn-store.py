@@ -64,7 +64,8 @@ from ncbi_remap.queue import (
     dask_run_srr_checker, dask_run_srr_parser, check_indicator_file,
 )
 
-DATA_STORE = '../output/sra.h5'
+WORKDIR = Path(__file__).absolute().parent
+DATA_STORE = Path(WORKDIR, '../output/sra.h5').as_posix()
 
 
 def get_options():
@@ -561,7 +562,7 @@ if __name__ == '__main__':
     args = get_options()
     daskClient = Client(n_workers=args.n_workers, threads_per_worker=1)
     store = pd.HDFStore(DATA_STORE)
-    patterns = get_patterns('patterns.yaml')
+    patterns = get_patterns(Path(WORKDIR, 'patterns.yaml').as_posix())
 
     if args.command == 'init':
         if args.append:
