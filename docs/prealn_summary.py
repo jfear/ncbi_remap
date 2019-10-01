@@ -1,7 +1,10 @@
 """Get various counts from the pre-alignment workflow."""
 #%%
-import pandas as pd
 import os
+from datetime import datetime
+
+import pandas as pd
+from pymongo import MongoClient
 
 try:
     os.chdir(os.path.join(os.getcwd(), "docs"))
@@ -9,11 +12,110 @@ try:
 except:
     pass
 
+#%%[markdown]
+# # What we did not download
+
 #%%
-store = pd.HDFStore("../output/sra.h5")
+client = MongoClient()
+db = client["sramongo"]
+ncbi = db["ncbi"]
+
+total_samples_in_db = pd.DataFrame(
+    ncbi.aggregate(
+        [
+            {"$match": {"sra_create_date": {"$lte": datetime(2019, 3, 31)}}},
+            {"$unwind": {"path": "$runs"}},
+            {"$match": {"runs.srr": {"$exists": True}}},
+            {"$project": {"_id": 0, "srx": "$srx", "srr": "$runs.srr"}},
+        ]
+    )
+)
+
+print(f"SRXs in DataBase: {total_samples_in_db.srx.unique().shape[0]:,}")
+print(f"SRRs in DataBase: {total_samples_in_db.srr.unique().shape[0]:,}")
+
+too_few_reads = pd.DataFrame(ncbi.aggregate(
+    [
+        {"$match": {"sra_create_date": {"$lte": datetime(2019, 3, 31)}}},
+        {"$unwind": {"path": "$runs"}},
+        {"$match": {"runs.srr": {"$exists": True}}},
+        {
+            "$project": {
+                "_id": 0,
+                "srx": 1,
+                "srr": "$runs.srr",
+                "nspots": {
+                    "$cond": [{"$eq": ["$runs.nspots", ""]}, 0, {"$ifNull": ["$runs.nspots", 0]}]
+                },
+                "read_count_r1": {"$ifNull": ["$runs.read_count_r1", 0]},
+                "read_count_r2": {"$ifNull": ["$runs.read_count_r2", 0]},
+            }
+        },
+        {
+            # Keep samples with > 1,000 reads
+            "$match": {
+                "$and": [
+                    {
+                        # Keep samples with all 0 b/c we just don't know
+                        "$or": [
+                            {"nspots": {"$gt": 0}},
+                            {"read_count_r1": {"$gt": 0}},
+                            {"read_count_r2": {"$gt": 0}},
+                        ]
+                    },
+                    {
+                        "$and": [
+                            {"nspots": {"$lte": 1000}},
+                            {"read_count_r1": {"$lte": 1000}},
+                            {"read_count_r2": {"$lte": 1000}},
+                        ]
+                    },
+                ]
+            }
+        },
+        {"$project": {"_id": 0, "srx": "$srx", "srr": "$srr"}},
+    ]
+))
+
+print(f"SRRs not downloaded b/c < 1,000 reads: {too_few_reads.srr.unique().shape[0]:,}")
+
+too_short_reads = pd.DataFrame(ncbi.aggregate(
+    [
+        {"$match": {"sra_create_date": {"$lte": datetime(2019, 3, 31)}}},
+        {"$unwind": {"path": "$runs"}},
+        {"$match": {"runs.srr": {"$exists": True}}},
+        {
+            "$project": {
+                "_id": 0,
+                "srx": 1,
+                "srr": "$runs.srr",
+                "read_len_r1": {"$ifNull": ["$runs.read_len_r1", 0]},
+                "read_len_r2": {"$ifNull": ["$runs.read_len_r2", 0]},
+            }
+        },
+        {
+            # Keep samples with > 25 bp reads lens
+            "$match": {
+                "$and": [
+                    {
+                        # Keep samples with all 0 b/c we just don't know
+                        "$or": [{"read_len_r1": {"$gt": 0}}, {"read_len_r2": {"$gt": 0}}]
+                    },
+                    {"$and": [{"read_len_r1": {"$lt": 25}}, {"read_len_r2": {"$lt": 25}}]},
+                ]
+            }
+        },
+        {"$project": {"_id": 0, "srx": "$srx", "srr": "$srr"}},
+    ]
+))
+
+print(f"SRRs not downloaded b/c < 25 bp long: {too_short_reads.srr.unique().shape[0]:,}")
 
 #%%[markdown]
 # # Total Samples Processed
+
+#%%
+store = pd.HDFStore("../output/sra.h5")
 
 #%%
 # Ignore samples still in the alignment queue
@@ -88,11 +190,12 @@ class downloadBad:
             sr = pd.read_csv(
                 f"../output/prealn-wf/samples/{srx}/{srr}/{srr}.fastq.tsv", sep="\t"
             ).T.squeeze()
-            sr['srx'] = srx
-            sr['srr'] = srr
+            sr["srx"] = srx
+            sr["srr"] = srr
             self.df = self.df.append(sr, ignore_index=True)
         except FileNotFoundError:
             self.missing.append([srx, srr])
+
 
 db = downloadBad()
 for i, (srx, srr) in download_bad.iterrows():
