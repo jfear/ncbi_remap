@@ -172,24 +172,71 @@ def get_updated_db_ids():
     db = mongoClient['sramongo']
     ncbi = db['ncbi']
 
-    # Dump all ids out of database
-    df = pd.DataFrame(list(ncbi.aggregate([
-        {
-            '$unwind': '$runs'
-        },
-        {
-            '$match': {
-                'runs.srr': {'$exists': 1}
+    # Get ids from database with > 1k reads and ≥ 25bp read len
+    df = pd.DataFrame(ncbi.aggregate([
+        {"$match": {"sra_create_date": {"$lte": datetime(2019, 3, 31)}}},
+        {"$unwind": {"path": "$runs"}},
+        {"$match": {"runs.srr": {"$exists": True}}},
+        {"$project": {
+                "_id": 0,
+                "srx": 1,
+                "srr": "$runs.srr",
+                "nspots": {
+                    "$cond": [
+                        {"$eq": ["$runs.nspots", ""]},
+                        0,
+                        {"$ifNull": ["$runs.nspots", 0]}
+                    ]
+                },
+                "read_count_r1": {"$ifNull": ["$runs.read_count_r1", 0]},
+                "read_count_r2": {"$ifNull": ["$runs.read_count_r2", 0]},
+                "read_len_r1": {"$ifNull": ["$runs.read_len_r1", 0]},
+                "read_len_r2": {"$ifNull": ["$runs.read_len_r2", 0]},
             }
         },
         {
-            '$project': {
-                '_id': 0,
-                'srx': '$srx',
-                'srr': '$runs.srr'
+            # Keep samples with > 1,000 reads
+            "$match": {
+                "$or": [
+                    {
+                        # Keep samples with all 0 b/c we just don't know
+                        "$and": [
+                            {"nspots": {"$eq": 0}},
+                            {"read_count_r1": {"$eq": 0}},
+                            {"read_count_r2": {"$eq": 0}}
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"nspots": {"$gt": 1000}},
+                            {"read_count_r1": {"$gt": 1000}},
+                            {"read_count_r2": {"$gt": 1000}}
+                        ]
+                    },
+                ]
             }
         },
-    ])))
+        {
+            # Keep samples with > 25 bp reads lens
+            "$match": {
+                "$or": [
+                    {
+                        # Keep samples with all 0 b/c we just don't know
+                        "$and": [
+                            {"read_len_r1": {"$eq": 0}},
+                            {"read_len_r2": {"$eq": 0}}
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"read_len_r1": {"$gte": 25}},
+                            {"read_len_r2": {"$gte": 25}}
+                        ]
+                    },
+                ]
+            }
+        },
+    ]))
 
     return df[['srx', 'srr']]
 
