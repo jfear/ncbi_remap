@@ -8,7 +8,7 @@ import seaborn as sns
 from svgutils.compose import Text
 
 from ncbi_remap.config import config, CONFIG_DIR
-from ncbi_remap.plotting import add_styles
+from ncbi_remap import plotting
 
 
 def label(text):
@@ -16,8 +16,7 @@ def label(text):
 
 
 # Setup general plotting info
-add_styles(Path(CONFIG_DIR, 'stylelib'))
-mpl.style.use(['common', 'paper'])
+mpl.style.use(['base'])
 
 # make mappers
 try:

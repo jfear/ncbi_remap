@@ -31,7 +31,6 @@ from joblib import memory
 # Project level imports
 sys.path.insert(0, '../lib')
 from ncbi_remap.notebook import Nb
-from ncbi_remap.plotting import make_figs
 from ncbi_remap.config import memory
 
 # Setup notebook

@@ -30,7 +30,6 @@ from sklearn.preprocessing import StandardScaler
 
 # Project level imports
 from ncbi_remap.notebook import Nb
-from ncbi_remap.plotting import make_figs
 
 # %%
 # Setup notebook

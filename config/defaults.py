@@ -13,7 +13,6 @@ import seaborn as sns
 # Project level imports
 sys.path.insert(0, '../lib')
 from ncbi_remap.notebook import Nb
-from ncbi_remap.plotting import make_figs
 
 # Setup notebook
 nbconfig = Nb.setup_notebook()
