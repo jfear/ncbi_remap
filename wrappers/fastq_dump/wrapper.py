@@ -40,8 +40,8 @@ ReadSummary = namedtuple("ReadSummary", "md5 size len abi")
 def main():
     # Dump FASTQ to a TMPDIR
     shell(
-        "fastq-dump -O {tmpdir} -M 0 --split-files {srr} {log}".format(
-            tmpdir=TMPDIR, srr=snakemake.wildcards.srr, log=snakemake.log_fmt_shell()
+        "fastq-dump -O {tmpdir} -M 0 --split-3 {srr} > {log} 2>&1".format(
+            tmpdir=TMPDIR, srr=snakemake.wildcards.srr, log=snakemake.log
         )
     )
 
@@ -58,6 +58,9 @@ def main():
 
 
 def summarize_r1(file_name):
+    if not Path(file_name).exists():
+        file_name = file_name.replace("_1.fastq", ".fastq")
+
     md5 = md5sum(file_name)
     lib_size, avg_len = fastq_stats(file_name)
     abi = fastq_abi_solid(file_name)
@@ -125,5 +128,28 @@ def create_flags(r1, r2):
 
 
 if __name__ == "__main__":
+    if os.getenv("SNAKE_DEBUG", False):
+        from tempfile import TemporaryDirectory
+        from ncbi_remap.mock import MockSnake
+
+        T1 = TemporaryDirectory()
+        TMPDIR = T1.name
+        T2 = TemporaryDirectory()
+
+        SRR = "SRR450563"  # SE
+        # SRR = "SRR1990526"  # PE, ABI_SOID
+        # SRR = "SRR4441419"  # keep R1
+        # SRR = "SRR027010"  # keep R2
+
+        snakemake = MockSnake(
+            output=dict(
+                fq1=Path(T2.name, f"{SRR}_1.fq.gz").as_posix(),
+                fq2=Path(T2.name, f"{SRR}_2.fq.gz").as_posix(),
+                flag=Path(T2.name, "LAYOUT").as_posix(),
+                summary=Path(T2.name, f"{SRR}.tsv").as_posix(),
+            ),
+            wildcards=dict(srr=SRR),
+        )
+        snakemake.log = Path(T2.name, "fq.log").as_posix()
 
     main()
