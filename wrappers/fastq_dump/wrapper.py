@@ -22,95 +22,108 @@ import sys
 import gzip
 import shutil as sh
 from pathlib import Path
+from collections import namedtuple
 
 import pandas as pd
 
 from snakemake.shell import shell
 
-sys.path.insert(0, '../src')
+sys.path.insert(0, "../src")
 from ncbi_remap.fastq import check_fastq, md5sum, fastq_stats, fastq_abi_solid
 from ncbi_remap.snakemake import put_flag
 
-# Get TMPDIR
-TMPDIR = os.environ['TMPDIR']
+TMPDIR = os.environ["TMPDIR"]
 
-log = snakemake.log_fmt_shell()
-output = snakemake.output
-wildcards = snakemake.wildcards
+ReadSummary = namedtuple("ReadSummary", "md5 size len abi")
 
-# Get current sample id
-sample = wildcards.srr
 
-# Dump FASTQ to a TMPDIR
-shell("fastq-dump -O {TMPDIR} -M 0 --split-files {sample} {log}")
+def main():
+    # Dump FASTQ to a TMPDIR
+    shell(
+        "fastq-dump -O {tmpdir} -M 0 --split-files {srr} {log}".format(
+            tmpdir=TMPDIR, srr=snakemake.wildcards.srr, log=snakemake.log_fmt_shell()
+        )
+    )
 
-# Summarize R1
-t1 = os.path.join(TMPDIR, sample + '_1.fastq')
-R1md5 = md5sum(t1)
-R1Libsize, R1avgLen = fastq_stats(t1)
-R1Abi = fastq_abi_solid(t1)
+    r1 = summarize_r1(os.path.join(TMPDIR, snakemake.wildcards.srr + "_1.fastq"))
+    r2 = summarize_r2(os.path.join(TMPDIR, snakemake.wildcards.srr + "_2.fastq"))
 
-with open(t1, 'rb') as f_in:
-    with gzip.open(output.fq1, 'wb') as f_out:
-        sh.copyfileobj(f_in, f_out)
+    # Save summaries
+    pd.DataFrame(
+        [[r1.md5, r1.size, r1.len, r2.md5, r2.size, r2.len]],
+        columns=["md5_R1", "libsize_R1", "avgLen_R1", "md5_R2", "libsize_R2", "avgLen_R2"],
+    ).to_csv(snakemake.output.summary, sep="\t", index=False)
 
-# Summarize R2 if it exists
-t2 = os.path.join(TMPDIR, sample + '_2.fastq')
-if check_fastq(t2):
-    # Get md5sum
-    R2md5 = md5sum(t2)
-    R2Libsize, R2avgLen = fastq_stats(t2)
-    R2Abi = fastq_abi_solid(t2)
+    create_flags(r1, r2)
 
-    with open(t2, 'rb') as f_in:
-        with gzip.open(output.fq2, 'wb') as f_out:
+
+def summarize_r1(file_name):
+    md5 = md5sum(file_name)
+    lib_size, avg_len = fastq_stats(file_name)
+    abi = fastq_abi_solid(file_name)
+
+    with open(file_name, "rb") as f_in:
+        with gzip.open(snakemake.output.fq1, "wb") as f_out:
             sh.copyfileobj(f_in, f_out)
-else:
-    R2md5 = R2Libsize = R2avgLen = None
-    R2Abi = False
-    Path(output.fq2).touch()
 
-# Save summaries
-df = pd.DataFrame([[R1md5, R1Libsize, R1avgLen, R2md5, R2Libsize, R2avgLen]],
-                  columns=['md5_R1', 'libsize_R1', 'avgLen_R1', 'md5_R2',
-                           'libsize_R2', 'avgLen_R2'])
+    return ReadSummary(md5, lib_size, avg_len, abi)
 
-df.to_csv(output.summary, sep='\t', index=False)
 
-# Figure out flags
-if (R1Libsize > 1000) & (R2Libsize is None) & (R1avgLen > 10) & \
-        (R2avgLen is None):
-    # R2 does not exists so SE
-    put_flag(output.flag, 'SE')
+def summarize_r2(file_name):
+    if check_fastq(file_name):
+        # Get md5sum
+        md5 = md5sum(file_name)
+        lib_size, avg_len = fastq_stats(file_name)
+        abi = fastq_abi_solid(file_name)
 
-elif (R2Libsize is None) & (R2avgLen is None):
-    # SE but R1 looks bad, flag as download bad
-    fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
-    Path(fname).touch()
-
-elif (R1Libsize > 1000) & (R2Libsize > 1000) & (R1avgLen > 10) & \
-        (R2avgLen > 10):
-    if R1Libsize == R2Libsize:
-        # Both reads look good so PE
-        put_flag(output.flag, 'PE')
+        with open(file_name, "rb") as f_in:
+            with gzip.open(snakemake.output.fq2, "wb") as f_out:
+                sh.copyfileobj(f_in, f_out)
     else:
-        # There are an uneven number of reads between R1 and R2.
-        # Instead of messing with this, just consider SE and use R1.
-        put_flag(output.flag, 'keep_R1')
+        md5 = lib_size = avg_len = None
+        abi = False
+        Path(snakemake.output.fq2).touch()
 
-elif (R1Libsize > 1000) & (R1avgLen > 10):
-    # Only R1 looks ok, so SE
-    put_flag(output.flag, 'keep_R1')
+    return ReadSummary(md5, lib_size, avg_len, abi)
 
-elif (R2Libsize > 1000) & (R2avgLen > 10):
-    # Only R2 looks ok, consider single-end
-    put_flag(output.flag, 'keep_R2')
 
-else:
-    # R1 and R2 look bad, flag as download bad
-    fname = os.path.join(os.path.dirname(output.fq1), 'DOWNLOAD_BAD')
-    Path(fname).touch()
+def create_flags(r1, r2):
+    if (r1.size > 1000) & (r2.size is None) & (r1.len > 10) & (r2.len is None):
+        # R2 does not exists so SE
+        put_flag(snakemake.output.flag, "SE")
 
-if R1Abi | R2Abi:
-    fname = os.path.join(os.path.dirname(output.fq1), 'ABI_SOLID')
-    Path(fname).touch()
+    elif (r2.size is None) & (r2.len is None):
+        # SE but R1 looks bad, flag as download bad
+        fname = os.path.join(os.path.dirname(snakemake.output.fq1), "DOWNLOAD_BAD")
+        Path(fname).touch()
+
+    elif (r1.size > 1000) & (r2.size > 1000) & (r1.len > 10) & (r2.len > 10):
+        if r1.size == r2.size:
+            # Both reads look good so PE
+            put_flag(snakemake.output.flag, "PE")
+        else:
+            # There are an uneven number of reads between R1 and R2.
+            # Instead of messing with this, just consider SE and use R1.
+            put_flag(snakemake.output.flag, "keep_R1")
+
+    elif (r1.size > 1000) & (r1.len > 10):
+        # Only R1 looks ok, so SE
+        put_flag(snakemake.output.flag, "keep_R1")
+
+    elif (r2.size > 1000) & (r2.len > 10):
+        # Only R2 looks ok, consider single-end
+        put_flag(snakemake.output.flag, "keep_R2")
+
+    else:
+        # R1 and R2 look bad, flag as download bad
+        fname = os.path.join(os.path.dirname(snakemake.output.fq1), "DOWNLOAD_BAD")
+        Path(fname).touch()
+
+    if r1.abi | r2.abi:
+        fname = os.path.join(os.path.dirname(snakemake.output.fq1), "ABI_SOLID")
+        Path(fname).touch()
+
+
+if __name__ == "__main__":
+
+    main()
