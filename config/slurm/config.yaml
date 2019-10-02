@@ -7,7 +7,6 @@ max-status-checks-per-second: .01
 local-cores: 2
 jobs: 999
 latency-wait: 120
-timestamp: true
 keep-going: true
 rerun-incomplete: true
 verbose: true
