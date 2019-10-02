@@ -8,8 +8,7 @@
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 
 # run pipeline
-(source activate ncbi_remap;
-    time snakemake \
+(time snakemake \
     --profile ../config/slurm \
     --jobname "s.{rulename}.{jobid}.sh" \
     --cluster-config slurm.yml \
