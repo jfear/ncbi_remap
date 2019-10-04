@@ -59,7 +59,10 @@ from lcdblib.pandas.utils import cartesian_product
 from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
 # Setup tempdir to work with lscratch
+if os.getenv("SLURM_JOBID", False):
 TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+else:
+    TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # Set working dir
