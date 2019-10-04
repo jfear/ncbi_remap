@@ -5,7 +5,10 @@ from tempfile import NamedTemporaryFile
 
 from snakemake.shell import shell
 
-TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+if os.getenv("SLURM_JOBID", False):
+    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+else:
+    TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 threads = snakemake.threads
