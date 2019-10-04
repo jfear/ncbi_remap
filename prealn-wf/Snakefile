@@ -80,7 +80,7 @@ configfile: '../config/reference_config.yaml'
 mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 queue = store['prealn/queue']
-srxs = queue.srx.unique()[:3000]
+srxs = queue.srx.unique()[:1]
 sample_table = queue[queue.srx.isin(srxs)]
 store.close()
 
@@ -156,8 +156,7 @@ rule fastq_dump:
     resources:
       mem_gb = lambda wildcards, attempt: attempt * 1,
       time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/fastq_dump')
 
@@ -184,8 +183,7 @@ rule fastq_screen:
     resources:
       mem_gb = lambda wildcards, attempt: attempt * 3,
       time_hr = lambda wildcards, attempt: attempt * 1
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
 
@@ -211,8 +209,7 @@ rule atropos:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 8,
         time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/atropos')
 
@@ -225,11 +222,10 @@ rule hisat2_splice_site:
     input:
         gtf = config['references']['dmel']['gtf']
     output: patterns['hisat2']['splice_sites']
-    conda:
-        "conda.yaml"
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
+    conda: "conda.yaml"
     shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
 
 
@@ -252,8 +248,7 @@ rule hisat2:
         hisat2_extra = '--max-intronlen 300000 --known-splicesite-infile {splice}'.format(splice=patterns['hisat2']['splice_sites']),
         samtools_sort_extra = '--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: patterns['hisat2']['bam'] + '.log'
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/hisat2/align')
 
@@ -288,11 +283,10 @@ rule bai:
         bam = '{prefix}.bam'
     output:
         bai = temp('{prefix}.bam.bai')
-    conda:
-        "conda.yaml"
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
+    conda: "conda.yaml"
     shell:
         "samtools index {input.bam}"
 
@@ -313,8 +307,7 @@ rule collectrnaseqmetrics_unstrand:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 12,
         time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/picard/collectrnaseqmetrics')
 
@@ -332,8 +325,7 @@ rule collectrnaseqmetrics_first:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 12,
         time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/picard/collectrnaseqmetrics')
 
@@ -351,8 +343,7 @@ rule collectrnaseqmetrics_second:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 20,
         time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/picard/collectrnaseqmetrics')
 
@@ -409,8 +400,7 @@ rule feature_counts:
         time_hr = lambda wildcards, attempt: attempt * 1
     log:
         patterns['feature_counts']['counts'] + '.log'
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
 
@@ -429,8 +419,7 @@ rule run_stats:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 1,
         time_hr = lambda wildcards, attempt: attempt * 1
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
@@ -455,8 +444,7 @@ rule markduplicates:
     resources:
         mem_gb = lambda wildcards, attempt: attempt * 20,
         time_hr = lambda wildcards, attempt: attempt * 12
-    conda:
-        "conda.yaml"
+    conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/picard/markduplicates')
 
