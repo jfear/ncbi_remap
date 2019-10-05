@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Set of helpers for use with snakemake."""
 from itertools import zip_longest
-from yaml import load
+from yaml import full_load
 
 import pandas as pd
 from .logging import logger
@@ -33,7 +33,7 @@ def get_flag(fname):
 
 def get_patterns(fname):
     with open(fname, 'r') as fh:
-        return load(fh)
+        return full_load(fh)
 
 
 # TODO: Fix parsers to work with srx+srr and srx only.
