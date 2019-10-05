@@ -107,8 +107,7 @@ store.close()
 # Set up file naming patterns and targets
 ###############################################################################
 patterns = get_patterns('patterns.yaml')
-targets = helpers.fill_patterns(patterns, sample_table)
-
+targets = helpers.fill_patterns(patterns, sample_table.to_dict('list'))
 
 def keepers(targets):
     return [
