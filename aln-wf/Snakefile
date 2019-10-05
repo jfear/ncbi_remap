@@ -107,7 +107,7 @@ store.close()
 # Set up file naming patterns and targets
 ###############################################################################
 patterns = get_patterns('patterns.yaml')
-targets = helpers.fill_patterns(patterns, sample_table.to_dict('list'))
+targets = helpers.fill_patterns(patterns, sample_table)
 
 def keepers(targets):
     return [
@@ -375,7 +375,7 @@ rule featurecounts_intergenic:
     Count reads in intergenic regions with featureCounts from the subread package
     """
     input:
-        annotation=targets['intergenic']['gtf'],
+        annotation=patterns['intergenic']['gtf'],
         bam=patterns['srxMerge']['bam'],
         layout=_layout,
     output:
