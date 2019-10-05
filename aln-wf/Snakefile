@@ -78,7 +78,7 @@ configfile: '../config/reference_config.yaml'
 mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['aln/queue'].srx.unique()
-mask = store['aln/queue'].srx.isin(srxs[:5000])
+mask = store['aln/queue'].srx.isin(srxs[:500])
 sample_table = store['aln/queue'][mask]
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 store.close()
