@@ -10,6 +10,9 @@ atropos:
 hisat2:
   gres: "lscratch:250"
 
+bamCoverage:
+  gres: "lscratch:250"
+
 convertBedGraphToBigWig:
   gres: "lscratch:500"
 
