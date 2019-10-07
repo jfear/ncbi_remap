@@ -112,6 +112,7 @@ targets = helpers.fill_patterns(patterns, sample_table)
 
 def keepers(targets):
     return [
+        targets['atropos']['summary'],
         targets['hisat2']['summary'],
         targets['srxMerge']['feature_counts']['summary'],
         targets['srxMerge']['feature_counts_intergenic']['summary'],
@@ -234,6 +235,16 @@ rule atropos:
         wrapper_for('../wrappers/atropos')
 
 
+rule atropos_summary:
+    input: rules.atropos.log
+    output: patterns["atropos"]["summary"] 
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 2,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    conda: "conda.yaml"
+    script: "scripts/atropos_check.py"
+
+    
 ###############################################################################
 # Alignment
 ###############################################################################
