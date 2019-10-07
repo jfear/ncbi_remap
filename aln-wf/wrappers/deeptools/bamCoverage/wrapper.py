@@ -11,7 +11,7 @@ log = snakemake.log_fmt_shell()
 # Copy files over to TMPDIR
 tmp_in = NamedTemporaryFile(suffix='.bam').name
 shell(
-    'cp {snakemake.input.bam} {tmp_in}'
+    'cp {snakemake.input.bam} {tmp_in} '
     '&& cp {snakemake.input.bai} {tmp_in}.bai'
 )
 

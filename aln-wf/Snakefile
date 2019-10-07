@@ -476,7 +476,7 @@ rule convertToFlybase:
 ###############################################################################
 def _convertBedGraphToBigWig(wildcards):
     if 'flybase' in wildcards.prefix:
-        return targets['chromSizes_fb']
+        return patterns['chromSizes_fb']
     else:
         return config['references']['dmel']['chromSizes']
 
