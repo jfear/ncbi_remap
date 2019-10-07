@@ -6,6 +6,7 @@ fastq:
 atropos:
   r1: ../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz
   r2: ../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz
+  summary: ../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv
 
 hisat2:
   splice_sites: ../output/prealn-wf/known_splice_sites_r6-11.txt
@@ -36,6 +37,7 @@ srxMerge:
 # MISC Files
 layout: ../output/prealn-wf/samples/{srx}/{srr}/LAYOUT
 strand: ../output/prealn-wf/samples/{srx}/{srr}/STRAND
+atropos_bad: ../output/aln-wf/samples/{srx}/ATROPOS_BAD
 alignment_bad: ../output/aln-wf/samples/{srx}/{srr}/ALIGNMENT_BAD
 bigwig_bad: ../output/aln-wf/samples/{srx}/BIGWIG_BAD
 chromSizes_fb: ../output/dmel_r6-11.flybase.chromsizes
