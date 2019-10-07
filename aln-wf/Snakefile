@@ -79,6 +79,7 @@ mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['aln/queue'].srx.unique()
 mask = store['aln/queue'].srx.isin(srxs[:500])
+mask = store['aln/queue'].srx.isin(['SRX468097', 'DRX089771'])
 sample_table = store['aln/queue'][mask]
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 store.close()
@@ -489,8 +490,8 @@ rule convertBedGraphToBigWig:
         bigwig='{prefix}.bw'
     conda: 'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 2,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
