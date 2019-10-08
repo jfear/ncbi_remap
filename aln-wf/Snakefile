@@ -80,7 +80,6 @@ mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 srxs = store['aln/queue'].srx.unique()
 mask = store['aln/queue'].srx.isin(srxs[:500])
-mask = store['aln/queue'].srx.isin(['SRX468097', 'DRX089771'])
 sample_table = store['aln/queue'][mask]
 sample_table = cartesian_product(sample_table, {'strand': ['first', 'second']})
 store.close()

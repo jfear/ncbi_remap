@@ -83,7 +83,7 @@ configfile: '../config/reference_config.yaml'
 mystore = '../output/sra.h5'
 store = pd.HDFStore(mystore, mode='r')
 queue = store['prealn/queue']
-srxs = queue.srx.unique()[:1]
+srxs = queue.srx.unique()[:500]
 sample_table = queue[queue.srx.isin(srxs)]
 store.close()
 
