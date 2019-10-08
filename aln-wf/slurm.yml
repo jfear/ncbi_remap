@@ -5,7 +5,7 @@ __default__:
   partition: 'norm'
 
 atropos:
-  gres: "lscratch:200"
+  gres: "lscratch:250"
 
 hisat2:
   gres: "lscratch:250"
@@ -14,5 +14,4 @@ bamCoverage:
   gres: "lscratch:250"
 
 convertBedGraphToBigWig:
-  gres: "lscratch:500"
-
+  gres: "lscratch:250"

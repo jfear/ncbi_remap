@@ -203,7 +203,7 @@ rule fastq_dump:
     log: patterns['fastq']['r1'] + '.log'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 4
+      time_hr=lambda wildcards, attempt: attempt * 8
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/fastq_dump')
@@ -226,9 +226,9 @@ rule atropos:
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
     log:
         patterns['atropos']['r1'] + '.log'
-    threads: 4
+    threads: 6
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 2,
+      mem_gb=lambda wildcards, attempt: attempt * 8,
       time_hr=lambda wildcards, attempt: attempt * 4
     conda: "conda.yaml"
     wrapper:
@@ -307,7 +307,7 @@ rule expMerge:
         bai=patterns['srxMerge']['bai']
     conda: 'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 2,
+      mem_gb=lambda wildcards, attempt: attempt * 8,
       time_hr=lambda wildcards, attempt: attempt * 4
     threads: 4
     shell:
@@ -354,7 +354,7 @@ rule feature_counts:
     threads: 2
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      time_hr=lambda wildcards, attempt: attempt * 2
     log:
         patterns['srxMerge']['feature_counts']['counts'] + '.log'
     conda: "conda.yaml"
@@ -380,7 +380,7 @@ rule featurecounts_intergenic:
     threads: 2
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      time_hr=lambda wildcards, attempt: attempt * 2
     log:
         patterns['srxMerge']['feature_counts_intergenic']['counts'] + '.log'
     conda: "conda.yaml"
@@ -401,8 +401,8 @@ rule run_stats:
         bamtools_stats=patterns['srxMerge']['bamtools_stats']
     conda: 'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 4,
+      time_hr=lambda wildcards, attempt: attempt * 2
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
@@ -441,7 +441,7 @@ rule bamCoverage:
     threads: 4
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 12
+      time_hr=lambda wildcards, attempt: attempt * 4
     conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/deeptools/bamCoverage')
@@ -452,8 +452,8 @@ rule convertToFlybase:
     output: bedgraph=temp(patterns['srxMerge']['bamCoverageFlyBase'])
     conda: 'conda.yaml'
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
     shell:
         'chrom_convert '
         '--from UCSC '
