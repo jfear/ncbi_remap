@@ -239,7 +239,7 @@ rule atropos:
 rule atropos_summary:
     input: rules.atropos.log
     output: patterns["atropos"]["summary"] 
-    script: "scripts/atropos_check.py"
+    script: "../scripts/atropos_check.py"
 
     
 ###############################################################################
@@ -287,7 +287,7 @@ rule hisat2:
 rule hisat2_summary:
     input: rules.hisat2.log
     output: patterns['hisat2']['summary']
-    script: "scripts/hisat2_check.py"
+    script: "../scripts/hisat2_check.py"
 
 
 ###############################################################################
