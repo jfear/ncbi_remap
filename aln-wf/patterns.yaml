@@ -12,7 +12,7 @@ hisat2:
   splice_sites: ../output/prealn-wf/known_splice_sites_r6-11.txt
   bam: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam
   bai: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai
-  summary: ../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.tsv
+  summary: ../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv
 
 # SRX Level Files
 srxMerge:
