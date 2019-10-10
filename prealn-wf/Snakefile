@@ -76,6 +76,7 @@ workdir: '.'
 # import config
 configfile: '../config/reference_config.yaml'
 
+localrules: atropos_summary, hisat2_summary
 
 ###############################################################################
 # Build Sample Table
