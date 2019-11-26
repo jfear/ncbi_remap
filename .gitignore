@@ -17,6 +17,7 @@ slurm-*.out
 data
 output
 references
+lcdb-references
 cachedir
 scratch
 figures

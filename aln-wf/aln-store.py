@@ -154,7 +154,7 @@ def process_outputs():
 def process_flags():
     """Check all flag and indicator files and store results."""
     # indicator files
-    for key in ['alignment_bad', 'bigwig_bad', ]:
+    for key in ['atropos_bad', 'alignment_bad', 'bigwig_bad']:
         queue = store['aln/queue']
         logger.info(f'Checking {key} files.')
         if store.__contains__(key):
@@ -332,6 +332,7 @@ def print_queue():
         ("ids in the system", 'ids'),
         ("queued", "aln/queue"),
         ("completed", 'aln/complete'),
+        ("atropos bad", 'aln/atropos_bad'),
         ("alignment bad", 'aln/alignment_bad'),
         ("bigwig bad", 'aln/bigwig_bad'),
     ]

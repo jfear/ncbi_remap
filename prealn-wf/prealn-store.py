@@ -320,7 +320,7 @@ def process_flags():
         store.append(key, df, data_columns=True, format="t")
 
     # indicator files
-    for key in ["download_bad", "alignment_bad", "quality_scores_bad", "abi_solid"]:
+    for key in ["download_bad", "quality_scores_bad", "abi_solid", "atropos_bad", "alignment_bad"]:
 
         queue = store["prealn/queue"]
 
@@ -547,6 +547,7 @@ def print_queue():
         ("completed", "prealn/complete"),
         ("download bad", "prealn/download_bad"),
         ("quality scores bad", "prealn/quality_scores_bad"),
+        ("atropos bad", "prealn/atropos_bad"),
         ("alignment bad", "prealn/alignment_bad"),
         ("abi solid", "prealn/abi_solid"),
     ]
