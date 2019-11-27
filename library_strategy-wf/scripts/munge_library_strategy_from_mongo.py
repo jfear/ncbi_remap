@@ -13,13 +13,13 @@ mongoClient = MongoClient(host=host, port=27017)
 db = mongoClient['sramongo']
 ncbi = db['ncbi']
 
-# Create table mapping SRX to library startegy
+# Create table mapping SRX to library strategy
 libstrat = pd.DataFrame(list(ncbi.aggregate([
     {
         '$project': {
             '_id': 0,
             'srx': '$srx',
-            'library_strategy': '$sra.experiment.library_strategy'
+            'library_strategy': '$library_strategy'
         }
     }
 ]))).set_index('srx')
