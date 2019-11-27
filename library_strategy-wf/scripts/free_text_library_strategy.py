@@ -54,13 +54,10 @@ def main(ncbi):
     documents = [get_documents(x) for x in ncbi.aggregate([
         {
             '$project': {
-                #'title': '$sra.study.title',
-                #'abstract': '$sra.study.abstract',
-                #'type': '$sra.study.study_type',
-                'exp_title': '$sra.experiment.title',
-                'exp_design': '$sra.experiment.design',
-                'exp_library_name': '$sra.experiment.library_name',
-                'exp_construction': '$sra.experiment.library_construction_protocol',
+                'exp_title': '$title',
+                'exp_design': '$design',
+                'exp_library_name': '$library_name',
+                'exp_construction': '$library_construction_protocol',
             }
         },
     ])]
