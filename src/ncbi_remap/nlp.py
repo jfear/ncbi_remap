@@ -1,6 +1,6 @@
 """Helpers for NLP."""
 from copy import copy
-from yaml import load
+from yaml import full_load
 from pathlib import Path
 
 from nltk.util import ngrams
@@ -10,7 +10,7 @@ from .io import LazyDict
 
 def load_yaml_lookup(fname):
     with open(fname) as fh:
-        dat = load(fh)
+        dat = full_load(fh)
 
     # extend dictionary mappings to remove '-' from key names.
     dat_extend = copy(dat)
