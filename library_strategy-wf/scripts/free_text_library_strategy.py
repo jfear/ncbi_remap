@@ -27,24 +27,30 @@ try:
 except:
     nltk.download("stopwords")
 
+
 def main(ncbi):
     # Build a list of documents
-    documents = [get_documents(x) for x in ncbi.aggregate([
-        {
-            '$project': {
-                '_id': False,
-                'srx': '$srx',
-                'exp_title': '$title',
-                'exp_design': '$design',
-                'exp_library_name': '$library_name',
-                'exp_construction': '$library_construction_protocol',
-            }
-        },
-    ])]
+    documents = [
+        get_documents(x)
+        for x in ncbi.aggregate(
+            [
+                {
+                    "$project": {
+                        "_id": False,
+                        "srx": "$srx",
+                        "exp_title": "$title",
+                        "exp_design": "$design",
+                        "exp_library_name": "$library_name",
+                        "exp_construction": "$library_construction_protocol",
+                    }
+                }
+            ]
+        )
+    ]
 
     # tokenize documents
     download_corpus()
-    eng_stops = stopwords.words('english') + lookups['stopwords']
+    eng_stops = stopwords.words("english") + lookups["stopwords"]
     wordnets_lemmatizer = WordNetLemmatizer()
 
     tokenized_documents = []
@@ -66,7 +72,7 @@ def main(ncbi):
         tokenized_documents.append(lemma)
 
     # Pull out library strategy based on lookup table
-    known_strategies = set(lookups['library_strategy'].values())
+    known_strategies = set(lookups["library_strategy"].values())
     doc_strategies = []
     for doc in tokenized_documents:
         token_strategies = []
@@ -86,7 +92,7 @@ def main(ncbi):
                     keeps.append(v)
                     high = c
 
-            string = '|'.join(keeps)
+            string = "|".join(keeps)
         else:
             string = np.nan
 
@@ -94,8 +100,8 @@ def main(ncbi):
 
     # Output table
     df = pd.DataFrame(doc_strategies, index=np.asarray(documents)[:, 0])
-    df.index.name = 'SRX'
-    df.columns = ['freetxt_library_strategy']
+    df.index.name = "SRX"
+    df.columns = ["freetxt_library_strategy"]
     df.to_parquet(snakemake.output[0])
 
 
@@ -110,42 +116,46 @@ def download_corpus():
     except LookupError:
         nltk.download("wordnet")
 
+
 def get_documents(doc):
-    srx = doc['srx']
-    del doc['srx']
+    srx = doc["srx"]
+    del doc["srx"]
 
     for k, v in doc.items():
         if v is None:
-            doc[k] = ''
+            doc[k] = ""
 
-    txt = ' '.join(doc.values()).lower()\
-        .replace('_', ' ')\
-        .replace('hi-c', 'hic')\
-        .replace('3-c', '3c')\
-        .replace('4-c', '4c')\
-        .replace("3'", '3prime')\
-        .replace("5'", '5prime')\
-        .replace('-', ' ')\
-        .replace('sequencing', 'seq')\
-        .replace('sequenced', 'seq')\
-        .replace('sequence', 'seq')
+    txt = (
+        " ".join(doc.values())
+        .lower()
+        .replace("_", " ")
+        .replace("hi-c", "hic")
+        .replace("3-c", "3c")
+        .replace("4-c", "4c")
+        .replace("3'", "3prime")
+        .replace("5'", "5prime")
+        .replace("-", " ")
+        .replace("sequencing", "seq")
+        .replace("sequenced", "seq")
+        .replace("sequence", "seq")
+    )
 
     # Translate based on known phrases in lookup table
-    for k, v in lookups['library_strategy'].items():
+    for k, v in lookups["library_strategy"].items():
         txt = txt.replace(k, v)
 
     return srx, txt
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Connect to the database
     try:
-        with open('../output/.mongodb_host', 'r') as fh:
+        with open("../output/.mongodb_host", "r") as fh:
             host = fh.read().strip()
     except FileNotFoundError:
-        host = 'localhost'
+        host = "localhost"
 
     mongoClient = MongoClient(host=host, port=27017)
-    db = mongoClient['sramongo']
-    ncbi = db['ncbi']
+    db = mongoClient["sramongo"]
+    ncbi = db["ncbi"]
     main(ncbi)
