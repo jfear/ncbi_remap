@@ -22,13 +22,8 @@ from nltk.stem import WordNetLemmatizer
 
 from ncbi_remap.nlp import lookups
 
-try:
-    stopwords.words("english")
-except:
-    nltk.download("stopwords")
 
-
-def main(ncbi):
+def main():
     # Build a list of documents
     documents = [
         get_documents(x)
@@ -149,13 +144,11 @@ def get_documents(doc):
 
 if __name__ == "__main__":
     # Connect to the database
-    try:
-        with open("../output/.mongodb_host", "r") as fh:
-            host = fh.read().strip()
-    except FileNotFoundError:
-        host = "localhost"
-
-    mongoClient = MongoClient(host=host, port=27017)
+    mongoClient = MongoClient(host="localhost", port=27017)
     db = mongoClient["sramongo"]
     ncbi = db["ncbi"]
-    main(ncbi)
+
+    try:
+        main()
+    finally:
+        mongoClient.close()
