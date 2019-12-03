@@ -20,7 +20,6 @@ def dask_run_srx_checker(srxs, checker, client):
     return client.gather(client.compute(lazy))
 
 
-@delayed
 def build_parsed(fname, parser, **kwargs):
     df = parser(fname)
     if df is None:
@@ -30,24 +29,14 @@ def build_parsed(fname, parser, **kwargs):
 
 def dask_run_srr_parser(ids, parser, pattern, client):
     """Helper function to run function using dask."""
-    lazy_dataframes = []
-    for idx, (srx, srr) in ids.iterrows():
-        fname = pattern.format(srx=srx, srr=srr)
-        df = build_parsed(fname, parser, srx=srx, srr=srr)
-        lazy_dataframes.append(df)
-
-    return client.gather(client.compute(lazy_dataframes))
+    futures = client.map(lambda x: build_parsed(parser, pattern, **x), ids.to_dict("records"))
+    return client.gather(futures)
 
 
 def dask_run_srx_parser(srxs, parser, pattern, client):
     """Helper function to run function using dask."""
-    lazy_dataframes = []
-    for srx in srxs:
-        fname = pattern.format(srx=srx)
-        df = build_parsed(fname, parser, srx=srx)
-        lazy_dataframes.append(df)
-
-    return client.gather(client.compute(lazy_dataframes))
+    futures = client.map(lambda srx: build_parsed(parser, pattern, srx=srx), srxs)
+    return client.gather(futures)
 
 
 def check_indicator_file(srx, srr, pattern):
@@ -57,5 +46,4 @@ def check_indicator_file(srx, srr, pattern):
         return srx, srr
 
     return np.nan, np.nan
-
 
