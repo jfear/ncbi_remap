@@ -38,8 +38,9 @@ rule munge_library_strategy_from_mongo:
 
 
 rule build_library_strategy_feature_set:
-    output: '../output/library_strategy-wf/build_library_strategy_feature_set.parquet'
-    script: 'scripts/build_library_strategy_feature_set.py'
+    input: "../output/sra.h5"
+    output: "../output/library_strategy-wf/build_library_strategy_feature_set.parquet"
+    script: "scripts/build_library_strategy_feature_set.py"
 
 
 rule random_forest_library_strategy:
