@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from yaml import load
+from yaml import full_load
 
 from joblib import Memory
 
@@ -15,7 +15,7 @@ Path(CONFIG_DIR).mkdir(exist_ok=True, parents=True)
 
 # Load config file
 with Path(CONFIG_DIR, 'common.yaml').open() as fh:
-    config = load(fh)
+    config = full_load(fh)
 
 REFERENCES_DIR = config.get('references_dir',
                             os.environ.get('REFERENCES_DIR', None))
@@ -23,5 +23,5 @@ REFERENCES_DIR = config.get('references_dir',
 # Add useful files
 DATA_STORE = Path(PROJECT_DIR, config['store']).as_posix()
 
-# Trun on caching
+# Turn on caching
 memory = Memory(cachedir=CACHE_DIR, verbose=0)
