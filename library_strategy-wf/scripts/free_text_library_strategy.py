@@ -129,7 +129,6 @@ def get_documents(doc):
         .replace("4-c", "4c")
         .replace("3'", "3prime")
         .replace("5'", "5prime")
-        .replace("-", " ")
         .replace("sequencing", "seq")
         .replace("sequenced", "seq")
         .replace("sequence", "seq")
