@@ -6,6 +6,7 @@ store: sra.h5
 #references_dir: <path to references> defaults to environmental variable
 assembly: dmel
 tag: r6-16
+download_date: "2019-03-31"
 colors:
   cycle:
     - !!python/tuple [0.21568627450980393, 0.49411764705882355, 0.72156862745098038]
