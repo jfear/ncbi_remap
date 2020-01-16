@@ -41,8 +41,9 @@ srxs = modENCODE[modENCODE.modENCODE_type.str.contains('RNA-seq')].index.tolist(
 
 rule targets:
     input:
+        "../output/rnaseq-analysis-wf/exon_segments.gtf"
 #        expand(patterns['stringtie'], srx=srxs),
-        expand(patterns['salmon'], srx=srxs),
+        # expand(patterns['salmon'], srx=srxs),
 
 
 rule stringTie:
@@ -143,3 +144,9 @@ rule salmon:
                 '-r {input.fastq} '
                 '&> {log}'
             )
+
+
+rule create_exon_gff:
+    input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
+    output: "../output/rnaseq-analysis-wf/exon_segments.gtf"
+    script: "scripts/create_exon_gtf.py"
