@@ -1,8 +1,8 @@
 import os
 from tempfile import NamedTemporaryFile
+from yaml import full_load
 
-from larval_gonad.config import read_config
-from larval_gonad.mock import MockSnake
+from ncbi_remap.mock import MockSnake
 
 
 def snakemake_debug(**kwargs):
@@ -41,7 +41,7 @@ def snakemake_debug(**kwargs):
             pass
 
     if "config" in kwargs:
-        config = read_config(kwargs["config"])
+        config = full_load(open(kwargs["config"], "r"))
     else:
         config = None
 

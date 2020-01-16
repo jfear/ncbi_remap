@@ -30,6 +30,7 @@ cwd = Path(__file__).parent.resolve()
 
 lookups = LazyDict({
     'library_strategy': (load_yaml_lookup, Path(cwd, '../lookups/library_strategy.yaml')),
+    'library_strategy_terms': (load_yaml_lookup, Path(cwd, '../lookups/library_strategy_terms.yaml')),
     'tissue': (load_yaml_lookup, Path(cwd, '../lookups/tissue.yaml')),
     'sex': (load_yaml_lookup, Path(cwd, '../lookups/sex.yaml')),
     'dev_stage': (load_yaml_lookup, Path(cwd, '../lookups/dev_stage.yaml')),

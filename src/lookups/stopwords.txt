@@ -6,6 +6,8 @@ conseq
 deepseq
 deseq
 dexseq
+dna-seq
+gdna-seq
 dmelfgrnaseq
 dmelfsrnaseq
 dropseq

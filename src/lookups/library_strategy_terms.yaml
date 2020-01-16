@@ -1,0 +1,68 @@
+# There are the terms I have pulled out with brief description of each.
+3P-Seq: Poly(A)-position profiling by sequencing, identifies 3 prime UTRs
+3Prime-Seq: measures the abundance of 3prime-UTR isoforms quantitatively
+4C-Seq: Circular chromatin conformation capture, unbiased detection of all genomic regions that interact with an ROI.
+5C-Seq: Chromatin conformation capture carbon copy, determine concurrent interactions among multiple sequences.
+5Prime-Seq: a method for mapping 5prime ends
+AMPLICON: sra term
+ATAC-seq: sra term
+Bisulfite-Seq: sra term
+CAP-Seq: CXXC Affinity Purification sequencing, maps 5' end of RNAs anchored to pol II.
+CLIP-Seq: crosslinking and immunoprecipitation, maps protein-RNA binding sites. Similar to RIP-Seq.
+CLONEEND: sra term
+CTS: sra term
+ChAR-Seq: Chromatin associated RNA-Seq, maps genome wide RNA to DNA interactions.
+ChIP-Seq: sra term
+ChiRP-Seq: Chromatin Isolation by RNA Purification, locations on DNA where ncRNA bind.
+DNase-Hypersensitivity: sra term
+DRIP-Seq: DNA-RNA immunoprecipitation to capture R-loops, used to detect R-loops.
+DamID-Seq: DNA adenine methyltransferase identifies, map binding sites to DNA.
+EST: sra term
+EXO-Seq: a method for mapping 5prime ends
+FAIRE-seq: sra term
+FINISHING: sra term
+FL-cDNA: sra term
+GRID-Seq: Global RNA interactions with DNA, similar to ChAR-Seq
+GRO-Seq: Global Run-on sequencing, binding sites of transcriptionally active pol II.
+Hi-C: sra term
+ICE-Seq: Inosine Chemical Erasing sequencing, identifies adenosine and inosine editing. 
+DMS-MaPSeq: dimethyl sulfate (DMS) mutational profiling with sequencing, targeted RNA structure probing
+MINCE-Seq: Mapping In vivo Nascent Chromatin with EdU and sequencing, characterize the genome-wide location of nucleosomes and other chromatin proteins behind replication forks
+MNase-Seq: sra term
+MeDIP-Seq: sra term
+MeRIP-Seq: Methylated RIP-Seq, maps m6A methylated RNA.
+Mime-Seq: microRNome by methylation-dependent sequencing, tagging of cell-type sepcific miRNA.
+Nascent-Seq: nascent RNA-Seq
+PAC-Seq: Poly(A)-ClickSeq, simultaneous mapping of poly(A) sites within mRNA and quantification
+PAL-Seq: poly(A)-tail length by incorporating fluorescent tags on biotinylated deoxyuridine triphosphate
+PARE-Seq: Parallel Analysis of RNA Ends sequencing, maps miRNA cleavage sites.
+PB-Seq: protein/DNA binding and high-throughput sequencing, allows the binding energy landscape to be characterized genome-wide in the absence of chromatin
+POOLCLONE: sra term
+PRO-Seq: Precision nuclear run-on sequencing, maps RNAP active sites with base-pair resolution
+Pool-Seq: pooled sequencing of multiple samples, especially used in population genmoics fields.
+RAMPAGE-Seq: RNA annotation and mapping of promoters for analysis of gene expression, captures 5Prime end
+RAD-Seq: sra term
+RIP-Seq: sra term
+RNA-Seq: sra term
+RNaseH-Seq: a method for mapping the 3prime end.
+Repli-Seq: Repli-Seq maps the sequences of nascent DNA replication strands
+Ribo-Seq: ribosome profiling, isolates RNA that is actively being processed by ribosome.
+SELEX: sra term
+SMiLE-Seq: Selective microfluidics-based ligand enrichment followed by sequencing, determine the DNA binding specificities of TF monomers, homo- and heterodimers
+SNS-Seq: sequencing isolated small nascent DNA strands
+STAP-Seq: Self-Transcribing Active Core Promoter-sequencing, determine the responsiveness of genomic sequences to enhancers 
+STARR-Seq: self-transcribing active regulatory region sequencing, assay enhancer activity for millions of candidates from arbitrary sources of DNA
+Start-Seq: Small 5prime-capped RNA-seq, developed to detect promoter-proximal pausing and improves TSS annotation.
+Synthetic-Long-Read: sra term
+TAIL-Seq: sequencing the very ends of mRNA molecules (3'-UTRs and poly(A) tail regions) 
+TN-Seq: Transposon sequencing, study mutational frequency, fitness of genes in microbes, determine genetic interactions.
+WCS: sra term
+WGA: sra term
+WGS: sra term
+WXS: sra term
+iCLIP-Seq: Individual nucleotide resolution CLIP, similar to CLIP-Seq 
+miRNA-Seq: sra term
+mmPCR-Seq: microfluidics-based multiplex PCR and deep sequencing, uniformly amplify multiple transcripts and obtain accurate quantification of allelic ratios
+ncRNA-Seq: sra term
+scRNA-Seq: single cell RNA-Seq
+smRNA-Seq: small non-coding RNAs
