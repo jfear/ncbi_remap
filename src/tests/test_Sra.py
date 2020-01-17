@@ -1,7 +1,7 @@
 import unittest
 from unittest import TestCase
 
-import Sra
+from ncbi_remap import Sra
 
 class TestSraResultsTableRowQuery(TestCase):
     def setUp(self):
