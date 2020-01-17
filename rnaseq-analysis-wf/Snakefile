@@ -41,7 +41,7 @@ srxs = modENCODE[modENCODE.modENCODE_type.str.contains('RNA-seq')].index.tolist(
 
 rule targets:
     input:
-        "../output/rnaseq-analysis-wf/exon_segments.gtf"
+        "../output/rnaseq-analysis-wf/nonstranded_exon_segments.gtf"
 #        expand(patterns['stringtie'], srx=srxs),
         # expand(patterns['salmon'], srx=srxs),
 
@@ -146,7 +146,7 @@ rule salmon:
             )
 
 
-rule create_exon_gff:
+rule segment_exons_ignore_strand:
     input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
-    output: "../output/rnaseq-analysis-wf/exon_segments.gtf"
-    script: "scripts/create_exon_gtf.py"
+    output: "../output/rnaseq-analysis-wf/nonstranded_exon_segments.gtf"
+    script: "scripts/segment_exons_ignore_strand.py"
