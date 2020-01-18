@@ -140,7 +140,7 @@ class Segmentor:
         """Takes overlapping features and creates non-overlapping segments."""
         self.segments = []
         for segment in self._segment(set([Coordinate(x.start, x.end) for x in self.features])):
-            attributes = dict(segment_id=f"SEG{self.counter:06d}")
+            attributes = dict(ID=f"SEG{self.counter:06d}")
             self.segments.append(
                 GtfFeature(
                     seqid=self.chrom,
@@ -216,12 +216,12 @@ class Fuser:
         self.features = None
         self.fusion = None
 
-    def run(self, features: List[GtfFeature]) -> GtfFeature:
+    def run(self, features: List[GtfFeature]) -> List[GtfFeature]:
         self.features = features
         self.chrom = features[0].chrom
         self._build()
         self._annotate()
-        return self.fusion
+        return [self.fusion]
 
     def _build(self):
         """Takes overlapping features and fuses them."""
@@ -229,7 +229,7 @@ class Fuser:
         start = min(coords)
         end = max(coords)
 
-        attributes = dict(fusion_id=f"FUS{self.counter:06d}")
+        attributes = dict(ID=f"FUS{self.counter:06d}")
         self.fusion = GtfFeature(
             seqid=self.chrom,
             source=self.source,
@@ -242,14 +242,14 @@ class Fuser:
 
     def _annotate(self):
         """Combines annotations from overlapping exons."""
-        strands = []
+        strands = set()
 
         for feature in self.features:
-            strands.append(feature.strand)
+            strands.add(feature.strand)
             self.fusion.add_annotation(feature.attributes)
 
         if len(strands) == 1:
-            self.fusion.strand = strands[0]
+            self.fusion.strand = strands.pop()
 
 
 class FeatureAccumulator:

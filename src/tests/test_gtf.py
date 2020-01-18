@@ -126,7 +126,7 @@ def test_fusion_exact_overlap():
 
     features = [gtf.GtfFeature.from_string(x) for x in rows]
     fuser = gtf.Fuser()
-    fusion = fuser.run(features)
+    fusion = fuser.run(features).pop()
     assert (fusion.start, fusion.stop) == (1, 10)
     assert len(fusion.attributes["gene_id"]) == 4
 
@@ -139,7 +139,7 @@ def test_fusion_simple_overlap():
 
     features = [gtf.GtfFeature.from_string(x) for x in rows]
     fuser = gtf.Fuser()
-    fusion = fuser.run(features)
+    fusion = fuser.run(features).pop()
     assert (fusion.start, fusion.stop) == (1, 20)
 
 
@@ -151,7 +151,7 @@ def test_fusion_simple_inset():
 
     features = [gtf.GtfFeature.from_string(x) for x in rows]
     fuser = gtf.Fuser()
-    fusion = fuser.run(features)
+    fusion = fuser.run(features).pop()
     assert (fusion.start, fusion.stop) == (1, 20)
 
 
@@ -165,7 +165,70 @@ def test_fusion_attribute_aggregation():
 
     features = [gtf.GtfFeature.from_string(x) for x in rows]
     fuser = gtf.Fuser()
-    fusion = fuser.run(features)
+    fusion = fuser.run(features).pop()
     assert (fusion.start, fusion.stop) == (7923468, 7925360)
     assert fusion.attributes["gene_symbol"] == set(["dsx", "lds"])
 
+
+def test_fusion_dsx():
+    groups = [
+        [
+            'chr3R	FlyBase	exon	7924323	7925360	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081759"; transcript_symbol "dsx-RA";',
+            'chr3R	FlyBase	exon	7924323	7925360	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330073"; transcript_symbol "dsx-RD";',
+            'chr3R	FlyBase	exon	7924323	7925360	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330074"; transcript_symbol "dsx-RE";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7930171	7930687	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081759"; transcript_symbol "dsx-RA";',
+            'chr3R	FlyBase	exon	7930171	7930687	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330073"; transcript_symbol "dsx-RD";',
+            'chr3R	FlyBase	exon	7930171	7930687	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330074"; transcript_symbol "dsx-RE";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7931168	7935653	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0339710"; transcript_symbol "dsx-RF";',
+            'chr3R	FlyBase	exon	7934482	7935653	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081760"; transcript_symbol "dsx-RB";',
+            'chr3R	FlyBase	exon	7934482	7935653	11	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081761"; transcript_symbol "dsx-RC";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7935768	7935905	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081759"; transcript_symbol "dsx-RA";',
+            'chr3R	FlyBase	exon	7935768	7935905	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081760"; transcript_symbol "dsx-RB";',
+            'chr3R	FlyBase	exon	7935768	7935905	11	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081761"; transcript_symbol "dsx-RC";',
+            'chr3R	FlyBase	exon	7935768	7935905	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330073"; transcript_symbol "dsx-RD";',
+            'chr3R	FlyBase	exon	7935768	7935905	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330074"; transcript_symbol "dsx-RE";',
+            'chr3R	FlyBase	exon	7935768	7935905	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0339710"; transcript_symbol "dsx-RF";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7959752	7961122	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081759"; transcript_symbol "dsx-RA";',
+            'chr3R	FlyBase	exon	7959752	7961122	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081760"; transcript_symbol "dsx-RB";',
+            'chr3R	FlyBase	exon	7959752	7961122	11	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081761"; transcript_symbol "dsx-RC";',
+            'chr3R	FlyBase	exon	7959752	7961122	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330073"; transcript_symbol "dsx-RD";',
+            'chr3R	FlyBase	exon	7959752	7961122	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330074"; transcript_symbol "dsx-RE";',
+            'chr3R	FlyBase	exon	7959752	7961122	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0339710"; transcript_symbol "dsx-RF";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7962230	7962786	11	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081761"; transcript_symbol "dsx-RC";',
+            'chr3R	FlyBase	exon	7962230	7962786	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330073"; transcript_symbol "dsx-RD";',
+        ],
+        [
+            'chr3R	FlyBase	exon	7966463	7967408	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081759"; transcript_symbol "dsx-RA";',
+            'chr3R	FlyBase	exon	7966463	7967408	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0081760"; transcript_symbol "dsx-RB";',
+            'chr3R	FlyBase	exon	7966463	7967408	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0330074"; transcript_symbol "dsx-RE";',
+            'chr3R	FlyBase	exon	7966463	7967408	3	-	.	gene_id "FBgn0000504"; gene_symbol "dsx"; transcript_id "FBtr0339710"; transcript_symbol "dsx-RF";',
+        ],
+    ]
+
+    for group, coord in zip(
+        groups,
+        [
+            (7924323, 7925360),
+            (7930171, 7930687),
+            (7931168, 7935653),
+            (7935768, 7935905),
+            (7959752, 7961122),
+            (7962230, 7962786),
+            (7966463, 7967408),
+        ],
+    ):
+        features = [gtf.GtfFeature.from_string(x) for x in group]
+        fuser = gtf.Fuser()
+        fusion = fuser.run(features).pop()
+        assert (fusion.start, fusion.stop) == coord
+        assert fusion.strand == "-"

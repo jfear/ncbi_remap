@@ -18,9 +18,9 @@ from ncbi_remap.gtf import FeatureAccumulator
 
 def main():
     db = gffutils.FeatureDB(snakemake.input[0])
-    exons = db.features_of_type("exon", order_by=["seqid", "start", "end"])
+    exons = db.features_of_type("exon", order_by=["seqid", "strand", "start", "end"])
     with open(snakemake.output[0], "w") as file_out:
-        accumulartor = FeatureAccumulator("segment", stranded=False)
+        accumulartor = FeatureAccumulator("fusion", stranded=True)
         for exon in exons:
             if accumulartor.add_feature(exon):
                 continue
