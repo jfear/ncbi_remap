@@ -1,7 +1,18 @@
 """ Library Strategy processing workflow
 
-Here I use machine learning to determine if samples are appropriately labeled
-with library strategy.
+`Library Strategy` is the description of what kind of sequencing was done
+(i.e., RNA-Seq, ChIP-Seq, WGS). The SRA uses higher level terms that may not
+be the most accurate description of a sample. I would like to provide more
+detailed descriptions of the sample if they are availabled in the free text
+metadata. I also want to validate the high level metadata, to ensure that
+submissions with a mixture of strategies (e.g., RNA-Seq and ChIP-Seq) did not
+swap any sample labels.
+
+I will focus on RNA-Seq samples for downstream analysis, so it is most
+important that these samples are correctly identified. I will use a data
+driven machine learning approach. I will use various features from the
+`prealn-wf` with a cross validation approach to confidently identify samples
+that behave as expected.
 
 Rules
 -----
