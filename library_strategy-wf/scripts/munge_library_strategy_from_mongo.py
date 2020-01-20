@@ -4,27 +4,26 @@ from pymongo import MongoClient
 
 def main():
     """Create table mapping SRX to library strategy"""
-    libstrat = pd.DataFrame(
+    df = pd.DataFrame(
         list(
-            ncbi.aggregate(
-                [{"$project": {"_id": 0, "srx": "$srx", "library_strategy": "$library_strategy"}}]
+            NCBI.aggregate(
+                [{"$project": {"_id": 0, "srx": 1, "library_strategy": 1, "library_selection": 1}}]
             )
         )
     ).set_index("srx")
 
-    libstrat.to_parquet(snakemake.output[0])
+    df.to_parquet(snakemake.output[0])
 
     # Generate table of summary counts
-    vcnts = libstrat.library_strategy.value_counts().to_frame()
-    vcnts.to_csv(snakemake.output[1], sep="\t")
+    library_strategy_counts = df.library_strategy.value_counts().to_frame()
+    library_strategy_counts.to_csv(snakemake.output[1], sep="\t")
 
 
 if __name__ == "__main__":
-    mongoClient = MongoClient(host="localhost", port=27017)
-    db = mongoClient["sramongo"]
-    ncbi = db["ncbi"]
-
     try:
+        MONGO_CLIENT = MongoClient()
+        DB = MONGO_CLIENT["sramongo"]
+        NCBI = DB["ncbi"]
         main()
     finally:
-        mongoClient.close()
+        MONGO_CLIENT.close()
