@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split, learning_curve
@@ -13,7 +12,7 @@ from sklearn.metrics import classification_report
 
 
 def main():
-    features = pd.read_parquet(snakemake.input["features"])
+    features = pd.read_parquet(snakemake.input["features"]).fillna(0)
     Y = pd.read_parquet(snakemake.input["labels"]).library_strategy.reindex(features.index)
 
     # Set classes with fewer than 50 samples to OTHER
@@ -90,7 +89,7 @@ def main():
     importances = pd.Series(clf.feature_importances_, index=features.columns).sort_values(
         ascending=False
     )
-    importances.to_csv(snakemake.output["feature_importances"], sep="\t")
+    importances.to_csv(snakemake.output["feature_importances"], sep="\t", header=False)
 
     # Make predictions on all data and OTHER using a 20-fold cross validation approach.
     # Here I am using only 20% of the data for training given the learning curve results above.
@@ -120,10 +119,9 @@ if __name__ == "__main__":
         from ncbi_remap.debug import snakemake_debug
 
         snakemake = snakemake_debug(
-            workdir="library_strategy-wf",
             input=dict(
-                features="../output/library_strategy-wf/build_library_strategy_feature_set.parquet",
-                labels="../output/library_strategy-wf/munge_library_strategy_from_mongo.parquet",
+                features="../../output/library_strategy-wf/build_library_strategy_feature_set.parquet",
+                labels="../../output/library_strategy-wf/munge_library_strategy_from_mongo.parquet",
             ),
         )
 
