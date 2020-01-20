@@ -50,6 +50,9 @@ rule munge_library_strategy_from_mongo:
 
 rule build_library_strategy_feature_set:
     input: "../output/sra.h5"
+    params:
+        genic_counts="../output/prealn-wf/gene_counts",
+        junction_counts="../output/prealn-wf/junction_counts",
     output: "../output/library_strategy-wf/build_library_strategy_feature_set.parquet"
     script: "scripts/build_library_strategy_feature_set.py"
 
