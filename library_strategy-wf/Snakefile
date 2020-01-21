@@ -34,7 +34,7 @@ select_library_strategy
 """
 rule targets:
     input:
-        '../output/library_strategy-wf/select_library_strategy.parquet'
+        '../output/library_strategy-wf/summarized_metadata.parquet'
 
 
 rule free_text_library_strategy:
@@ -70,10 +70,10 @@ rule random_forest:
     script: 'scripts/random_forest.py'
 
 
-rule select_library_strategy:
+rule metadata_integration:
     input:
         sra=rules.munge_strategy_and_selection_from_mongo.output.data,
         free_text=rules.free_text_library_strategy.output[0],
         forest=rules.random_forest.output["predicted_labels"],
-    output: '../output/library_strategy-wf/select_library_strategy.parquet'
-    script: 'scripts/select_library_strategy.py'
+    output: '../output/library_strategy-wf/summarized_metadata.parquet'
+    script: 'scripts/metadata_integration.py'
