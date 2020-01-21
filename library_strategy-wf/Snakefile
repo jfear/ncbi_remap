@@ -25,6 +25,8 @@ munge_library_strategy_from_mongo
     selection
 build_feature_set
     Pulls together different features from the pre-alignment workflow
+random_forest
+    Random Forest to learn library startegy and selection
 select_library_strategy
     Takes library strategy annotations from SRA, metadata, random forest and
     selects the best category.
@@ -56,24 +58,22 @@ rule build_prealn_feature_set:
     script: "scripts/build_prealn_feature_set.py"
 
 
-rule random_forest_library_strategy:
+rule random_forest:
     input:
-        labels=rules.munge_library_strategy_from_mongo.output[0],
-        features=rules.build_library_strategy_feature_set.output[0],
+        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
+        features=rules.build_prealn_feature_set.output[0],
+    threads: 10
     output:
-        learning_curve='../output/library_strategy-wf/random_forest_library_strategy_learning_curve.svg',
-        metrics='../output/library_strategy-wf/random_forest_library_strategy_metrics.tsv',
-        feature_importances='../output/library_strategy-wf/random_forest_library_strategy_feature_importance.tsv',
-        pred='../output/library_strategy-wf/random_forest_library_strategy.parquet',
-        pred_other='../output/library_strategy-wf/random_forest_library_strategy_other.parquet',
-    script: 'scripts/random_forest_library_strategy.py'
+        metrics='../output/library_strategy-wf/random_forest_metrics.tsv',
+        feature_importance='../output/library_strategy-wf/random_forest_feature_importance.tsv',
+        predicted_labels='../output/library_strategy-wf/random_forest_predicted_labels.parquet'
+    script: 'scripts/random_forest.py'
 
 
 rule select_library_strategy:
     input:
         sra=rules.munge_strategy_and_selection_from_mongo.output.data,
         free_text=rules.free_text_library_strategy.output[0],
-        forest=rules.random_forest_library_strategy.output['pred'],
-        other=rules.random_forest_library_strategy.output['pred_other'],
+        forest=rules.random_forest.output["predicted_labels"],
     output: '../output/library_strategy-wf/select_library_strategy.parquet'
     script: 'scripts/select_library_strategy.py'
