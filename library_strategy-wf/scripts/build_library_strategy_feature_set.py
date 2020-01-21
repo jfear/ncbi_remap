@@ -5,7 +5,6 @@ and aln-wf.
 
 Features include:
 * CollectRNASeqMetrics
-    * PCT_RIBOSOMAL_BASES
     * PCT_CODING_BASES
     * PCT_UTR_BASES
     * PCT_INTRONIC_BASES
@@ -17,13 +16,14 @@ Features include:
 * CollectRNASeqMetrics Gene Body Coverage
 * Markduplicates
     * PERCENT_DUPLICATION
+* Fastq Screen
+    * Percent reads mapping to rRNA.
 * FeatureCounts 
     * Number of reads mapping to junction
 """
 import os
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 
@@ -36,7 +36,6 @@ def main():
 
     # CollectRNASeqMetrics
     cols = [
-        "PCT_RIBOSOMAL_BASES",
         "PCT_CODING_BASES",
         "PCT_UTR_BASES",
         "PCT_INTRONIC_BASES",
@@ -67,20 +66,44 @@ def main():
         store.select("prealn/workflow/markduplicates", where="srx == srxs", columns=cols)
         .groupby("srx")
         .median()
+        .squeeze()
+        .rename("PCT_DUPLICATION")
+    )
+
+    # rRNA from FastQ_screen
+    cols = [
+        "reference",
+        "multiple_hits_multiple_libraries_count",
+        "multiple_hits_one_library_count",
+        "one_hit_multiple_libraries_count",
+        "one_hit_one_library_count",
+        "reads_processed_count",
+        "unmapped_count",
+    ]
+    fq_screen = percent_ribosomal(
+        store.select("prealn/workflow/fastq_screen", where="srx == srxs", columns=cols)
     )
 
     # FeatureCount Junction Coverage Counts
-    junction_counts = (
-        aggregate_feature_counts(snakemake.params.junction_counts, srxs)
-        .rename({"count": "num_junction_reads"}, axis=1)
+    junction_counts = aggregate_feature_counts(snakemake.params.junction_counts, srxs).rename(
+        {"count": "num_junction_reads"}, axis=1
     )
 
     # Make final feature set aggregated to SRX
     features = pd.concat(
-        [cm, gb, mark, junction_counts], axis=1, sort=False
+        [cm, gb, mark, fq_screen, junction_counts], axis=1, sort=False
     ).rename_axis("srx")
-
     features.to_parquet(snakemake.output[0])
+
+
+def percent_ribosomal(df):
+    ribo_reads = df.groupby(["srx", "reference"]).sum().loc[(slice(None), "rRNA"), :].droplevel(-1)
+    return (
+        (ribo_reads.multiple_hits_one_library_count + ribo_reads.one_hit_one_library_count)
+        .div(ribo_reads.reads_processed_count)
+        .mul(100)
+        .rename("PCT_RIBOSOMAL_READS")
+    )
 
 
 def aggregate_feature_counts(count_dir: str, srxs: list) -> pd.DataFrame:
@@ -96,11 +119,7 @@ def aggregate_feature_counts(count_dir: str, srxs: list) -> pd.DataFrame:
 
 
 def read_feature_counts(file_name: Path) -> pd.DataFrame:
-    return (
-        pd.read_parquet(file_name)
-        .groupby("srx")
-        .agg({"count": "sum"})
-    )
+    return pd.read_parquet(file_name).groupby("srx").agg({"count": "sum"})
 
 
 def check_srx_in_list(file_name: Path, srxs: list) -> bool:
