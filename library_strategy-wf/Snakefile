@@ -21,11 +21,10 @@ targets
 free_text_library_strategy
     Parse free text for additional library strategy information
 munge_library_strategy_from_mongo
-    Pulls out the author supplied metadata field for library strategy
-build_library_strategy_feature_set
-    Creates a Feature matrix for machine learning library strategy
-random_forest_library_strategy
-    Random Forest to learn library startegy
+    Pulls out the author supplied metadata field for library strategy and
+    selection
+build_feature_set
+    Pulls together different features from the pre-alignment workflow
 select_library_strategy
     Takes library strategy annotations from SRA, metadata, random forest and
     selects the best category.
@@ -41,20 +40,20 @@ rule free_text_library_strategy:
     script: 'scripts/free_text_library_strategy.py'
 
 
-rule munge_library_strategy_from_mongo:
+rule munge_strategy_and_selection_from_mongo:
     output:
-        '../output/library_strategy-wf/munge_library_strategy_from_mongo.parquet',
-        '../output/library_strategy-wf/mongo_library_strategy_summary_table.tsv',
-    script: 'scripts/munge_library_strategy_from_mongo.py'
+        data='../output/library_strategy-wf/sra_strategy_selection.parquet',
+        summary='../output/library_strategy-wf/sra_strategy_selection_summary_table.tsv',
+    script: 'scripts/munge_strategy_and_selection_from_mongo.py'
 
 
-rule build_library_strategy_feature_set:
+rule build_prealn_feature_set:
     input: "../output/sra.h5"
     params:
         genic_counts="../output/prealn-wf/gene_counts",
         junction_counts="../output/prealn-wf/junction_counts",
-    output: "../output/library_strategy-wf/build_library_strategy_feature_set.parquet"
-    script: "scripts/build_library_strategy_feature_set.py"
+    output: "../output/library_strategy-wf/prealn_feature_set.parquet"
+    script: "scripts/build_prealn_feature_set.py"
 
 
 rule random_forest_library_strategy:
@@ -72,7 +71,7 @@ rule random_forest_library_strategy:
 
 rule select_library_strategy:
     input:
-        sra=rules.munge_library_strategy_from_mongo.output[0],
+        sra=rules.munge_strategy_and_selection_from_mongo.output.data,
         free_text=rules.free_text_library_strategy.output[0],
         forest=rules.random_forest_library_strategy.output['pred'],
         other=rules.random_forest_library_strategy.output['pred_other'],

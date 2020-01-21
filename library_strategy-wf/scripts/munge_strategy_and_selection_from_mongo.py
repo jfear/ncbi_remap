@@ -12,11 +12,11 @@ def main():
         )
     ).set_index("srx")
 
-    df.to_parquet(snakemake.output[0])
+    df.to_parquet(snakemake.output.data)
 
     # Generate table of summary counts
     library_strategy_counts = df.library_strategy.value_counts().to_frame()
-    library_strategy_counts.to_csv(snakemake.output[1], sep="\t")
+    library_strategy_counts.to_csv(snakemake.output.summary, sep="\t")
 
 
 if __name__ == "__main__":
