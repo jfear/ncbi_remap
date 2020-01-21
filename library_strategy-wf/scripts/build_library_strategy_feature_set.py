@@ -5,27 +5,20 @@ and aln-wf.
 
 Features include:
 * CollectRNASeqMetrics
-    * 'PCT_CODING_BASES',
-    * 'PCT_UTR_BASES',
-    * 'PCT_INTRONIC_BASES',
-    * 'PCT_INTERGENIC_BASES',
-    * 'PCT_MRNA_BASES',
-    * 'MEDIAN_CV_COVERAGE',
-    * 'MEDIAN_5PRIME_BIAS',
-    * 'MEDIAN_3PRIME_BIAS'
+    * PCT_RIBOSOMAL_BASES
+    * PCT_CODING_BASES
+    * PCT_UTR_BASES
+    * PCT_INTRONIC_BASES
+    * PCT_INTERGENIC_BASES
+    * PCT_MRNA_BASES
+    * MEDIAN_CV_COVERAGE
+    * MEDIAN_5PRIME_BIAS
+    * MEDIAN_3PRIME_BIAS
 * CollectRNASeqMetrics Gene Body Coverage
 * Markduplicates
-    * 'PERCENT_DUPLICATION',
-* FeatureCounts Summary
-    * 'Assigned',
-    * 'Unassigned_Ambiguity',
-    * 'Unassigned_MultiMapping',
-    * 'Unassigned_NoFeatures',
-    * 'Unassigned_Unmapped'
-* FeatureCounts Coverage Counts
-    * All Genes
-    * All junctions in genes
-    * All Intergenic regions
+    * PERCENT_DUPLICATION
+* FeatureCounts 
+    * Number of reads mapping to junction
 """
 import os
 from pathlib import Path
@@ -43,6 +36,7 @@ def main():
 
     # CollectRNASeqMetrics
     cols = [
+        "PCT_RIBOSOMAL_BASES",
         "PCT_CODING_BASES",
         "PCT_UTR_BASES",
         "PCT_INTRONIC_BASES",
@@ -75,36 +69,15 @@ def main():
         .median()
     )
 
-    # FeatureCounts Summary
-    cols = [
-        "Assigned",
-        "Unassigned_Ambiguity",
-        "Unassigned_MultiMapping",
-        "Unassigned_NoFeatures",
-        "Unassigned_Unmapped",
-    ]
-    feature_summary = (
-        store.select("prealn/workflow/feature_counts/summary", columns=cols, where="srx == srxs")
-        .groupby("srx")
-        .median()
-    )
-
-    pd.concat([cm, gb, mark, feature_summary], axis=1).isnull()
-
-    # FeatureCount Coverage Counts
-    genic_counts = aggregate_feature_counts(snakemake.params.genic_counts, srxs).rename(
-        {"count": "num_genic_reads", "prop_on": "prop_genes_on"}, axis=1
-    )
-
+    # FeatureCount Junction Coverage Counts
     junction_counts = (
         aggregate_feature_counts(snakemake.params.junction_counts, srxs)
-        .drop("prop_on", axis=1)
         .rename({"count": "num_junction_reads"}, axis=1)
     )
 
     # Make final feature set aggregated to SRX
     features = pd.concat(
-        [cm, gb, mark, feature_summary, genic_counts, junction_counts], axis=1, sort=False
+        [cm, gb, mark, junction_counts], axis=1, sort=False
     ).rename_axis("srx")
 
     features.to_parquet(snakemake.output[0])
@@ -127,7 +100,6 @@ def read_feature_counts(file_name: Path) -> pd.DataFrame:
         pd.read_parquet(file_name)
         .groupby("srx")
         .agg({"count": "sum"})
-        .assign(prop_on=lambda x: (x["count"] > 0).mean())
     )
 
 
