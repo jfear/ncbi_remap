@@ -99,7 +99,7 @@ def main():
         index=features.index,
     )
 
-    Y_pred_all_decode.to_csv(snakemake.output["predicted_labels"])
+    Y_pred_all_decode.to_parquet(snakemake.output["predicted_labels"])
 
 
 def read_and_encode_labels(srxs) -> Labels:
