@@ -145,26 +145,3 @@ rule salmon:
                 '&> {log}'
             )
 
-
-rule segment_exons_ignore_strand:
-    input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
-    output: "../output/rnaseq-analysis-wf/nonstranded_exon_segments.gtf"
-    script: "scripts/segment_exons_ignore_strand.py"
-
-
-rule segment_exons_with_strand:
-    input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
-    output: "../output/rnaseq-analysis-wf/stranded_exon_segments.gtf"
-    script: "scripts/segment_exons_with_strand.py"
-
-
-rule fuse_exons_ignore_strand:
-    input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
-    output: "../output/rnaseq-analysis-wf/nonstranded_exon_fusions.gtf"
-    script: "scripts/fuse_exons_ignore_strand.py"
-
-
-rule fuse_exons_with_strand:
-    input: "../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db"
-    output: "../output/rnaseq-analysis-wf/stranded_exon_fusions.gtf"
-    script: "scripts/fuse_exons_with_strand.py"

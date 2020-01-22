@@ -189,7 +189,30 @@ rule intergenic:
         bed = complement.each(interName).saveas(output.bed)
         bed.each(interGFF).saveas(output.gtf)
 
-# TODO: Move segmentation and fusion construction here.
+
+rule segment_exons_ignore_strand:
+    input: config['references']['dmel']['db']
+    output: patterns["segments"]["nonstranded"]
+    script: "scripts/segment_exons_ignore_strand.py"
+
+
+rule segment_exons_with_strand:
+    input: config['references']['dmel']['db']
+    output: patterns["segments"]["stranded"]
+    script: "scripts/segment_exons_with_strand.py"
+
+
+rule fuse_exons_ignore_strand:
+    input: config['references']['dmel']['db']
+    output: patterns["fusions"]["nonstranded"]
+    script: "scripts/fuse_exons_ignore_strand.py"
+
+
+rule fuse_exons_with_strand:
+    input: config['references']['dmel']['db']
+    output: patterns["fusions"]["stranded"]
+    script: "scripts/fuse_exons_with_strand.py"
+
 
 ###############################################################################
 # FASTQ dump and check for SE or PE
