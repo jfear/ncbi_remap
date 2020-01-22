@@ -149,7 +149,7 @@ onerror:
 
 
 ###############################################################################
-# Build Intergenic Reference
+# Build References
 ###############################################################################
 rule intergenic:
     input:
@@ -189,10 +189,12 @@ rule intergenic:
         bed = complement.each(interName).saveas(output.bed)
         bed.each(interGFF).saveas(output.gtf)
 
+# TODO: Move segmentation and fusion construction here.
 
 ###############################################################################
 # FASTQ dump and check for SE or PE
 ###############################################################################
+# TODO: Refactor to use prefetch and fasterq-dump
 rule fastq_dump:
     """Downloads fastq and checks if there is one or two sets of reads."""
     output:
@@ -387,6 +389,12 @@ rule featurecounts_intergenic:
     wrapper:
         wrapper_for('../wrappers/featurecounts')
 
+# TODO: Add feature counts for Segments and Fusions
+
+###############################################################################
+# Salmon Quantification
+###############################################################################
+# TODO: Add salmon quantification step using hisat2 bams
 
 ###############################################################################
 # Stats
