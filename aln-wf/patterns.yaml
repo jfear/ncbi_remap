@@ -44,3 +44,11 @@ chromSizes_fb: ../output/dmel_r6-11.flybase.chromsizes
 intergenic:
   bed: ../output/dmel_r6-11.intergenic.bed
   gtf: ../output/dmel_r6-11.intergenic.gtf
+
+segments:
+  stranded: ../output/aln-wf/stranded_exon_segments.gtf
+  nonstranded: ../output/aln-wf/nonstranded_exon_segments.gtf
+
+fusions:
+  stranded: ../output/aln-wf/stranded_exon_fusions.gtf
+  nonstranded: ../output/aln-wf/nonstranded_exon_fusions.gtf
