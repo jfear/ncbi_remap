@@ -1,0 +1,51 @@
+# Lines
+lines.linewidth: 3
+lines.markersize: 12.0
+
+### Patches
+patch.linewidth: 2
+
+### Boxplot
+#boxplot.notch: True
+#boxplot.showfliers: False
+
+#boxplot.boxprops.linewidth: 1.0
+
+#boxplot.whiskerprops.linewidth: 1.0
+
+#boxplot.capprops.linewidth: 1.0
+
+#boxplot.medianprops.linewidth: 1.0
+
+#boxplot.meanprops.linewidth: 1.0
+
+### Font
+#font.family: sans-serif
+font.size: 18.0
+#font.sans-serif: Helvetica, Arial, sans-serif
+
+### Axes
+axes.linewidth: 2
+axes.titlesize: 18.0
+axes.titlepad: 1.0
+axes.labelsize: 22.0
+axes.labelweight: bold
+axes.labelpad: 3.0
+
+### Ticks
+xtick.major.size: 6
+xtick.major.width: 3
+xtick.major.pad: 3
+xtick.labelsize: 18.0
+
+ytick.major.size: 6
+ytick.major.width: 3
+ytick.major.pad: 3
+ytick.labelsize: 18.0
+
+### Legend
+legend.fontsize: 18.0
+
+### Figure
+figure.titlesize: 22.0
+figure.figsize: 8, 8
