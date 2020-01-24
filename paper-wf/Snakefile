@@ -8,6 +8,7 @@ TAG = config["tag"]
 rule all:
     input:
         "../output/paper-wf/gene_metadata.tsv",
+        "../output/paper-wf/srr_prealn.tsv"
 
 
 rule gene_metadata:
@@ -16,61 +17,22 @@ rule gene_metadata:
     script: "scripts/gene_metadata.py"
 
 
-rule symbol2fbgn:
-    input: rules.fbgn2symbol.output[0]
-    output: '../output/paper-wf/symbol2fbgn.pkl'
-    script: 'scripts/convert_fbgn2symbol_to_symbol2fbgn.py'
+rule srr_prealn:
+    input: "../output/sra.h5"
+    output: "../output/paper-wf/srr_prealn.tsv"
+    script: "scripts/srr_prealn.py"
 
 
-rule results_table:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/results.parquet'
-    script: 'scripts/results_table.py'
+rule srx_prealn:
+    """Simple aggregation of prealn to srx level."""
+    input: rule.srr_prealn.output[0]
+    output: "../output/paper-wf/srx_prealn.tsv"
+    script: "scripts/srx_prealn.py"
 
 
-rule plot_pie_layout:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/pie_layout.svg'
-    script: 'scripts/plot-pie-layout.py'
-
-
-rule plot_pie_strand:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/pie_strand.svg'
-    script: 'scripts/plot-pie-strand.py'
-
-
-rule plot_pie_layout_strand:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/pie_layout_strand.svg'
-    script: 'scripts/plot-pie-layout-strand.py'
-
-
-rule plot_dist_mapping:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/dist_mapping.svg'
-    script: 'scripts/plot-dist-mapping.py'
-
-
-rule plot_dist_lib_size:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/dist_lib_size.svg'
-    script: 'scripts/plot-dist-lib-size.py'
-
-
-rule plot_dist_dups:
-    input: '../output/sra.h5'
-    output: '../output/paper-wf/dist_dups.svg'
-    script: 'scripts/plot-dist-dups.py'
-
-
-rule fig1:
-    input:
-        pie=rules.plot_pie_layout_strand.output[0],
-        mapping=rules.plot_dist_mapping.output[0],
-        libsize=rules.plot_dist_lib_size.output[0],
-        dups=rules.plot_dist_dups.output[0],
-        fbgn2symbol=rules.fbgn2symbol.output[0],
-        symbol2fbgn=rules.symbol2fbgn.output[0],
-    output: '../output/paper-wf/fig1.svg'
-    script: 'scripts/fig1.py'
+rule srx_metadata:
+    input: 
+        # sramongo
+        "../output/library_strategy-wf/summarized_metadata.parquet"
+    output: "../output/paper-wf/srx_metadata.tsv"
+    script: "scripts/srx_metadata.py"
