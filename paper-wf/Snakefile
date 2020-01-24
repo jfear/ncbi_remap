@@ -1,15 +1,19 @@
 """Workflow for building parts of the paper."""
 
+configfile: "../config/common.yaml"
+ASSEMBLY = config["assembly"]
+TAG = config["tag"]
+
+
 rule all:
     input:
-        '../output/paper-wf/fbgn2symbol.pkl',
-        '../output/paper-wf/symbol2fbgn.pkl',
-        '../output/paper-wf/fig1.svg',
+        "../output/paper-wf/gene_metadata.tsv",
 
 
-rule fbgn2symbol:
-    output: '../output/paper-wf/fbgn2symbol.pkl'
-    script: 'scripts/parse_fbgn2symbol.py'
+rule gene_metadata:
+    input: f"../lcdb-references/{ASSEMBLY}/{TAG}/gtf/{ASSEMBLY}_{TAG}.gtf"
+    output: "../output/paper-wf/gene_metadata.tsv"
+    script: "scripts/gene_metadata.py"
 
 
 rule symbol2fbgn:
