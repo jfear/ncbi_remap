@@ -4,17 +4,31 @@ configfile: "../config/common.yaml"
 ASSEMBLY = config["assembly"]
 TAG = config["tag"]
 
-
 rule all:
     input:
         "../output/paper-wf/gene_metadata.tsv",
-        "../output/paper-wf/srr_prealn.tsv"
+        "../output/paper-wf/srx_prealn.tsv",
+        # Figures
+        "../output/paper-wf/figures/distribution_sample_submission.svg",
+        "../output/paper-wf/figures/layout.svg",
+        "../output/paper-wf/figures/read_length.svg",
 
 
+################################################################################
+# Data Wrangling
+################################################################################
 rule gene_metadata:
     input: f"../lcdb-references/{ASSEMBLY}/{TAG}/gtf/{ASSEMBLY}_{TAG}.gtf"
     output: "../output/paper-wf/gene_metadata.tsv"
     script: "scripts/gene_metadata.py"
+
+
+rule srx_metadata:
+    input: 
+        # sramongo
+        "../output/library_strategy-wf/summarized_metadata.parquet"
+    output: "../output/paper-wf/srx_metadata.tsv"
+    script: "scripts/srx_metadata.py"
 
 
 rule srr_prealn:
@@ -25,14 +39,48 @@ rule srr_prealn:
 
 rule srx_prealn:
     """Simple aggregation of prealn to srx level."""
-    input: rule.srr_prealn.output[0]
+    input: 
+        srr=rules.srr_prealn.output[0],
+        srx_metadata=rules.srx_metadata.output[0]
     output: "../output/paper-wf/srx_prealn.tsv"
     script: "scripts/srx_prealn.py"
 
 
-rule srx_metadata:
-    input: 
-        # sramongo
-        "../output/library_strategy-wf/summarized_metadata.parquet"
-    output: "../output/paper-wf/srx_metadata.tsv"
-    script: "scripts/srx_metadata.py"
+################################################################################
+# Pre-alignment plots
+################################################################################
+rule layout:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/layout.svg"
+    params:
+        style=("sra", "sra_talk"),
+        title="Library Layout",
+        plot_kwargs=dict(color="white", edgecolor="k"),
+        ax_kwargs=dict(ylabel="Samples")
+    script: "scripts/plot_layout.py"
+
+rule distribution_sample_submission:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/distribution_sample_submission.svg"
+    params:
+        style=("sra", "sra_talk"),
+        title="Sample Submission",
+        plot_kwargs=dict(lowess=True)
+    script: "scripts/plot_distribution_sample_submission.py"
+
+rule read_length:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/read_length.svg"
+    params:
+        style=("sra", "sra_talk"),
+        title="Read Length",
+        plot_kwargs=dict(
+            showfliers=False,
+            color="white",
+            boxprops=dict(edgecolor="k"),
+            medianprops=dict(color="k"),
+            whiskerprops=dict(color="k"),
+            capprops=dict(color="k"),
+        ),
+        ax_kwargs=dict(ylabel="Avg. Read Length (bp)", xlabel="Year"),
+    script: "scripts/plot_read_length.py"

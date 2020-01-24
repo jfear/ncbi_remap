@@ -14,14 +14,15 @@ ORDER = ["SE", "PE", "PE->SE"]
 OFFSET = 300
 
 PLOT_DEFAULTS = dict(order=ORDER)
-AXES_DEFAULTS = dict(yticks=[], ylabel="# SRX", xlabel="", title="Library Layout")
+AXES_DEFAULTS = dict(yticks=[], ylabel="# SRX", xlabel="")
 ANNOT_DEFAULTS = dict(ha="center")
 
 
 def get_data(file_name: str) -> Tuple[pd.Series, pd.Series]:
     """Import library layout data."""
     data = (
-        pd.read_parquet(file_name, columns=["library_layout"])
+        pd.read_table(file_name, usecols=["srx", "layout"])
+        .set_index("srx")
         .squeeze()
         .replace({"keep_R1": "PE->SE", "keep_R2": "PE->SE"})
     )
@@ -30,7 +31,7 @@ def get_data(file_name: str) -> Tuple[pd.Series, pd.Series]:
 
     return data, counts
 
-class LayoutPlot(NcbiPlotter):
+class Plot(NcbiPlotter):
     def __init__(
         self,
         file_name: str,
@@ -46,6 +47,7 @@ class LayoutPlot(NcbiPlotter):
         >>> from ncbi_remap.plotting import LayoutPlot
         >>> layout_plot = LayoutPlot("../../../output/paper-wf/srx_data.parquet")
         """
+        self.update_figsize()
         self.ax = ax or self.get_ax()
         self.plot_kwargs = update_kwargs(PLOT_DEFAULTS, plot_kwargs)
         self.axes_kwargs = update_kwargs(AXES_DEFAULTS, ax_kwargs)

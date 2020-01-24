@@ -19,7 +19,7 @@ def update_kwargs(defaults: Union[None, dict], user: Union[None, dict]) -> dict:
     """Updates a default dictionary with user values."""
     defaults = defaults or {}
     user = user or {}
-    return dict(ChainMap({}, defaults, user))
+    return dict(ChainMap({}, user, defaults))
 
 
 class NcbiPlotter:
