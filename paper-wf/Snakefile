@@ -8,11 +8,12 @@ rule all:
     input:
         "../output/paper-wf/gene_metadata.tsv",
         "../output/paper-wf/srx_prealn.tsv",
+        "../output/paper-wf/srx_aln.tsv",
         # Figures
         "../output/paper-wf/figures/sample_submission.svg",
         "../output/paper-wf/figures/layout.svg",
         "../output/paper-wf/figures/read_length.svg",
-        "../output/paper-wf/figures/library_size.svg"
+        "../output/paper-wf/figures/library_size.svg",
         "../output/paper-wf/figures/prealn_features.svg",
         "../output/paper-wf/figures/feature_importance.svg",
 
@@ -48,6 +49,14 @@ rule srx_prealn:
     output: "../output/paper-wf/srx_prealn.tsv"
     script: "scripts/srx_prealn.py"
 
+rule srx_aln:
+    input:
+        store="../output/sra.h5",
+        library_strategy="../output/library_strategy-wf/summarized_metadata.parquet",
+    params: 
+        genic_pattern=lambda wildcards: "../output/aln-wf/samples/{srx}/{srx}.bam.counts"
+    output: "../output/paper-wf/srx_aln.tsv"
+    script: "scripts/srx_aln.py"
 
 ################################################################################
 # Pre-alignment plots
@@ -115,3 +124,8 @@ rule feature_importance:
     params:
         style=("sra", "sra_talk"),
     script: "scripts/plot_feature_importance.py"
+
+################################################################################
+# Alignment plots
+################################################################################
+
