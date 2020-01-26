@@ -3,16 +3,18 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from ncbi_remap.plotting import sample_submission
+from ncbi_remap.plotting import library_size
 
 
 def main():
-    plt.style.use(snakemake.params.style)
+    plt.style.use(snakemake.params.get("style", "sra"))
 
-    plot = sample_submission.Plot(
+    plot = library_size.Plot(
         snakemake.input[0],
         plot_kwargs=dict(snakemake.params.get("plot_kwargs", {})),
-        ax_kwargs=dict(snakemake.params.get("ax_kwargs", {})),
+        joint_ax_kwargs=dict(snakemake.params.get("joint_ax_kwargs", {})),
+        libsize_ax_kwargs=dict(snakemake.params.get("libsize_ax_kwargs", {})),
+        duplication_ax_kwargs=dict(snakemake.params.get("duplication_ax_kwargs", {})),
     )
     plt.suptitle(snakemake.params.title)
 
@@ -28,10 +30,12 @@ if __name__ == "__main__":
         snakemake = snakemake_debug(
             input="../../output/paper-wf/srx_prealn.tsv",
             params=dict(
-                title="Sample Submission",
+                title="Library Size",
                 style=("sra", "sra_talk"),
-                plot_kwargs=dict(lowess=True),
-                ax_kwargs=dict(),
+                plot_kwargs=dict(),
+                joint_ax_kwargs=dict(),
+                libsize_ax_kwargs=dict(),
+                duplication_ax_kwargs=dict(),
             ),
         )
 

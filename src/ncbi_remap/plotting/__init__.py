@@ -30,7 +30,7 @@ class NcbiPlotter:
     fig_nrows = 1
     fig_ncols = 1
 
-    def get_ax(self) -> Union[plt.Axes, List[plt.Axes]]:
+    def get_ax(self, **kwargs) -> Union[plt.Axes, List[plt.Axes]]:
         """Get matplotlib axes.
 
         Returns
@@ -38,7 +38,7 @@ class NcbiPlotter:
         Union[plt.Axes, List[plt.Axes]]
         """
         _, axes = plt.subplots(
-            self.fig_nrows, self.fig_ncols, figsize=(self.fig_width, self.fig_height)
+            self.fig_nrows, self.fig_ncols, figsize=(self.fig_width, self.fig_height), **kwargs
         )
         return axes
 

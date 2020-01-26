@@ -9,9 +9,12 @@ rule all:
         "../output/paper-wf/gene_metadata.tsv",
         "../output/paper-wf/srx_prealn.tsv",
         # Figures
-        "../output/paper-wf/figures/distribution_sample_submission.svg",
+        "../output/paper-wf/figures/sample_submission.svg",
         "../output/paper-wf/figures/layout.svg",
         "../output/paper-wf/figures/read_length.svg",
+        "../output/paper-wf/figures/library_size.svg"
+        "../output/paper-wf/figures/prealn_features.svg",
+        "../output/paper-wf/figures/feature_importance.svg",
 
 
 ################################################################################
@@ -49,24 +52,25 @@ rule srx_prealn:
 ################################################################################
 # Pre-alignment plots
 ################################################################################
+rule sample_submission:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/sample_submission.svg"
+    params:
+        style=("sra", "sra_talk"),
+        title="Sample Submission",
+        bar_plot_kwargs=dict(color="C0"),
+        reg_plot_kwargs=dict(lowess=True, color="C1"),
+    script: "scripts/plot_sample_submission.py"
+
 rule layout:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figures/layout.svg"
     params:
         style=("sra", "sra_talk"),
         title="Library Layout",
-        plot_kwargs=dict(color="white", edgecolor="k"),
+        plot_kwargs=dict(color="lightgray", edgecolor="k"),
         ax_kwargs=dict(ylabel="Samples")
     script: "scripts/plot_layout.py"
-
-rule distribution_sample_submission:
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/distribution_sample_submission.svg"
-    params:
-        style=("sra", "sra_talk"),
-        title="Sample Submission",
-        plot_kwargs=dict(lowess=True)
-    script: "scripts/plot_distribution_sample_submission.py"
 
 rule read_length:
     input: rules.srx_prealn.output[0]
@@ -76,7 +80,7 @@ rule read_length:
         title="Read Length",
         plot_kwargs=dict(
             showfliers=False,
-            color="white",
+            color="lightgray",
             boxprops=dict(edgecolor="k"),
             medianprops=dict(color="k"),
             whiskerprops=dict(color="k"),
@@ -84,3 +88,30 @@ rule read_length:
         ),
         ax_kwargs=dict(ylabel="Avg. Read Length (bp)", xlabel="Year"),
     script: "scripts/plot_read_length.py"
+
+
+rule library_size:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/library_size.svg"
+    params:
+        style=("sra", "sra_talk"),
+        title="Libary Size",
+        plot_kwargs=dict(),
+        joint_ax_kwargs=dict(),
+        libsize_ax_kwargs=dict(),
+        duplication_ax_kwargs=dict(),
+    script: "scripts/plot_libsize.py"
+
+rule prealn_features:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/prealn_features.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_prealn_features.py"
+
+rule feature_importance:
+    input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
+    output: "../output/paper-wf/figures/feature_importance.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_feature_importance.py"
