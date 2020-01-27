@@ -172,3 +172,10 @@ rule genes_on:
         style=("sra", "sra_talk"),
     script: "scripts/plot_genes_on.py"
 
+
+rule gene_cv:
+    input: rules.aln_genic_counts.output[0]
+    output: "../output/paper-wf/figures/genes_cv.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_genes_cv.py"
