@@ -10,13 +10,14 @@ from ncbi_remap.plotting import NcbiPlotter, update_kwargs
 
 
 PLOT_DEFAULTS = dict()
-AXES_DEFAULTS = dict(ylabel="% Aligned", xlabel="Year")
+AXES_DEFAULTS = dict(ylabel="% Genes On (> 5 reads)", xlabel="Samples (SRX)")
 
 
 def get_data(file_name: str) -> pd.Series:
     return (
-        (pd.read_table(file_name, index_col=0) > 0)
+        (pd.read_table(file_name, index_col=0) > 5)
         .mean()
+        .mul(100)
         .sort_values(ascending=True)
         .rename("prop_genes_on")
         .to_frame()
@@ -49,9 +50,7 @@ class Plot(NcbiPlotter):
         self.tweak()
 
     def plot(self):
-        sns.lineplot(
-            x="Samples", y="prop_genes_on", data=self.data, ax=self.ax, **self.plot_kwargs
-        )
+        plt.plot(self.data.Samples, self.data.prop_genes_on)
 
     def tweak(self):
         self.ax.set(**self.axes_kwargs)

@@ -2,12 +2,14 @@
 from typing import Union, Tuple
 
 import pandas as pd
+from pandas.plotting import register_matplotlib_converters
 import matplotlib.pyplot as plt
 import seaborn as sns
 from statsmodels.formula.api import ols
 
 from ncbi_remap.plotting import NcbiPlotter, update_kwargs
 
+register_matplotlib_converters()
 
 PLOT_DEFAULTS = dict()
 AXES_DEFAULTS = dict(ylabel="% Aligned", xlabel="Year")
@@ -38,6 +40,9 @@ class Plot(NcbiPlotter):
         """
         self.update_figsize()
         self.ax = ax or self.get_ax()
+        self.ax_joint = None
+        self.ax_marg_x = None
+        self.ax_marg_y = None
 
         self.plot_kwargs = update_kwargs(PLOT_DEFAULTS, plot_kwargs)
         self.axes_kwargs = update_kwargs(AXES_DEFAULTS, ax_kwargs)
@@ -47,10 +52,11 @@ class Plot(NcbiPlotter):
         self.tweak()
 
     def plot(self):
-        sns.lineplot(
+        sns.pointplot(
             x="year", y="pct_uniquely_aligned", data=self.data, ax=self.ax, **self.plot_kwargs
         )
 
     def tweak(self):
-        self.ax.set(**self.bar_axes_kwargs)
+        self.ax.set(**self.axes_kwargs)
+        plt.setp(self.ax.get_xticklabels(), rotation=45, ha="right")
         sns.despine(ax=self.ax, left=True)

@@ -9,7 +9,7 @@ def main():
         [metadata(srxs), hisat2(srxs), samtools_stats(srxs), bamtools_stats(srxs)],
         axis=1,
         sort=True,
-    )
+    ).rename_axis("srx")
 
     df.to_csv(snakemake.output[0], sep="\t")
 
@@ -28,7 +28,7 @@ def hisat2(srxs):
         STORE.select("/aln/workflow/hisat2/", "srx == srxs", columns=cols)
         .groupby("srx")
         .sum()
-        .assign(pct_uniquely_alignmed=lambda x: x.num_uniquely_aligned / x.num_reads * 100)
+        .assign(pct_uniquely_aligned=lambda x: x.num_uniquely_aligned / x.num_reads * 100)
     )
 
 
