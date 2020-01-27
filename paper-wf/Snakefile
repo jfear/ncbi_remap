@@ -6,16 +6,21 @@ TAG = config["tag"]
 
 rule all:
     input:
+        # Data Wrangling
         "../output/paper-wf/gene_metadata.tsv",
         "../output/paper-wf/srx_prealn.tsv",
         "../output/paper-wf/srx_aln.tsv",
-        # Figures
+        "../output/paper-wf/aln_genic_counts.tsv",
+        # Figure 2
         "../output/paper-wf/figures/sample_submission.svg",
         "../output/paper-wf/figures/layout.svg",
         "../output/paper-wf/figures/read_length.svg",
         "../output/paper-wf/figures/library_size.svg",
         "../output/paper-wf/figures/prealn_features.svg",
         "../output/paper-wf/figures/feature_importance.svg",
+        # Figure 3
+        "../output/paper-wf/figures/strandedness.svg",
+        "../output/paper-wf/figures/mapping.svg",
 
 
 ################################################################################
@@ -49,14 +54,28 @@ rule srx_prealn:
     output: "../output/paper-wf/srx_prealn.tsv"
     script: "scripts/srx_prealn.py"
 
+
+rule rnaseq_srxs:
+    input: "../output/library_strategy-wf/summarized_metadata.parquet",
+    output: "../output/paper-wf/rnaseq_srxs.txt"
+    script: "scripts/rnaseq_srxs.py"
+
+
 rule srx_aln:
     input:
         store="../output/sra.h5",
-        library_strategy="../output/library_strategy-wf/summarized_metadata.parquet",
-    params: 
-        genic_pattern=lambda wildcards: "../output/aln-wf/samples/{srx}/{srx}.bam.counts"
+        rnaseq_srxs=rules.rnaseq_srxs.output[0],
+        srx_metadata=rules.srx_metadata.output[0],
     output: "../output/paper-wf/srx_aln.tsv"
     script: "scripts/srx_aln.py"
+
+
+rule aln_genic_counts:
+    input: rules.rnaseq_srxs.output[0]
+    params: 
+        genic_pattern=lambda wildcards: "../output/aln-wf/samples/{srx}/{srx}.bam.counts"
+    output: "../output/paper-wf/aln_genic_counts.tsv"
+    script: "scripts/aln_genic_counts.py"
 
 ################################################################################
 # Pre-alignment plots
@@ -111,12 +130,14 @@ rule library_size:
         duplication_ax_kwargs=dict(),
     script: "scripts/plot_libsize.py"
 
+
 rule prealn_features:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figures/prealn_features.svg"
     params:
         style=("sra", "sra_talk"),
     script: "scripts/plot_prealn_features.py"
+
 
 rule feature_importance:
     input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
@@ -128,4 +149,26 @@ rule feature_importance:
 ################################################################################
 # Alignment plots
 ################################################################################
+rule strandedness:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figures/strandedness.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_strandedness.py"
+
+
+rule mapping:
+    input: rules.srx_aln.output[0]
+    output: "../output/paper-wf/figures/mapping.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_mapping.py"
+
+
+rule genes_on:
+    input: rules.aln_genic_counts.output[0]
+    output: "../output/paper-wf/figures/genes_on.svg"
+    params:
+        style=("sra", "sra_talk"),
+    script: "scripts/plot_genes_on.py"
 

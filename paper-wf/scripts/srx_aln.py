@@ -3,19 +3,23 @@ import pandas as pd
 
 
 def main():
-    srxs = (
-        pd.read_parquet(snakemake.input.library_strategy)
-        .query("Fear_et_al_library_strategy == 'RNA-Seq'")
-        .index
-    )
+    srxs = pd.read_table(snakemake.input.rnaseq_srxs, header=None).squeeze().values
 
     df = pd.concat(
-        [hisat2(srxs), samtools_stats(srxs), bamtools_stats(srxs), agg_feature_counts(srxs)],
+        [metadata(srxs), hisat2(srxs), samtools_stats(srxs), bamtools_stats(srxs)],
         axis=1,
         sort=True,
     )
 
     df.to_csv(snakemake.output[0], sep="\t")
+
+
+def metadata(srxs):
+    return (
+        pd.read_table(snakemake.input.srx_metadata, index_col=0)
+        .date_created.squeeze()
+        .reindex(srxs)
+    )
 
 
 def hisat2(srxs):
@@ -38,22 +42,6 @@ def bamtools_stats(srxs):
     return STORE.select("/aln/workflow/bamtools_stats", "index == srxs", columns=cols)
 
 
-def agg_feature_counts(srxs):
-    return pd.concat((read_feature_count(srx) for srx in srxs), axis=1, sort=True).T
-
-
-def read_feature_count(srx):
-    return (
-        pd.read_table(
-            snakemake.params.genic_pattern.format(srx=srx), comment="#", index_col=0
-        )
-        .iloc[:, -1]
-        .squeeze()
-        .rename(srx)
-        .rename_axis("FBgn")
-    )
-
-
 if __name__ == "__main__":
     if os.getenv("SNAKE_DEBUG", False):
         from ncbi_remap.debug import snakemake_debug
@@ -61,9 +49,9 @@ if __name__ == "__main__":
         snakemake = snakemake_debug(
             input=dict(
                 store="../../output/sra.h5",
-                library_strategy="../../output/library_strategy-wf/summarized_metadata.parquet",
-            ),
-            params=dict(genic_pattern="../../output/aln-wf/samples/{srx}/{srx}.bam.counts"),
+                rnaseq_srxs="../../output/paper-wf/rnaseq_srxs.txt",
+                srx_metadata="../../output/paper-wf/srx_metadata.tsv",
+            )
         )
 
     try:
