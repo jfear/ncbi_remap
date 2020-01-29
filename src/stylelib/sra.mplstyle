@@ -573,6 +573,7 @@ figure.subplot.hspace  : 0.08
 #figure.constrained_layout.use : False  ## When True, automatically make plot
                                         ## elements fit on the figure. (Not
                                         ## compatible with `autolayout`, above).
+figure.constrained_layout.use  : True
 #figure.constrained_layout.h_pad  : 0.04167  ## Padding around axes objects. Float representing
 #figure.constrained_layout.w_pad  : 0.04167  ## inches. Default is 3./72. inches (3 pts)
 #figure.constrained_layout.hspace : 0.02     ## Space between subplot groups. Float representing
@@ -673,9 +674,7 @@ savefig.format     : svg
                                  ## backends but will workd with temporary file based ones:
                                  ## e.g. setting animation.writer to ffmpeg will not work,
                                  ## use ffmpeg_file instead
-savefig.bbox       : tight
 #savefig.pad_inches   : 0.1      ## Padding to be used when bbox is set to 'tight'
-savefig.pad_inches    : 0
 #savefig.jpeg_quality : 95       ## when a jpeg is saved, the default quality parameter.
 #savefig.directory    : ~        ## default directory in savefig dialog box,
                                  ## leave empty to always use current working directory
@@ -713,7 +712,7 @@ pdf.use14corefonts  : True
                           ##           by most SVG renderers
                           ##     None: Assume fonts are installed on the
                           ##           machine where the SVG will be viewed.
-svg.fonttype  : None
+svg.fonttype  : none
 #svg.hashsalt : None      ## If not None, use this string as hash salt instead of uuid4
 
 ### pgf parameter
