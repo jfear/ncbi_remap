@@ -23,12 +23,14 @@ rule all:
 # Data Wrangling
 ################################################################################
 rule gene_metadata:
+    """Table mapping FBgn to various metadata"""
     input: f"../lcdb-references/{ASSEMBLY}/{TAG}/gtf/{ASSEMBLY}_{TAG}.gtf"
     output: "../output/paper-wf/gene_metadata.tsv"
     script: "scripts/gene_metadata.py"
 
 
 rule srx_metadata:
+    """Table mapping SRX to various metadata"""
     input: 
         # sramongo
         "../output/library_strategy-wf/summarized_metadata.parquet"
@@ -37,13 +39,14 @@ rule srx_metadata:
 
 
 rule srr_prealn:
+    """Table by SRR for all pre-alignment workflow results"""
     input: "../output/sra.h5"
     output: "../output/paper-wf/srr_prealn.tsv"
     script: "scripts/srr_prealn.py"
 
 
 rule srx_prealn:
-    """Simple aggregation of prealn to srx level."""
+    """Table aggregated by SRX for all pre-alignment workflow results"""
     input: 
         srr=rules.srr_prealn.output[0],
         srx_metadata=rules.srx_metadata.output[0]
@@ -52,12 +55,14 @@ rule srx_prealn:
 
 
 rule rnaseq_srxs:
+    """List of SRXs that are RNA-Seq"""
     input: "../output/library_strategy-wf/summarized_metadata.parquet",
     output: "../output/paper-wf/rnaseq_srxs.txt"
     script: "scripts/rnaseq_srxs.py"
 
 
 rule srx_aln:
+    """Table by SRX for all alignment workflow results"""
     input:
         store="../output/sra.h5",
         rnaseq_srxs=rules.rnaseq_srxs.output[0],
@@ -67,6 +72,7 @@ rule srx_aln:
 
 
 rule aln_genic_counts:
+    """Aggregated gene level counts for all RNA-Seq SRXs"""
     input: rules.rnaseq_srxs.output[0]
     params: 
         genic_pattern=lambda wildcards: "../output/aln-wf/samples/{srx}/{srx}.bam.counts"
@@ -101,6 +107,18 @@ rule fig1:
 ################################################################################
 # Figure 2. Technical metadata refinement.
 ################################################################################
+rule umap_all_strategy:
+    input: ""
+    output: ""
+    script: ""
+
+
+rule mahalanobis_before_ML:
+    input: ""
+    output: ""
+    script: ""
+
+
 rule feature_importance:
     input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
     output: "../output/paper-wf/figure_panels/feature_importance.svg"
@@ -109,13 +127,25 @@ rule feature_importance:
     script: "scripts/plot_feature_importance.py"
 
 
-rule prealn_features:
+rule top_features_grid:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figure_panels/prealn_features.svg"
     params:
         style=PLOT_STYLE,
         top_features=["", "", "", ""]
     script: "scripts/plot_prealn_features.py"
+
+
+rule mahalanobis_after_ML:
+    input: ""
+    output: ""
+    script: ""
+
+
+rule umap_rnaseq_selection:
+    input: ""
+    output: ""
+    script: ""
 
 
 rule fig2:
@@ -126,8 +156,13 @@ rule fig2:
         mahalanobis_before_ML="",
         mahalanobis_after_ML="",
         importance=rules.feature_importance.output[0],
-        feature_grid=rules.prealn_features.output[0],
+        feature_grid=rules.top_features_grid.output[0],
     output: "../output/paper-wf/fig2.svg"
+    params: 
+        figsize=[7.7, 7.7],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig2.py"
 
 
@@ -139,6 +174,11 @@ rule fig3:
         drawing="../data/drawings/",
         mahalanobis="",
     output: "../output/paper-wf/fig3.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig3.py"
 
 
@@ -151,6 +191,11 @@ rule fig4:
         stranded_tracks="",
         tissue_tracks="",
     output: "../output/paper-wf/fig4.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig4.py"
 
 
@@ -163,6 +208,11 @@ rule fig5:
         hamming="",
         table="",
     output: "../output/paper-wf/fig5.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig5.py"
 
 
@@ -175,6 +225,11 @@ rule fig6:
         expression_dist="",
         table="",
     output: "../output/paper-wf/fig6.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig6.py"
 
 
@@ -186,6 +241,11 @@ rule fig7:
         drawing="../data/drawings/",
         table="",
     output: "../output/paper-wf/fig7.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig7.py"
 
 
@@ -196,6 +256,11 @@ rule fig8:
     input:
         drawing="../data/drawings/",
     output: "../output/paper-wf/fig8.svg"
+    params: 
+        figsize=[7.7, 2.51],
+        label_font=LABEL_FONT,
+        label_size=LABEL_SIZE,
+        label_weight=LABEL_WEIGHT,
     script: "scripts/fig8.py"
 
 
