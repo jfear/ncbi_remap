@@ -4,6 +4,8 @@ configfile: "../config/common.yaml"
 ASSEMBLY = config["assembly"]
 TAG = config["tag"]
 
+PLOT_STYLE = ("sra", "sra_talk")
+
 rule all:
     input:
         # Data Wrangling
@@ -11,16 +13,7 @@ rule all:
         "../output/paper-wf/srx_prealn.tsv",
         "../output/paper-wf/srx_aln.tsv",
         "../output/paper-wf/aln_genic_counts.tsv",
-        # Figure 2
-        "../output/paper-wf/figures/sample_submission.svg",
-        "../output/paper-wf/figures/layout.svg",
-        "../output/paper-wf/figures/read_length.svg",
-        "../output/paper-wf/figures/library_size.svg",
-        "../output/paper-wf/figures/prealn_features.svg",
-        "../output/paper-wf/figures/feature_importance.svg",
-        # Figure 3
-        "../output/paper-wf/figures/strandedness.svg",
-        "../output/paper-wf/figures/mapping.svg",
+        "../output/paper-wf/fig1.svg",
 
 
 ################################################################################
@@ -78,33 +71,148 @@ rule aln_genic_counts:
     script: "scripts/aln_genic_counts.py"
 
 ################################################################################
-# Pre-alignment plots
+# Figure 1. Overview of SRA and data processing.
 ################################################################################
 rule sample_submission:
     input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/sample_submission.svg"
+    output: "../output/paper-wf/figure_panels/sample_submission.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
         title="Sample Submission",
         bar_plot_kwargs=dict(color="C0"),
         reg_plot_kwargs=dict(lowess=True, color="C1"),
     script: "scripts/plot_sample_submission.py"
 
-rule layout:
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/layout.svg"
+
+rule fig1:
+    input:
+        drawing="../data/drawings/",
+        distribution=rules.sample_submission.output[0]
+    output: "../output/paper-wf/fig1.svg"
+    script: "scripts/fig1.py"
+
+
+################################################################################
+# Figure 2. Technical metadata refinement.
+################################################################################
+rule feature_importance:
+    input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
+    output: "../output/paper-wf/figure_panels/feature_importance.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
+    script: "scripts/plot_feature_importance.py"
+
+
+rule prealn_features:
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figure_panels/prealn_features.svg"
+    params:
+        style=PLOT_STYLE,
+        top_features=["", "", "", ""]
+    script: "scripts/plot_prealn_features.py"
+
+
+rule fig2:
+    input:
+        drawing="../data/drawings/",
+        umap_all_strategy="",
+        umap_rnaseq_selection="",
+        mahalanobis_before_ML="",
+        mahalanobis_after_ML="",
+        importance=rules.feature_importance.output[0],
+        feature_grid=rules.prealn_features.output[0],
+    output: "../output/paper-wf/fig2.svg"
+    script: "scripts/fig2.py"
+
+
+################################################################################
+# Figure 3. Biological metadata refinement.
+################################################################################
+rule fig3:
+    input:
+        drawing="../data/drawings/",
+        mahalanobis="",
+    output: "../output/paper-wf/fig3.svg"
+    script: "scripts/fig3.py"
+
+
+################################################################################
+# Figure 4. Visualization of aggregated tracks.
+################################################################################
+rule fig4:
+    input:
+        drawing="../data/drawings/",
+        stranded_tracks="",
+        tissue_tracks="",
+    output: "../output/paper-wf/fig4.svg"
+    script: "scripts/fig4.py"
+
+
+################################################################################
+# Figure 5. Identification of similar datasets.
+################################################################################
+rule fig5:
+    input:
+        drawing="../data/drawings/",
+        hamming="",
+        table="",
+    output: "../output/paper-wf/fig5.svg"
+    script: "scripts/fig5.py"
+
+
+################################################################################
+# Figure 6. Find highest expressing samples.
+################################################################################
+rule fig6:
+    input:
+        drawing="../data/drawings/",
+        expression_dist="",
+        table="",
+    output: "../output/paper-wf/fig6.svg"
+    script: "scripts/fig6.py"
+
+
+################################################################################
+# Figure 7. Select genes with similar expression patterns.
+################################################################################
+rule fig7:
+    input:
+        drawing="../data/drawings/",
+        table="",
+    output: "../output/paper-wf/fig7.svg"
+    script: "scripts/fig7.py"
+
+
+################################################################################
+# Figure 8. Data access.
+################################################################################
+rule fig8:
+    input:
+        drawing="../data/drawings/",
+    output: "../output/paper-wf/fig8.svg"
+    script: "scripts/fig8.py"
+
+
+################################################################################
+# Supplemental Pre-alignment plots
+################################################################################
+rule layout:
+    """Bar graph with the number of SRXs that are SE, PE, or PE->SE."""
+    input: rules.srx_prealn.output[0]
+    output: "../output/paper-wf/figure_panels/layout.svg"
+    params:
+        style=PLOT_STYLE,
         title="Library Layout",
         plot_kwargs=dict(color="lightgray", edgecolor="k"),
         ax_kwargs=dict(ylabel="Samples")
     script: "scripts/plot_layout.py"
 
 rule read_length:
+    """Boxplot showing the distribution of read lengths by year."""
     input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/read_length.svg"
+    output: "../output/paper-wf/figure_panels/read_length.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
         title="Read Length",
         plot_kwargs=dict(
             showfliers=False,
@@ -119,10 +227,11 @@ rule read_length:
 
 
 rule library_size:
+    """Joint plot of library size and duplication rate."""
     input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/library_size.svg"
+    output: "../output/paper-wf/figure_panels/library_size.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
         title="Libary Size",
         plot_kwargs=dict(),
         joint_ax_kwargs=dict(),
@@ -131,51 +240,23 @@ rule library_size:
     script: "scripts/plot_libsize.py"
 
 
-rule prealn_features:
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/prealn_features.svg"
-    params:
-        style=("sra", "sra_talk"),
-    script: "scripts/plot_prealn_features.py"
-
-
-rule feature_importance:
-    input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
-    output: "../output/paper-wf/figures/feature_importance.svg"
-    params:
-        style=("sra", "sra_talk"),
-    script: "scripts/plot_feature_importance.py"
-
 ################################################################################
-# Alignment plots
+# Supplemental Alignment plots
 ################################################################################
 rule strandedness:
+    """KDE of percent reads mapping to first strand."""
     input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figures/strandedness.svg"
+    output: "../output/paper-wf/figure_panels/strandedness.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
     script: "scripts/plot_strandedness.py"
 
 
 rule mapping:
+    """Point plot showing percent mapping by year."""
     input: rules.srx_aln.output[0]
-    output: "../output/paper-wf/figures/mapping.svg"
+    output: "../output/paper-wf/figure_panels/mapping.svg"
     params:
-        style=("sra", "sra_talk"),
+        style=PLOT_STYLE,
     script: "scripts/plot_mapping.py"
 
-
-rule genes_on:
-    input: rules.aln_genic_counts.output[0]
-    output: "../output/paper-wf/figures/genes_on.svg"
-    params:
-        style=("sra", "sra_talk"),
-    script: "scripts/plot_genes_on.py"
-
-
-rule gene_cv:
-    input: rules.aln_genic_counts.output[0]
-    output: "../output/paper-wf/figures/genes_cv.svg"
-    params:
-        style=("sra", "sra_talk"),
-    script: "scripts/plot_genes_cv.py"
