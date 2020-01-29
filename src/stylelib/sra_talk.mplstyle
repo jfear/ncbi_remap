@@ -1,51 +1,38 @@
-# Lines
-lines.linewidth: 3
-lines.markersize: 12.0
+lines.linewidth       : 1.5
+lines.markeredgewidth : 1.0
 
-### Patches
-patch.linewidth: 2
+patch.linewidth : 1
 
-### Boxplot
-#boxplot.notch: True
-#boxplot.showfliers: False
+boxplot.boxprops.linewidth     : 1.0
+boxplot.whiskerprops.linewidth : 1.0
+boxplot.capprops.linewidth     : 1.0
+boxplot.medianprops.linewidth  : 1.0
+boxplot.meanprops.linewidth    : 1.0
 
-#boxplot.boxprops.linewidth: 1.0
+font.size : 12.0
 
-#boxplot.whiskerprops.linewidth: 1.0
+axes.titlesize : large
+axes.titlepad  : 6.0
+axes.labelpad  : 4.0
 
-#boxplot.capprops.linewidth: 1.0
+xtick.major.size  : 3.5
+xtick.minor.size  : 2.0
+xtick.major.width : 0.8
+xtick.minor.width : 0.6
+xtick.major.pad   : 3.5
+xtick.minor.pad   : 3.4
+xtick.labelsize   : medium
 
-#boxplot.medianprops.linewidth: 1.0
+ytick.major.size  : 3.5
+ytick.minor.size  : 2.0
+ytick.major.width : 0.8
+ytick.minor.width : 0.6
+ytick.major.pad   : 3.5
+ytick.minor.pad   : 3.4
+ytick.labelsize   : medium
 
-#boxplot.meanprops.linewidth: 1.0
+legend.fontsize : medium
 
-### Font
-#font.family: sans-serif
-font.size: 18.0
-#font.sans-serif: Helvetica, Arial, sans-serif
-
-### Axes
-axes.linewidth: 2
-axes.titlesize: 18.0
-axes.titlepad: 1.0
-axes.labelsize: 22.0
-axes.labelweight: bold
-axes.labelpad: 3.0
-
-### Ticks
-xtick.major.size: 6
-xtick.major.width: 3
-xtick.major.pad: 3
-xtick.labelsize: 18.0
-
-ytick.major.size: 6
-ytick.major.width: 3
-ytick.major.pad: 3
-ytick.labelsize: 18.0
-
-### Legend
-legend.fontsize: 18.0
-
-### Figure
-figure.titlesize: 22.0
-figure.figsize: 8, 8
+figure.figsize        : 6.4, 4.8
+figure.subplot.wspace : 0.2
+figure.subplot.hspace : 0.2
