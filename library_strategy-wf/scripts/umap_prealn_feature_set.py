@@ -1,22 +1,24 @@
 import os
-import pickle
 
+import joblib
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 import umap
+from sklearn.preprocessing import StandardScaler
 
 
 def main():
-    features = pd.read_parquet(snakemake.input[0])
+    features = pd.read_parquet(snakemake.input[0]).dropna()
 
     scaler = StandardScaler()
     X = scaler.fit_transform(features)
 
     reducer = umap.UMAP()
-    embedings = reducer.fit_transform(X)
+    embeddings = reducer.fit_transform(X)
+    df = pd.DataFrame(embeddings, columns=["UMAP1", "UMAP2"], index=features.index)
 
     # save
-    pickle.dump(reducer, open(snakemake.output.model, 'wb'))
+    joblib.dump(reducer, snakemake.output.model)
+    df.to_csv(snakemake.output.embeddings, sep="\t")
 
 
 if __name__ == "__main__":
