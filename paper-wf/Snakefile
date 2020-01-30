@@ -108,9 +108,13 @@ rule fig1:
 # Figure 2. Technical metadata refinement.
 ################################################################################
 rule umap_all_strategy_panel:
-    input: ""
-    output: ""
-    script: ""
+    input: 
+        embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
+        labels="../output/library_strategy-wf/sra_strategy_selection.parquet"
+    output: "../output/paper-wf/figure_panels/umap_all_strategy.svg"
+    params:
+        plot_kwargs=dict(linewidth=.25)
+    script: "scripts/plot_umap_all_strategy.py"
 
 
 rule mahalanobis_before_ML_panel:
