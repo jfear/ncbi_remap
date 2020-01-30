@@ -82,7 +82,7 @@ rule aln_genic_counts:
 ################################################################################
 # Figure 1. Overview of SRA and data processing.
 ################################################################################
-rule sample_submission:
+rule sample_submission_panel:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figure_panels/sample_submission.svg"
     params:
@@ -94,7 +94,7 @@ rule sample_submission:
 rule fig1:
     input:
         drawing="../data/drawings/overview_schematic.svg",
-        distribution=rules.sample_submission.output[0]
+        distribution=rules.sample_submission_panel.output[0]
     output: "../output/paper-wf/fig1.svg"
     params: 
         figsize=[7.7, 2.51],
@@ -107,19 +107,19 @@ rule fig1:
 ################################################################################
 # Figure 2. Technical metadata refinement.
 ################################################################################
-rule umap_all_strategy:
+rule umap_all_strategy_panel:
     input: ""
     output: ""
     script: ""
 
 
-rule mahalanobis_before_ML:
+rule mahalanobis_before_ML_panel:
     input: ""
     output: ""
     script: ""
 
 
-rule feature_importance:
+rule feature_importance_panel:
     input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
     output: "../output/paper-wf/figure_panels/feature_importance.svg"
     params:
@@ -127,7 +127,7 @@ rule feature_importance:
     script: "scripts/plot_feature_importance.py"
 
 
-rule top_features_grid:
+rule top_features_grid_panel:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figure_panels/prealn_features.svg"
     params:
@@ -136,13 +136,13 @@ rule top_features_grid:
     script: "scripts/plot_prealn_features.py"
 
 
-rule mahalanobis_after_ML:
+rule mahalanobis_after_ML_panel:
     input: ""
     output: ""
     script: ""
 
 
-rule umap_rnaseq_selection:
+rule umap_rnaseq_selection_panel:
     input: ""
     output: ""
     script: ""
@@ -151,12 +151,12 @@ rule umap_rnaseq_selection:
 rule fig2:
     input:
         drawing="../data/drawings/",
-        umap_all_strategy="",
-        umap_rnaseq_selection="",
-        mahalanobis_before_ML="",
-        mahalanobis_after_ML="",
-        importance=rules.feature_importance.output[0],
-        feature_grid=rules.top_features_grid.output[0],
+        umap_all_strategy_panel="",
+        umap_rnaseq_selection_panel="",
+        mahalanobis_before_ML_panel="",
+        mahalanobis_after_ML_panel="",
+        importance=rules.feature_importance_panel.output[0],
+        feature_grid=rules.top_features_grid_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[7.7, 7.7],

@@ -58,6 +58,14 @@ rule build_prealn_feature_set:
     script: "scripts/build_prealn_feature_set.py"
 
 
+rule umap_prealn_feature_set:
+    input: rules.build_feature_set.output[0]
+    output: 
+        coords="../output/library_strategy-wf/umap_prealn_features_coords.tsv",
+        model="../output/library_strategy-wf/umap_prealn_features_model.pkl"
+    script: "scripts/umap_prealn_feature_set.py"
+
+
 rule random_forest:
     input:
         labels=rules.munge_strategy_and_selection_from_mongo.output.data,
