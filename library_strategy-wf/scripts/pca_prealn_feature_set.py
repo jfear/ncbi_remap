@@ -7,17 +7,15 @@ from sklearn.decomposition import PCA
 np.random.seed(42)
 
 def main():
-    features = pd.read_parquet(snakemake.input[0]).dropna()
-
-    scaler = StandardScaler()
-    X = scaler.fit_transform(features)
+    scaled_features = pd.read_parquet(snakemake.input[0])
+    X = scaled_features.values
 
     reducer = PCA(n_components=12).fit(X)
     component_names = pd.Index([f"PC{x+1}" for x in range(reducer.n_components_)], name="PCs")
 
-    embeddings = pd.DataFrame(reducer.transform(X), index=features.index, columns=component_names)
+    embeddings = pd.DataFrame(reducer.transform(X), index=scaled_features.index, columns=component_names)
 
-    loadings = pd.DataFrame(reducer.components_, index=component_names, columns=features.columns)
+    loadings = pd.DataFrame(reducer.components_, index=component_names, columns=scaled_features.columns)
 
     explained_variance = pd.DataFrame(
         reducer.explained_variance_ratio_, index=component_names, columns=["explained_variance"]
@@ -33,7 +31,7 @@ if __name__ == "__main__":
         from ncbi_remap.debug import snakemake_debug
 
         snakemake = snakemake_debug(
-            input="../../output/library_strategy-wf/prealn_feature_set.parquet"
+            input="../../output/library_strategy-wf/scaled_prealn_feature_set.parquet"
         )
 
     main()
