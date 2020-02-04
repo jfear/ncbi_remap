@@ -96,9 +96,9 @@ rule panel_plots:
 
 rule outlier_detection:
     input:
-        features=rules.build_prealn_feature_set.output[0],
-        umap=rules.umap_prealn_feature_set.output.embeddings
-    output: "../output/library_strategy-wf/prealn_outliers.tsv"
+        features=rules.scale_feature_set.output[0],
+        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
+    output: "../output/library_strategy-wf/prealn_outliers.parquet"
     script: "scripts/outlier_detection.py"
 
 

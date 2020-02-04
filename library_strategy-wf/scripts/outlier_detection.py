@@ -1,51 +1,64 @@
-import os
+"""Identify outliers in each library strategy and selection group.
 
-import matplotlib.pyplot as plt
+Uses Isolation forest to find outliers in each group. Provides an outlier
+score (close to -1 is outlier) and a flag (True is outlier).
+
+"""
+import os
+from typing import Generator
+
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
 
-np.random.seed(42)
-plt.rcParams["figure.figsize"] = (5, 5)
-PLOT_DEFAULTS = dict(x="UMAP1", y="UMAP2", s=12, rasterized=True, linewidth=0.2)
+# Setting the numpy seed was not working, so I am directly using random_state in class.
+RANDOM_STATE = 42
 
 
 def main():
-    features = pd.read_parquet(snakemake.input.features).dropna()
-    scaler = StandardScaler().fit(features)
-    srxs = features.index
+    scaled_features = pd.read_parquet(snakemake.input.features)
+    labels = pd.read_parquet(snakemake.input.labels).reindex(scaled_features.index)
 
-    labels = pd.read_parquet(snakemake.input.labels).reindex(srxs)
-    strategy = pd.get_dummies(labels.library_strategy)
-    selection = pd.get_dummies(labels.library_selection)
+    library_strategy = pd.concat(groupby_classify(labels.library_strategy, scaled_features))
+    library_selection = pd.concat(groupby_classify(labels.library_selection, scaled_features))
+    df = library_strategy.join(library_selection)
 
-    umap = pd.read_table(snakemake.input.umap, index_col=0).join(labels, how="inner")
+    df.to_parquet(snakemake.output[0])
 
-    # Find outliers in RNA-Seq subset
-    rnaseq_srxs = labels.query("library_strategy == 'RNA-Seq'").index
-    rnaseq_features = features.reindex(rnaseq_srxs)
-    rnaseq_umap = umap.reindex(rnaseq_srxs)
 
-    X = scaler.transform(rnaseq_features)
-    n_samples, n_features = X.shape
-    max_features = int(np.ceil(np.sqrt(n_features)))
+def groupby_classify(labels, features) -> Generator[pd.DataFrame, None, None]:
+    """Find outliers for each group separately.
+    
+    Parameters
+    ----------
+    labels : pd.Series
+        A Series of either library strategy or selection.
+    features : pd.DataFrame
+        A DataFrame with scaled features.
+    """
+    type_ = labels.name
+    for label, data in labels.groupby(labels):
+        srxs = data.index
+        feature_subset = features.reindex(srxs)
 
-    clf = IsolationForest(max_features=max_features, bootstrap=True).fit(X)
-    sample_scores = clf.score_samples(X)
-    flag_outlier = np.where(clf.predict(X) == -1, True, False)
-    n_outliers = flag_outlier.sum()
-    rnaseq_umap["flag_outlier"] = flag_outlier
+        X = feature_subset.values
+        n_samples, n_features = X.shape
+        max_features = int(np.ceil(np.sqrt(n_features)))
 
-    sns.scatterplot(hue="flag_outlier", data=rnaseq_umap, **PLOT_DEFAULTS)
+        clf = IsolationForest(
+            max_features=max_features, bootstrap=True, random_state=RANDOM_STATE
+        ).fit(X)
+        sample_scores = clf.score_samples(X)
+        flag_outlier = np.where(clf.predict(X) == -1, True, False)
 
-    # Where does this map on entire dataset
-    umap["flag_outlier"] = False
-    umap.loc[rnaseq_umap[rnaseq_umap.flag_outlier].index, "flag_outlier"] = True
+        df = pd.DataFrame(
+            index=srxs, columns=[type_, f"{type_}_outlier_score", f"{type_}_flag_outlier"]
+        )
+        df[type_] = label
+        df[f"{type_}_outlier_score"] = sample_scores
+        df[f"{type_}_flag_outlier"] = flag_outlier
 
-    sns.scatterplot(hue="flag_outlier", data=umap, **PLOT_DEFAULTS)
-
+        yield df
 
 
 if __name__ == "__main__":
@@ -54,8 +67,7 @@ if __name__ == "__main__":
 
         snakemake = snakemake_debug(
             input=dict(
-                features="../../output/library_strategy-wf/prealn_feature_set.parquet",
-                umap="../../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
+                features="../../output/library_strategy-wf/scaled_prealn_feature_set.parquet",
                 labels="../../output/library_strategy-wf/sra_strategy_selection.parquet",
             )
         )
