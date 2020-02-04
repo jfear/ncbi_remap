@@ -17,7 +17,7 @@ def main():
 
     # save
     joblib.dump(reducer, snakemake.output.model)
-    df.to_csv(snakemake.output.embeddings, sep="\t")
+    df.to_parquet(snakemake.output.embeddings)
 
 
 if __name__ == "__main__":

@@ -33,7 +33,7 @@ if __name__ == "__main__":
         snakemake = snakemake_debug(
             input=dict(
                 labels="../../output/library_strategy-wf/sra_strategy_selection.parquet",
-                umap="../../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
+                umap="../../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
             ),
             output=dict(strategy="", selection=""),
         )
