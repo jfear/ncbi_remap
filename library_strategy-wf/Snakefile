@@ -35,9 +35,11 @@ select_library_strategy
 rule targets:
     input:
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
-        "../output/library_strategy-wf/prealn_outliers.parquet",
         "../output/library_strategy-wf/library_strategy.svg",
         "../output/library_strategy-wf/library_selection.svg",
+        "../output/library_strategy-wf/prealn_outliers.parquet",
+        "../output/library_strategy-wf/library_strategy_outliers.svg",
+        "../output/library_strategy-wf/library_selection_outliers.svg",
         "../output/library_strategy-wf/summarized_metadata.parquet",
 
 
@@ -96,6 +98,16 @@ rule outlier_detection:
         labels=rules.munge_strategy_and_selection_from_mongo.output.data,
     output: "../output/library_strategy-wf/prealn_outliers.parquet"
     script: "scripts/outlier_detection.py"
+
+
+rule outlier_panel_plots:
+    input: 
+        outliers=rules.outlier_detection.output[0],
+        umap=rules.umap_prealn_feature_set.output.embeddings
+    output: 
+        strategy="../output/library_strategy-wf/library_strategy_outliers.svg",
+        selection="../output/library_strategy-wf/library_selection_outliers.svg"
+    script: "scripts/outlier_panel_plots.py"
 
 
 rule random_forest:
