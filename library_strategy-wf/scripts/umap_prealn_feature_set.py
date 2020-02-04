@@ -1,10 +1,11 @@
 import os
 
 import joblib
+import numpy as np
 import pandas as pd
 import umap
-from sklearn.preprocessing import StandardScaler
 
+np.random.seed(42)
 
 def main():
     features = pd.read_parquet(snakemake.input[0]).dropna()

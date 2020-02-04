@@ -1,9 +1,10 @@
 import os
 
+import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
+np.random.seed(42)
 
 def main():
     features = pd.read_parquet(snakemake.input[0]).dropna()
