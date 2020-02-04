@@ -10,7 +10,7 @@ def main():
                 [{"$project": {"_id": 0, "srx": 1, "library_strategy": 1, "library_selection": 1}}]
             )
         )
-    ).set_index("srx")
+    ).set_index("srx").replace({"other": "OTHER"})
 
     df.to_parquet(snakemake.output.data)
 
