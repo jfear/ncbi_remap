@@ -107,20 +107,15 @@ rule fig1:
 ################################################################################
 # Figure 2. Technical metadata refinement.
 ################################################################################
-rule umap_all_strategy_panel:
+rule umap_library_strategy_panel:
     input: 
-        embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
-        labels="../output/library_strategy-wf/sra_strategy_selection.parquet"
-    output: "../output/paper-wf/figure_panels/umap_all_strategy.svg"
+        embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
+        outliers="../output/library_strategy-wf/prealn_outliers.parquet"
+    output: "../output/paper-wf/figure_panels/umap_library_strategy.svg"
     params:
         plot_kwargs=dict(linewidth=.25)
-    script: "scripts/plot_umap_all_strategy.py"
+    script: "scripts/plot_umap_library_strategy.py"
 
-
-rule mahalanobis_before_ML_panel:
-    input: ""
-    output: ""
-    script: ""
 
 
 rule feature_importance_panel:
