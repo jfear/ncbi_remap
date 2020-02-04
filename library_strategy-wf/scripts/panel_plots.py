@@ -9,18 +9,19 @@ from ncbi_remap.plotting.umap_panel import Plot
 def main():
     plt.style.use(snakemake.params.get("style", "sra"))
 
+    umap = pd.read_parquet(snakemake.input.umap)
+    labels = pd.read_parquet(snakemake.input.labels)
+
     Plot(
-        embeddings_file=snakemake.input.umap,
-        labels_file=snakemake.input.labels,
-        column="library_strategy",
+        embeddings=umap,
+        labels=labels.library_strategy,
         panel_kwargs=snakemake.params.get("panel_kwargs", {}),
         plot_kwargs=snakemake.params.get("plot_kwargs", {}),
     ).panel.savefig(snakemake.output.strategy)
 
     Plot(
-        embeddings_file=snakemake.input.umap,
-        labels_file=snakemake.input.labels,
-        column="library_selection",
+        embeddings=umap,
+        labels=labels.library_selection,
         panel_kwargs=snakemake.params.get("panel_kwargs", {}),
         plot_kwargs=snakemake.params.get("plot_kwargs", {}),
     ).panel.savefig(snakemake.output.selection)
