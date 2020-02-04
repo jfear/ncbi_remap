@@ -51,7 +51,7 @@ class Plot(NcbiPlotter):
 
     def get_data(self):
         labels = pd.read_parquet(self.labels_file)
-        embeddings = pd.read_table(self.embeddings_file, index_col=0)
+        embeddings = pd.read_parquet(self.embeddings_file)
 
         self.embedding_columns = embeddings.columns
         self.data = (

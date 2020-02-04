@@ -21,9 +21,9 @@ def main():
         reducer.explained_variance_ratio_, index=component_names, columns=["explained_variance"]
     )
 
-    embeddings.to_csv(snakemake.output.embeddings, sep="\t")
-    loadings.to_csv(snakemake.output.loadings, sep="\t")
-    explained_variance.to_csv(snakemake.output.variance, sep="\t")
+    embeddings.to_parquet(snakemake.output.embeddings)
+    loadings.to_parquet(snakemake.output.loadings)
+    explained_variance.to_parquet(snakemake.output.variance)
 
 
 if __name__ == "__main__":
