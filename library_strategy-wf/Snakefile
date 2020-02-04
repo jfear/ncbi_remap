@@ -61,9 +61,14 @@ rule build_prealn_feature_set:
     output: "../output/library_strategy-wf/prealn_feature_set.parquet"
     script: "scripts/build_prealn_feature_set.py"
 
+rule scale_feature_set:
+    input: rules.build_prealn_feature_set.output[0]
+    output: "../output/library_strategy-wf/scaled_prealn_feature_set.parquet"
+    script: "scripts/scale_prealn_features.py"
+
 
 rule pca_prealn_feature_set:
-    input: rules.build_prealn_feature_set.output[0]
+    input: rules.scale_feature_set.output[0]
     output: 
         embeddings="../output/library_strategy-wf/pca_prealn_features_embeddings.tsv",
         loadings="../output/library_strategy-wf/pca_prealn_features_loadings.tsv",
@@ -72,11 +77,12 @@ rule pca_prealn_feature_set:
 
 
 rule umap_prealn_feature_set:
-    input: rules.build_prealn_feature_set.output[0]
+    input: rules.scale_feature_set.output[0]
     output: 
         embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
         model="../output/library_strategy-wf/umap_prealn_features_model.joblib.pkl"
     script: "scripts/umap_prealn_feature_set.py"
+
 
 rule panel_plots:
     input: 
