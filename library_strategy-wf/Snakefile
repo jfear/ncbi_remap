@@ -77,6 +77,14 @@ rule umap_prealn_feature_set:
     script: "scripts/umap_prealn_feature_set.py"
 
 
+rule outlier_detection:
+    input:
+        features=rules.build_prealn_feature_set.output[0],
+        umap=rules.umap_prealn_feature_set.output.embeddings
+    output: "../output/library_strategy-wf/prealn_outliers.tsv"
+    script: "scripts/outlier_detection.py"
+
+
 rule random_forest:
     input:
         labels=rules.munge_strategy_and_selection_from_mongo.output.data,
