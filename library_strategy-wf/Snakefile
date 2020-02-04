@@ -94,6 +94,14 @@ rule panel_plots:
     script: "scripts/panel_plots.py"
 
 
+rule outlier_detection:
+    input:
+        features=rules.scale_feature_set.output[0],
+        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
+    output: "../output/library_strategy-wf/prealn_outliers.parquet"
+    script: "scripts/outlier_detection.py"
+
+
 rule random_forest:
     input:
         labels=rules.munge_strategy_and_selection_from_mongo.output.data,
