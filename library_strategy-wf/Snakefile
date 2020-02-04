@@ -36,6 +36,7 @@ rule targets:
     input:
         "../output/library_strategy-wf/summarized_metadata.parquet",
         "../output/library_strategy-wf/umap_prealn_features_embeddings.tsv",
+        "../output/library_strategy-wf/pca_prealn_features_embeddings.tsv",
 
 
 rule free_text_library_strategy:
@@ -57,6 +58,15 @@ rule build_prealn_feature_set:
         junction_counts="../output/prealn-wf/junction_counts",
     output: "../output/library_strategy-wf/prealn_feature_set.parquet"
     script: "scripts/build_prealn_feature_set.py"
+
+
+rule pca_prealn_feature_set:
+    input: rules.build_prealn_feature_set.output[0]
+    output: 
+        embeddings="../output/library_strategy-wf/pca_prealn_features_embeddings.tsv",
+        loadings="../output/library_strategy-wf/pca_prealn_features_loadings.tsv",
+        variance="../output/library_strategy-wf/pca_prealn_features_explained_variance.tsv",
+    script: "scripts/pca_prealn_feature_set.py"
 
 
 rule umap_prealn_feature_set:
