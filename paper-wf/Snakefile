@@ -117,6 +117,11 @@ rule umap_library_strategy_panel:
     script: "scripts/plot_umap_library_strategy.py"
 
 
+rule isolation_score_panel:
+    input: "../output/library_strategy-wf/prealn_outliers.parquet"
+    output: "../output/paper-wf/figure_panels/isolation_score.svg"
+    script: "scripts/plot_isolation_score.py"
+
 
 rule feature_importance_panel:
     input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
