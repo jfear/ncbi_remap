@@ -17,20 +17,33 @@ def main():
     svg.Figure(
         figsize.width_cm,
         figsize.height_cm,
+        # UMAP of Strategy (RNA-Seq and ChIP-Seq)
         svg.Panel(
             svg.SVG(snakemake.input.umap_library_strategy_panel).move(10, 10),
             svg.Text("A", 5, 10, **panel_labels_kwargs),
         ),
+        # Outlier detection score of library strategy and selection
         svg.Panel(
             svg.SVG(snakemake.input.isolation_score_panel).move(10, 10),
             svg.Text("B", 5, 10, **panel_labels_kwargs),
             svg.Text("C", 260, 10, **panel_labels_kwargs),
         ).move(250, 0),
-        svg.Panel(),
+        # Schematic of the library strategy random forest
+        svg.Panel(
+            svg.SVG(snakemake.input.drawing).move(10, 10),
+            svg.Text("D", 5, 10, **panel_labels_kwargs),
+        ).move(0, 190),
+        # Feature importances from the random forest
         svg.Panel(
             svg.SVG(snakemake.input.importance).move(10, 10),
             svg.Text("E", 35, 10, **panel_labels_kwargs),
         ).move(480, 190),
+        # Panel of features
+        svg.Panel(),
+        # UMAP of RNA-Seq with library selection
+        svg.Panel(),
+        # Outlier detection score of updated library strategy and selection
+        svg.Panel(),
     ).save(snakemake.output[0])
 
 
