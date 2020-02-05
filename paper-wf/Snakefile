@@ -86,6 +86,7 @@ rule sample_submission_panel:
     input: rules.srx_prealn.output[0]
     output: "../output/paper-wf/figure_panels/sample_submission.svg"
     params:
+        style=PLOT_STYLE,
         bar_plot_kwargs=dict(color="C0"),
         reg_plot_kwargs=dict(lowess=True, color="C1"),
     script: "scripts/plot_sample_submission.py"
@@ -113,6 +114,7 @@ rule umap_library_strategy_panel:
         outliers="../output/library_strategy-wf/prealn_outliers.parquet"
     output: "../output/paper-wf/figure_panels/umap_library_strategy.svg"
     params:
+        style=PLOT_STYLE,
         plot_kwargs=dict(linewidth=.25)
     script: "scripts/plot_umap_library_strategy.py"
 
@@ -120,24 +122,25 @@ rule umap_library_strategy_panel:
 rule isolation_score_panel:
     input: "../output/library_strategy-wf/prealn_outliers.parquet"
     output: "../output/paper-wf/figure_panels/isolation_score.svg"
+    params: style=PLOT_STYLE,
     script: "scripts/plot_isolation_score.py"
 
 
 rule feature_importance_panel:
     input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
     output: "../output/paper-wf/figure_panels/feature_importance.svg"
-    params:
-        style=PLOT_STYLE,
+    params: style=PLOT_STYLE,
     script: "scripts/plot_feature_importance.py"
 
 
 rule top_features_grid_panel:
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/prealn_features.svg"
-    params:
-        style=PLOT_STYLE,
-        top_features=["", "", "", ""]
-    script: "scripts/plot_prealn_features.py"
+    input: 
+        features="../output/library_strategy-wf/scaled_prealn_feature_set.parquet",
+        importance="../output/library_strategy-wf/random_forest_feature_importance.tsv",
+        labels="../output/library_strategy-wf/summarized_metadata.parquet"
+    output: "../output/paper-wf/figure_panels/top_features.svg"
+    params: style=PLOT_STYLE,
+    script: "scripts/plot_top_features_grid_panel.py"
 
 
 rule umap_rnaseq_selection_panel:
