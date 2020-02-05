@@ -140,12 +140,6 @@ rule top_features_grid_panel:
     script: "scripts/plot_prealn_features.py"
 
 
-rule mahalanobis_after_ML_panel:
-    input: ""
-    output: ""
-    script: ""
-
-
 rule umap_rnaseq_selection_panel:
     input: ""
     output: ""
@@ -154,13 +148,9 @@ rule umap_rnaseq_selection_panel:
 
 rule fig2:
     input:
-        drawing="../data/drawings/",
-        umap_all_strategy_panel="",
-        umap_rnaseq_selection_panel="",
-        mahalanobis_before_ML_panel="",
-        mahalanobis_after_ML_panel="",
+        umap_library_strategy_panel=rules.umap_library_strategy_panel.output[0],
+        isolation_score_panel=rules.isolation_score_panel.output[0],
         importance=rules.feature_importance_panel.output[0],
-        feature_grid=rules.top_features_grid_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[7.7, 7.7],
