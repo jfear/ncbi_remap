@@ -142,7 +142,9 @@ rule top_features_grid_panel:
         importance="../output/library_strategy-wf/random_forest_feature_importance.tsv",
         labels="../output/library_strategy-wf/summarized_metadata.parquet"
     output: "../output/paper-wf/figure_panels/top_features.svg"
-    params: style=PLOT_STYLE,
+    params: 
+        style=("sra", "small_4-3"),
+        # figsize = [1.68, 1.26],
     script: "scripts/plot_top_features_grid_panel.py"
 
 
@@ -158,6 +160,7 @@ rule fig2:
         isolation_score_panel=rules.isolation_score_panel.output[0],
         drawing="../data/drawings/library_strategy.svg",
         importance=rules.feature_importance_panel.output[0],
+        top_features=rules.top_features_grid_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[6.9, 7],

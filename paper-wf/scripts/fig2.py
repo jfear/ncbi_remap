@@ -42,20 +42,20 @@ def main():
         ).move(300, 130),
         # Panel of features
         svg.Panel(
-            svg.SVG("../data/drawings/large_4_3.svg").scale(3.78).move(10, 0),
+            svg.SVG(snakemake.input.top_features).move(10, 0),
             svg.Text("G", 0, 10, **panel_labels_kwargs),
         ).move(0, 310),
         # UMAP of RNA-Seq with library selection
         svg.Panel(
-            svg.SVG("../data/drawings/small_4_3.svg").scale(3.78).move(10, 0),
+            svg.SVG("../data/drawings/small_4_3.svg").scale(3.78 * .65).move(10, 0),
             svg.Text("H", 0, 10, **panel_labels_kwargs),
 
-        ).move(230, 310),
+        ).move(330, 310),
         # Outlier detection score of updated library strategy and selection
         svg.Panel(
-            svg.SVG("../data/drawings/small_16_9.svg").scale(3.78).move(10, 0),
+            svg.SVG("../data/drawings/small_16_9.svg").scale(3.78 * .8).move(10, 0),
             svg.Text("I", 0, 10, **panel_labels_kwargs),
-        ).move(410, 310),
+        ).move(330, 390),
     ).save(snakemake.output[0])
 if __name__ == "__main__":
     if os.getenv("SNAKE_DEBUG"):

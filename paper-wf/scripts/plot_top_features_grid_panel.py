@@ -7,6 +7,7 @@ from ncbi_remap.plotting.top_features_panel import Plot
 
 def main():
     plt.style.use(snakemake.params.get("style", "sra"))
+    plt.rcParams["figure.figsize"] = snakemake.params.get("figsize", plt.rcParams["figure.figsize"])
 
     Plot(
         features_file=snakemake.input.features,
