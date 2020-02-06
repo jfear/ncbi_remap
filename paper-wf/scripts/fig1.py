@@ -21,7 +21,6 @@ def main():
             svg.Text("B", 120, 17, **panel_labels_kwargs),
             svg.Text("C", 120, 75, **panel_labels_kwargs),
             svg.Text("D", 120, 135, **panel_labels_kwargs),
-            svg.Grid(10, 10, 2)
         ),
         svg.Panel(
             svg.SVG(snakemake.input.distribution).move(10, 0),
