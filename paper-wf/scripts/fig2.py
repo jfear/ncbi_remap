@@ -30,9 +30,8 @@ def main():
         ).move(175, 0),
         # Schematic of the library strategy random forest
         svg.Panel(
-            svg.SVG("../data/drawings/large_16_9.svg").scale(3.78 * 1.4).move(10, 0),
+            svg.SVG(snakemake.input.drawing).scale(3.78).move(10, 15),
             svg.Text("D", 0, 10, **panel_labels_kwargs),
-            # svg.SVG("../data/drawings/small_16_9.svg").move(50, 10),
         ).move(0, 130),
         # Feature importances from the random forest
         svg.Panel(
