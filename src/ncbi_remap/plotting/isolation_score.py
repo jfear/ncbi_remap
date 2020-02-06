@@ -10,8 +10,8 @@ import seaborn as sns
 from ncbi_remap.plotting import NcbiPlotter, update_kwargs
 
 
-STRATEGY_PLOT_DEFAULTS = dict(color="lightgray", s=12, linewidth=.1, rasterized=True, legend=None)
-SELECTION_PLOT_DEFAULTS = dict(color="lightgray", s=12, linewidth=.1, rasterized=True, legend=None)
+STRATEGY_PLOT_DEFAULTS = dict(palette=["black", "red"], s=12, linewidth=.1, rasterized=True, legend=None)
+SELECTION_PLOT_DEFAULTS = dict(palette=["black", "red"], s=12, linewidth=.1, rasterized=True, legend=None)
 STRATEGY_AXES_DEFAULTS = dict(xlabel="Samples", xticklabels=[], ylabel="-(Isolation Score)", title="Strategy")
 SELECTION_AXES_DEFAULTS = dict(xlabel="Samples", xticklabels=[], ylabel="", title="Selection")
 

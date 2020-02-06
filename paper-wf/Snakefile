@@ -114,15 +114,17 @@ rule umap_library_strategy_panel:
         outliers="../output/library_strategy-wf/prealn_outliers.parquet"
     output: "../output/paper-wf/figure_panels/umap_library_strategy.svg"
     params:
-        style=PLOT_STYLE,
-        plot_kwargs=dict(linewidth=.25)
+        style=("sra", "large_4-3"),
+        plot_kwargs=dict(linewidth=.25, s=4)
     script: "scripts/plot_umap_library_strategy.py"
 
 
 rule isolation_score_panel:
     input: "../output/library_strategy-wf/prealn_outliers.parquet"
     output: "../output/paper-wf/figure_panels/isolation_score.svg"
-    params: style=PLOT_STYLE,
+    params: 
+        style=("sra", "large_16-9"),
+        plot_kwargs=dict(linewidth=.05, s=4)
     script: "scripts/plot_isolation_score.py"
 
 
@@ -157,7 +159,7 @@ rule fig2:
         importance=rules.feature_importance_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
-        figsize=[7.7, 7.7],
+        figsize=[6.9, 7],
         label_font=LABEL_FONT,
         label_size=LABEL_SIZE,
         label_weight=LABEL_WEIGHT,
