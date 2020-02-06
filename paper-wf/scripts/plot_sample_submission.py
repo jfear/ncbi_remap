@@ -8,6 +8,7 @@ from ncbi_remap.plotting import sample_submission
 
 def main():
     plt.style.use(snakemake.params.get("style", "sra"))
+    plt.rcParams["figure.figsize"] = snakemake.params.get("figsize", plt.rcParams["figure.figsize"])
 
     plot = sample_submission.Plot(
         snakemake.input[0],
@@ -16,9 +17,6 @@ def main():
         bar_ax_kwargs=dict(snakemake.params.get("bar_ax_kwargs", {})),
         reg_ax_kwargs=dict(snakemake.params.get("reg_ax_kwargs", {})),
     )
-
-    if "title" in snakemake.params:
-        plt.suptitle(snakemake.params.title)
 
     plt.savefig(snakemake.output[0])
 

@@ -16,16 +16,16 @@ def main():
 
     svg.Figure(figsize.width_cm, figsize.height_cm, 
         svg.Panel(
-            svg.SVG(snakemake.input.drawing).scale(3.5).move(10, 10),
-            svg.Text("A", 5, 10, **panel_labels_kwargs),
-            svg.Text("B", 154, 27, **panel_labels_kwargs),
-            svg.Text("C", 154, 97, **panel_labels_kwargs),
-            svg.Text("D", 154, 167, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.drawing).scale(2.95).move(0, 0),
+            svg.Text("A", 0, 10, **panel_labels_kwargs),
+            svg.Text("B", 120, 17, **panel_labels_kwargs),
+            svg.Text("C", 120, 75, **panel_labels_kwargs),
+            svg.Text("D", 120, 135, **panel_labels_kwargs),
         ),
         svg.Panel(
-            svg.SVG(snakemake.input.distribution).scale(1.3).move(10, 10),
-            svg.Text("E", 5, 10, **panel_labels_kwargs),
-        ).move(410, 0),
+            svg.SVG(snakemake.input.distribution).move(10, 0),
+            svg.Text("E", 0, 10, **panel_labels_kwargs),
+        ).move(0, 200),
     ).save(snakemake.output[0])
 
 
