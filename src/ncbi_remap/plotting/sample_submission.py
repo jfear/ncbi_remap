@@ -11,7 +11,7 @@ from ncbi_remap.plotting import NcbiPlotter, update_kwargs
 
 BAR_PLOT_DEFAULTS = dict()
 REG_PLOT_DEFAULTS = dict()
-BAR_AXES_DEFAULTS = dict(ylabel="Cumulative Samples (Thousands)", xlabel="Year")
+BAR_AXES_DEFAULTS = dict(ylabel="Cumulative Samples\n(Thousands)", xlabel="Year")
 REG_AXES_DEFAULTS = dict(ylabel="Samples (Thousands)", xlabel="Year")
 
 
