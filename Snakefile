@@ -1,9 +1,8 @@
 """Get things started."""
 rule targets:
     input:
-        "output/db_download.date",
-        "output/prealn_queue.date",
         "output/srx2srr.csv"
+        "output/prealn_queue.date",
 
 
 rule sra2mongo:
@@ -14,6 +13,7 @@ rule sra2mongo:
     """
 
 rule srx2srr:
+    input: rules.sra2mongo.output[0]
     output: "output/srx2srr.csv"
     script: "scripts/srx2srr.py"
 
