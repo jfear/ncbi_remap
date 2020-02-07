@@ -35,12 +35,12 @@ select_library_strategy
 rule targets:
     input:
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
+        "../output/library_strategy-wf/rnaseq.pkl",
+        # Figures
         "../output/library_strategy-wf/library_strategy.svg",
         "../output/library_strategy-wf/library_selection.svg",
-        "../output/library_strategy-wf/prealn_outliers.parquet",
         "../output/library_strategy-wf/library_strategy_outliers.svg",
         "../output/library_strategy-wf/library_selection_outliers.svg",
-        "../output/library_strategy-wf/summarized_metadata.parquet",
 
 
 rule build_prealn_feature_set:
@@ -134,3 +134,9 @@ rule metadata_integration:
         forest=rules.random_forest.output["predicted_labels"],
     output: "../output/library_strategy-wf/summarized_metadata.parquet"
     script: "scripts/metadata_integration.py"
+
+
+rule possible_rnaseq_samples:
+    input: rules.metadata_integration.output[0]
+    output: "../output/library_strategy-wf/rnaseq.pkl"
+    script: "scripts/filter_possible_rnaseq.py"
