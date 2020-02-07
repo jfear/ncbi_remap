@@ -1,7 +1,7 @@
 """Get things started."""
 rule targets:
     input:
-        "output/srx2srr.csv"
+        "output/srx2srr.csv",
         "output/prealn_queue.date",
 
 
