@@ -29,10 +29,6 @@ srxMerge:
   samtools_stats: ../output/aln-wf/samples/{srx}/{srx}.bam.samtools.stats
   samtools_idxstats: ../output/aln-wf/samples/{srx}/{srx}.bam.samtools.idxstats
   bamtools_stats: ../output/aln-wf/samples/{srx}/{srx}.bam.bamtools.stats
-  bamCoverage_first: ../output/aln-wf/samples/{srx}/{srx}.first.bedgraph
-  bamCoverage_second: ../output/aln-wf/samples/{srx}/{srx}.second.bedgraph
-  bamCoverageFlyBase_first: ../output/aln-wf/samples/{srx}/{srx}.flybase.first.bedgraph
-  bamCoverageFlyBase_second: ../output/aln-wf/samples/{srx}/{srx}.flybase.second.bedgraph
   bigWig_first: ../output/aln-wf/samples/{srx}/{srx}.first.bw
   bigWig_second: ../output/aln-wf/samples/{srx}/{srx}.second.bw
   bigWigFlyBase_first: ../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw
