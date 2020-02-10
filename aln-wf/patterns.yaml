@@ -33,7 +33,7 @@ srxMerge:
   bigWig_second: ../output/aln-wf/samples/{srx}/{srx}.second.bw
   bigWigFlyBase_first: ../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw
   bigWigFlyBase_second: ../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw
-done: "../output/aln-wf/done"
+done: "../output/aln-wf/done/{srx}"
 
 # MISC Files
 rnaseq_srxs: "../output/library_strategy-wf/rnaseq.pkl"
