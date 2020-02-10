@@ -80,8 +80,7 @@ localrules: atropos_summary, hisat2_summary
 ###############################################################################
 patterns = get_patterns('patterns.yaml')
 
-srxs = get_samples(patterns["rnaseq_srxs"], patterns["done"], size=2)
-srxs = ["SRX468097"]
+srxs = get_samples(patterns["rnaseq_srxs"], patterns["done"], size=100)
 sample_table = pd.read_csv(patterns["srx2srr"]).query(f"srx == {srxs}")
 
 targets = helpers.fill_patterns(patterns, sample_table)
