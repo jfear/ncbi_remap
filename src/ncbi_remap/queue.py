@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Callable, List, Tuple, Optional
 import pickle
+import re
 
 import numpy as np
 from pandas import DataFrame
@@ -40,7 +41,12 @@ def get_samples(
         focus = pickle.load(open(subset_file, "rb"))  # type: set
         queued = queued.intersection(focus)
 
-    return sorted(list(queued))[:size]
+    return sorted(list(queued), key=sort_accession)[:size]
+
+
+def sort_accession(x):
+    match = re.findall(r"\d+", x)[0]
+    return int(match)
 
 
 def dask_run_srr_checker(
