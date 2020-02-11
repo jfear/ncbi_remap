@@ -73,14 +73,15 @@ workdir: '.'
 # import config
 configfile: '../config/reference_config.yaml'
 
-localrules: atropos_summary, hisat2_summary
+localrules: atropos_summary, hisat2_summary, srx_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
 patterns = get_patterns('patterns.yaml')
 
-srxs = get_samples(patterns["rnaseq_srxs"], "../output/aln-wf/done", size=100)
+# srxs = get_samples(patterns["rnaseq_srxs"], "../output/aln-wf/done", "../output/done.pkl", size=100)
+srxs = get_samples("../output/done.pkl", "../output/aln-wf/done", size=5000)
 sample_table = pd.read_csv(patterns["srx2srr"]).query(f"srx == {srxs}")
 
 targets = helpers.fill_patterns(patterns, sample_table)
@@ -89,16 +90,8 @@ rule all:
     input: targets["done"]
 
 
-def keepers(targets):
-    return list(flatten([
-        targets['atropos']['summary'],
-        targets['hisat2']['summary'],
-        utils.flatten(patterns["srxMerge"])
-    ]))
-
-
 rule srx_complete:
-    input: keepers(targets)
+    input: utils.flatten(patterns["srxMerge"])
     output: patterns["done"]
     shell: "touch {output[0]}"
 
@@ -140,24 +133,36 @@ rule intergenic:
 rule segment_exons_ignore_strand:
     input: config['references']['dmel']['db']
     output: patterns["segments"]["nonstranded"]
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     script: "scripts/segment_exons_ignore_strand.py"
 
 
 rule segment_exons_with_strand:
     input: config['references']['dmel']['db']
     output: patterns["segments"]["stranded"]
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     script: "scripts/segment_exons_with_strand.py"
 
 
 rule fuse_exons_ignore_strand:
     input: config['references']['dmel']['db']
     output: patterns["fusions"]["nonstranded"]
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     script: "scripts/fuse_exons_ignore_strand.py"
 
 
 rule fuse_exons_with_strand:
     input: config['references']['dmel']['db']
     output: patterns["fusions"]["stranded"]
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 1,
+      time_hr=lambda wildcards, attempt: attempt * 1
     script: "scripts/fuse_exons_with_strand.py"
 
 
@@ -209,10 +214,10 @@ rule atropos:
 
 rule atropos_summary:
     input: rules.atropos.log
-    output: patterns["atropos"]["summary"] 
+    output: patterns["atropos"]["summary"]
     script: "../scripts/atropos_check.py"
 
-    
+
 ###############################################################################
 # Alignment
 ###############################################################################
