@@ -79,8 +79,7 @@ localrules: atropos_summary, hisat2_summary, srx_complete
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    # targets="../output/library_strategy-wf/rnaseq.pkl", 
-    targets="../output/done.pkl", 
+    targets="../output/library_strategy-wf/rnaseq.pkl", 
     completed="../output/aln-wf/done", 
     problems=[
         "../output/prealn-wf/download_bad",
@@ -90,10 +89,11 @@ queue = Queue(
         "../output/aln-wf/atropos_bad",
         "../output/aln-wf/alignment_bad",
         "../output/aln-wf/bigwig_bad",
-    ]
+    ],
     srx2srr="../output/srx2srr.csv", 
-    size=100
+    size=2
 )
+sample_table = queue.sample_table
 
 rule run_all:
     input: expand("../output/aln-wf/done/{srx}", srx=queue.srxs)
@@ -275,7 +275,7 @@ def _input_expMerge(wildcards):
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique().tolist()
     }
-    return expand(rules.hisat2.output.bam, **fill)
+    return expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam", **fill)
 
 
 rule expMerge:
@@ -398,27 +398,20 @@ rule run_stats:
 ###############################################################################
 # Make BedGraphs
 ###############################################################################
-def _param_bamCoverage(wildcards):
-    """Get strand information from wildcards."""
-    base = ('--outFileFormat bedgraph '
-            '--binSize 1 '
-            '--normalizeTo1x 129000000 '
-            '--ignoreForNormalization chrX '
-            )
+bamCoverage_options = (
+    '--outFileFormat bedgraph '
+    '--binSize 1 '
+    '--normalizeTo1x 129000000 '
+    '--ignoreForNormalization chrX '
+)
 
-    if wildcards.strand == 'first':
-        return base + '--filterRNAstrand forward'
-    elif wildcards.strand == 'second':
-        return base + '--filterRNAstrand reverse'
-
-
-rule bamCoverage:
+rule bamCoverage_first:
     input:
         bam=rules.expMerge.output.bam,
         bai=rules.expMerge.output.bai,
-    output: temp('../output/aln-wf/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
+    output: temp('../output/aln-wf/samples/{srx}/{srx}.first.bedgraph')
     params:
-        extra=_param_bamCoverage
+        extra=bamCoverage_options + '--filterRNAstrand forward'
     threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 16,
@@ -428,9 +421,25 @@ rule bamCoverage:
         wrapper_for('wrappers/deeptools/bamCoverage')
 
 
-rule convertToFlybase:
-    input: rules.bamCoverage.output[0]
-    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.{strand,first|second}.bedgraph")
+rule bamCoverage_second:
+    input:
+        bam=rules.expMerge.output.bam,
+        bai=rules.expMerge.output.bai,
+    output: temp('../output/aln-wf/samples/{srx}/{srx}.second.bedgraph')
+    params:
+        extra=bamCoverage_options + '--filterRNAstrand reverse'
+    threads: 8
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 16,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    conda: "conda.yaml"
+    wrapper:
+        wrapper_for('wrappers/deeptools/bamCoverage')
+
+
+rule convertToFlybase_first:
+    input: rules.bamCoverage_first.output[0]
+    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.first.bedgraph")
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -444,12 +453,27 @@ rule convertToFlybase:
         '-o {output[0]}'
 
 
+rule convertToFlybase_second:
+    input: rules.bamCoverage_second.output[0]
+    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.second.bedgraph")
+    conda: 'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    shell:
+        'chrom_convert '
+        '--from UCSC '
+        '--to FlyBase '
+        '--fileType BED '
+        '-i {input[0]} '
+        '-o {output[0]}'
+
 ###############################################################################
 # Make BigWigs
 ###############################################################################
 rule bigwig_first:
     input:
-        bedgraph=rules.bamCoverage.output[0],
+        bedgraph=rules.bamCoverage_first.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/aln-wf/samples/{srx}/{srx}.first.bw"
     conda: 'conda.yaml'
@@ -465,7 +489,7 @@ rule bigwig_first:
 
 rule bigwig_second:
     input:
-        bedgraph=rules.bamCoverage.output[0],
+        bedgraph=rules.bamCoverage_second.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/aln-wf/samples/{srx}/{srx}.second.bw"
     conda: 'conda.yaml'
@@ -481,7 +505,7 @@ rule bigwig_second:
 
 rule flybase_bigwig_first:
     input:
-        bedgraph=rules.convertToFlybase.output[0],
+        bedgraph=rules.convertToFlybase_first.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw"
     conda: 'conda.yaml'
@@ -497,7 +521,7 @@ rule flybase_bigwig_first:
 
 rule flybase_bigwig_second:
     input:
-        bedgraph=rules.convertToFlybase.output[0],
+        bedgraph=rules.convertToFlybase_second.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw"
     conda: 'conda.yaml'
