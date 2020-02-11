@@ -111,3 +111,7 @@ def test_srr_subset_folder(srr_folder):
     assert queue.n_srrs == 3
 
 
+def test_srx_sample_table():
+    queue = Queue(targets=["DRX000774", "DRX000775", "SRX000437"], size=2)
+    assert sorted(queue.srxs) == sorted(queue.sample_table.srx.unique().tolist())
+
