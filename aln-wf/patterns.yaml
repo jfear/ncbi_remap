@@ -29,12 +29,15 @@ srxMerge:
   samtools_stats: ../output/aln-wf/samples/{srx}/{srx}.bam.samtools.stats
   samtools_idxstats: ../output/aln-wf/samples/{srx}/{srx}.bam.samtools.idxstats
   bamtools_stats: ../output/aln-wf/samples/{srx}/{srx}.bam.bamtools.stats
-  bamCoverage: ../output/aln-wf/samples/{srx}/{srx}.{strand}.bedgraph
-  bamCoverageFlyBase: ../output/aln-wf/samples/{srx}/{srx}.flybase.{strand}.bedgraph
-  bigWig: ../output/aln-wf/samples/{srx}/{srx}.{strand}.bw
-  bigWigFlyBase: ../output/aln-wf/samples/{srx}/{srx}.flybase.{strand}.bw
+  bigWig_first: ../output/aln-wf/samples/{srx}/{srx}.first.bw
+  bigWig_second: ../output/aln-wf/samples/{srx}/{srx}.second.bw
+  bigWigFlyBase_first: ../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw
+  bigWigFlyBase_second: ../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw
+done: "../output/aln-wf/done/{srx}"
 
 # MISC Files
+rnaseq_srxs: "../output/library_strategy-wf/rnaseq.pkl"
+srx2srr: "../output/srx2srr.csv"
 layout: ../output/prealn-wf/samples/{srx}/{srr}/LAYOUT
 strand: ../output/prealn-wf/samples/{srx}/{srr}/STRAND
 atropos_bad: ../output/aln-wf/samples/{srx}/ATROPOS_BAD
