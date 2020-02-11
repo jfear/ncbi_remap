@@ -57,7 +57,7 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
-from ncbi_remap.queue import get_samples
+from ncbi_remap.queue import Queue
 from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
 # Setup tempdir to work with lscratch
@@ -78,12 +78,21 @@ localrules: atropos_summary, hisat2_summary, srx_complete
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
+queue = Queue(
+    # targets="../output/library_strategy-wf/rnaseq.pkl", 
+    targets="../output/done.pkl", 
+    completed="../output/aln-wf/done", 
+    problems=[
+        "../output/prealn-wf/download_bad",
+        "../output/prealn-wf/alignment_bad",
+        "../output/prealn-wf/atropos_bad",
+        "../output/prealn-wf/abi_solid",
+    ]
+    srx2srr="../output/srx2srr.csv", 
+    size=100
+)
+sample_table = queue.sample_table
 patterns = get_patterns('patterns.yaml')
-
-# srxs = get_samples(patterns["rnaseq_srxs"], "../output/aln-wf/done", "../output/done.pkl", size=100)
-srxs = get_samples("../output/done.pkl", "../output/aln-wf/done", size=5000)
-sample_table = pd.read_csv(patterns["srx2srr"]).query(f"srx == {srxs}")
-
 targets = helpers.fill_patterns(patterns, sample_table)
 
 rule all:
