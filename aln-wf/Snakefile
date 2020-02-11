@@ -58,7 +58,7 @@ from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
 from ncbi_remap.queue import Queue
-from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
+from ncbi_remap.snakemake import wrapper_for 
 
 # Setup tempdir to work with lscratch
 if os.getenv("SLURM_JOBID", False):
@@ -87,22 +87,16 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
         "../output/prealn-wf/atropos_bad",
         "../output/prealn-wf/abi_solid",
+        "../output/aln-wf/atropos_bad",
+        "../output/aln-wf/alignment_bad",
+        "../output/aln-wf/bigwig_bad",
     ]
     srx2srr="../output/srx2srr.csv", 
     size=100
 )
-sample_table = queue.sample_table
-patterns = get_patterns('patterns.yaml')
-targets = helpers.fill_patterns(patterns, sample_table)
 
-rule all:
-    input: targets["done"]
-
-
-rule srx_complete:
-    input: utils.flatten(patterns["srxMerge"])
-    output: patterns["done"]
-    shell: "touch {output[0]}"
+rule run_all:
+    input: expand("../output/aln-wf/done/{srx}", srx=queue.srxs)
 
 
 def slack(text):
@@ -131,8 +125,8 @@ onerror:
 rule intergenic:
     input: config['references']['dmel']['db']
     output:
-        bed=patterns['intergenic']['bed'],
-        gtf=patterns['intergenic']['gtf']
+        bed="../output/dmel_r6-11.intergenic.bed",
+        gtf="../output/dmel_r6-11.intergenic.gtf"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
@@ -141,7 +135,7 @@ rule intergenic:
 
 rule segment_exons_ignore_strand:
     input: config['references']['dmel']['db']
-    output: patterns["segments"]["nonstranded"]
+    output: "../output/aln-wf/nonstranded_exon_segments.gtf"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
@@ -150,7 +144,7 @@ rule segment_exons_ignore_strand:
 
 rule segment_exons_with_strand:
     input: config['references']['dmel']['db']
-    output: patterns["segments"]["stranded"]
+    output: "../output/aln-wf/stranded_exon_segments.gtf"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
@@ -159,7 +153,7 @@ rule segment_exons_with_strand:
 
 rule fuse_exons_ignore_strand:
     input: config['references']['dmel']['db']
-    output: patterns["fusions"]["nonstranded"]
+    output: "../output/aln-wf/nonstranded_exon_fusions.gtf"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
@@ -168,7 +162,7 @@ rule fuse_exons_ignore_strand:
 
 rule fuse_exons_with_strand:
     input: config['references']['dmel']['db']
-    output: patterns["fusions"]["stranded"]
+    output: "../output/aln-wf/stranded_exon_fusions.gtf"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 1
@@ -182,11 +176,11 @@ rule fuse_exons_with_strand:
 rule fastq_dump:
     """Downloads fastq and checks if there is one or two sets of reads."""
     output:
-        fq1=temp(patterns['fastq']['r1']),
-        fq2=temp(patterns['fastq']['r2']),
-        flag=patterns['layout'],
-        summary=patterns['fastq']['summary'],
-    log: patterns['fastq']['r1'] + '.log'
+        fq1=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz"),
+        fq2=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_2.fastq.gz"),
+        flag="../output/prealn-wf/samples/{srx}/{srr}/LAYOUT",
+        summary="../output/prealn-wf/samples/{srx}/{srr}/{srr}.fastq.tsv",
+    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz.log"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
       time_hr=lambda wildcards, attempt: attempt * 12
@@ -201,17 +195,16 @@ rule fastq_dump:
 rule atropos:
     """Filter reads that are less than 25bp."""
     input:
-        R1=patterns['fastq']['r1'],
-        R2=patterns['fastq']['r2'],
-        layout=patterns['layout']
+        R1=rules.fastq_dump.output.fq1,
+        R2=rules.fastq_dump.output.fq2,
+        layout=rules.fastq_dump.output.flag
     output:
-        R1=temp(patterns['atropos']['r1']),
-        R2=temp(patterns['atropos']['r2']),
+        R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz"),
+        R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz")
     params:
         extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
-    log:
-        patterns['atropos']['r1'] + '.log'
+    log: "../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
     threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 8,
@@ -223,7 +216,7 @@ rule atropos:
 
 rule atropos_summary:
     input: rules.atropos.log
-    output: patterns["atropos"]["summary"]
+    output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
     script: "../scripts/atropos_check.py"
 
 
@@ -232,9 +225,8 @@ rule atropos_summary:
 ###############################################################################
 rule hisat2_splice_site:
     """Generate splicesite information from known annotations."""
-    input:
-        gtf=config['references']['dmel']['gtf']
-    output: patterns['hisat2']['splice_sites']
+    input: gtf=config['references']['dmel']['gtf']
+    output: "../output/prealn-wf/known_splice_sites_r6-11.txt"
     conda: "conda.yaml"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 1,
@@ -245,25 +237,25 @@ rule hisat2_splice_site:
 rule hisat2:
     """Basic alignment."""
     input:
-        flag=patterns['layout'],
+        flag=rules.fastq_dump.output.flag,
         index=config['references']['dmel']['hisat2'],
-        splice_sites=patterns['hisat2']['splice_sites'],
-        R1=patterns['atropos']['r1'],
-        R2=patterns['atropos']['r2'],
-        layout=patterns['layout'],
-        strand=patterns['strand']
+        splice_sites=rules.hisat2_splice_site.output[0],
+        R1=rules.atropos.output.R1,
+        R2=rules.atropos.output.R2,
+        layout=rules.fastq_dump.output.flag,
+        strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
     output:
-        bam=temp(patterns['hisat2']['bam']),
-        bai=temp(patterns['hisat2']['bai'])
+        bam=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
+        bai=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
     threads: 8
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 16,
       time_hr=lambda wildcards, attempt: attempt * 4
     params:
-        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=patterns['hisat2']['splice_sites']),
+        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=rules.hisat2_splice_site.output[0]),
         samtools_view_extra="--threads 4 -q 20",
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log: patterns['hisat2']['bam'] + '.log'
+    log: "../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('wrappers/hisat2/align')
@@ -271,7 +263,7 @@ rule hisat2:
 
 rule hisat2_summary:
     input: rules.hisat2.log
-    output: patterns['hisat2']['summary']
+    output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
     script: "../scripts/hisat2_check.py"
 
 
@@ -283,14 +275,14 @@ def _input_expMerge(wildcards):
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique().tolist()
     }
-    return expand(patterns['hisat2']['bam'], **fill)
+    return expand(rules.hisat2.output.bam, **fill)
 
 
 rule expMerge:
     input: _input_expMerge
     output:
-        bam=patterns['srxMerge']['bam'],
-        bai=patterns['srxMerge']['bai']
+        bam="../output/aln-wf/samples/{srx}/{srx}.bam",
+        bai="../output/aln-wf/samples/{srx}/{srx}.bam.bai"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 8,
@@ -313,7 +305,7 @@ def _layout(wildcards):
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
     }
-    return expand(patterns['layout'], **fill)[0]
+    return expand(rules.hisat2.input.layout, **fill)[0]
 
 
 def _strand(wildcards):
@@ -321,19 +313,19 @@ def _strand(wildcards):
         'srx': wildcards.srx,
         'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
     }
-    return expand(patterns['strand'], **fill)[0]
+    return expand(rules.hisat2.input.strand, **fill)[0]
 
 
 rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
-        bam=patterns['srxMerge']['bam'],
+        bam=rules.expMerge.output.bam,
         layout=_layout,
         strand=_strand,
     output:
-        counts=patterns['srxMerge']['feature_counts']['counts'],
-        jcounts=patterns['srxMerge']['feature_counts']['jcounts'],
-        summary=patterns['srxMerge']['feature_counts']['summary']
+        counts="../output/aln-wf/samples/{srx}/{srx}.bam.counts",
+        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.counts.jcounts",
+        summary="../output/aln-wf/samples/{srx}/{srx}.bam.counts.summary",
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
@@ -341,25 +333,24 @@ rule feature_counts:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log:
-        patterns['srxMerge']['feature_counts']['counts'] + '.log'
+    log: "../output/aln-wf/samples/{srx}/{srx}.bam.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
 
 
-rule featurecounts_intergenic:
+rule feature_counts_intergenic:
     """
     Count reads in intergenic regions with featureCounts from the subread package
     """
     input:
-        annotation=patterns['intergenic']['gtf'],
-        bam=patterns['srxMerge']['bam'],
+        annotation=rules.intergenic.output.gtf,
+        bam=rules.expMerge.output.bam,
         layout=_layout,
     output:
-        counts=patterns['srxMerge']['feature_counts_intergenic']['counts'],
-        jcounts=patterns['srxMerge']['feature_counts_intergenic']['jcounts'],
-        summary=patterns['srxMerge']['feature_counts_intergenic']['summary']
+        counts="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts",
+        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.jcounts",
+        summary="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.summary",
     params:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
@@ -367,8 +358,7 @@ rule featurecounts_intergenic:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log:
-        patterns['srxMerge']['feature_counts_intergenic']['counts'] + '.log'
+    log: "../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
@@ -385,12 +375,12 @@ rule featurecounts_intergenic:
 ###############################################################################
 rule run_stats:
     input:
-        bam=patterns['srxMerge']['bam'],
-        bai=patterns['srxMerge']['bai'],
+        bam=rules.expMerge.output.bam,
+        bai=rules.expMerge.output.bai,
     output:
-        samtools_stats=patterns['srxMerge']['samtools_stats'],
-        samtools_idxstats=patterns['srxMerge']['samtools_idxstats'],
-        bamtools_stats=patterns['srxMerge']['bamtools_stats']
+        samtools_stats="../output/aln-wf/samples/{srx}/{srx}.bam.samtools.stats",
+        samtools_idxstats="../output/aln-wf/samples/{srx}/{srx}.bam.samtools.idxstats",
+        bamtools_stats="../output/aln-wf/samples/{srx}/{srx}.bam.bamtools.stats",
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 2,
@@ -424,10 +414,9 @@ def _param_bamCoverage(wildcards):
 
 rule bamCoverage:
     input:
-        bam=patterns['srxMerge']['bam'],
-        bai=patterns['srxMerge']['bai']
-    output:
-        temp('../output/aln-wf/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
+        bam=rules.expMerge.output.bam,
+        bai=rules.expMerge.output.bai,
+    output: temp('../output/aln-wf/samples/{srx}/{srx}.{strand,first|second}.bedgraph')
     params:
         extra=_param_bamCoverage
     threads: 8
@@ -441,7 +430,7 @@ rule bamCoverage:
 
 rule convertToFlybase:
     input: rules.bamCoverage.output[0]
-    output: bedgraph=temp("../output/aln-wf/samples/{srx}/{srx}.flybase.{strand,first|second}.bedgraph")
+    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.{strand,first|second}.bedgraph")
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -452,25 +441,17 @@ rule convertToFlybase:
         '--to FlyBase '
         '--fileType BED '
         '-i {input[0]} '
-        '-o {output.bedgraph}'
+        '-o {output[0]}'
 
 
 ###############################################################################
 # Make BigWigs
 ###############################################################################
-def _convertBedGraphToBigWig(wildcards):
-    if 'flybase' in wildcards.prefix:
-        return patterns['chromSizes_fb']
-    else:
-        return config['references']['dmel']['chromSizes']
-
-
-rule convertBedGraphToBigWig:
+rule bigwig_first:
     input:
-        bedgraph='{prefix}.bedgraph',
-        chromSizes=_convertBedGraphToBigWig
-    output:
-        bigwig='{prefix}.bw'
+        bedgraph=rules.bamCoverage.output[0],
+        chromSizes=config['references']['dmel']['chromSizes']
+    output: "../output/aln-wf/samples/{srx}/{srx}.first.bw"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -478,7 +459,72 @@ rule convertBedGraphToBigWig:
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output.bigwig} '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
         '&& rm $tmpBg '
 
-# vim: set ft=python.snakemake
+
+rule bigwig_second:
+    input:
+        bedgraph=rules.bamCoverage.output[0],
+        chromSizes=config['references']['dmel']['chromSizes']
+    output: "../output/aln-wf/samples/{srx}/{srx}.second.bw"
+    conda: 'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    shell:
+        'tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& bedSort {input.bedgraph} $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
+        '&& rm $tmpBg '
+
+
+rule flybase_bigwig_first:
+    input:
+        bedgraph=rules.convertToFlybase.output[0],
+        chromSizes=config['references']['dmel']['fb_chromSizes']
+    output: "../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw"
+    conda: 'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    shell:
+        'tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& bedSort {input.bedgraph} $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
+        '&& rm $tmpBg '
+
+
+rule flybase_bigwig_second:
+    input:
+        bedgraph=rules.convertToFlybase.output[0],
+        chromSizes=config['references']['dmel']['fb_chromSizes']
+    output: "../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw"
+    conda: 'conda.yaml'
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 12,
+      time_hr=lambda wildcards, attempt: attempt * 4
+    shell:
+        'tmpBg=`mktemp --suffix=.bedgraph` '
+        '&& bedSort {input.bedgraph} $tmpBg '
+        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
+        '&& rm $tmpBg '
+
+
+###############################################################################
+# What to keep
+###############################################################################
+rule srx_complete:
+    input: 
+        rules.expMerge.output.bam,
+        rules.feature_counts.output.counts,
+        rules.feature_counts_intergenic.output.counts,
+        rules.run_stats.output.samtools_stats,
+        rules.run_stats.output.samtools_idxstats,
+        rules.run_stats.output.bamtools_stats,
+        rules.bigwig_first.output[0],
+        rules.bigwig_second.output[0],
+        rules.flybase_bigwig_first.output[0],
+        rules.flybase_bigwig_second.output[0],
+    output: "../output/aln-wf/done/{srx}"
+    shell: "touch {output[0]}"
