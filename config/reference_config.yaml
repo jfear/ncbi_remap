@@ -7,6 +7,7 @@ references:
     hisat2: ../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11.1.ht2
     refflat: ../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.refflat
     chromSizes: ../lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes
+    fb_chromSizes: ../output/dmel_r6-11.flybase.chromsizes
     salmon: ../lcdb-references/dmel/r6-11_transcriptome/salmon/dmel_r6-11_transcriptome/hash.bin
   rRNA:
     bowtie2: ../lcdb-references/dmel/rRNA/bowtie2/dmel_rRNA.1.bt2
