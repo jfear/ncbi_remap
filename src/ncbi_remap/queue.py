@@ -76,7 +76,7 @@ class Queue:
 
     @property
     def srxs(self):
-        return sorted(self._srxs, key=self.sort_accession)[:self.size]
+        return sorted(self._srxs, key=self.sort_accession)[: self.size]
 
     @property
     def srrs(self):
@@ -84,7 +84,9 @@ class Queue:
 
     @property
     def sample_table(self):
-        return self.srx2srr.query(f"srx == {self.srxs} & srr == {list(self._srrs)}").sort_values(["srx", "srr"])
+        return self.srx2srr.query(f"srx == {self.srxs} & srr == {list(self._srrs)}").sort_values(
+            ["srx", "srr"]
+        )
 
     @property
     def n_srxs(self):
@@ -93,6 +95,12 @@ class Queue:
     @property
     def n_srrs(self):
         return len(self._srrs)
+
+    def get_srrs(self, srx: str) -> List[str]:
+        return self.sample_table.query(f"srx == '{srx}'").srr.unique().tolist()
+
+    def get_srx(self, srr: str) -> str:
+        return self.sample_table.query(f"srr == '{srr}'").srx.values[0]
 
     def _load_srx2srr(self, file_name):
         file_name = file_name or self._module_path / "../../output/srx2srr.csv"

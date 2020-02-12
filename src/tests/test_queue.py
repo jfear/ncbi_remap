@@ -115,3 +115,14 @@ def test_srx_sample_table():
     queue = Queue(targets=["DRX000774", "DRX000775", "SRX000437"], size=2)
     assert sorted(queue.srxs) == sorted(queue.sample_table.srx.unique().tolist())
 
+
+def test_get_srx():
+    queue = Queue()
+    srx = queue.get_srx("DRR001177")
+    assert srx == "DRX000774"
+
+
+def test_get_srrs():
+    queue = Queue()
+    srrs = queue.get_srrs("DRX000774")
+    assert srrs == ["DRR001177"]
