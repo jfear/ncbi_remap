@@ -93,7 +93,6 @@ queue = Queue(
     srx2srr="../output/srx2srr.csv", 
     size=2
 )
-sample_table = queue.sample_table
 
 rule run_all:
     input: expand("../output/aln-wf/done/{srx}", srx=queue.srxs)
@@ -273,7 +272,7 @@ rule hisat2_summary:
 def _input_expMerge(wildcards):
     fill = {
         'srx': wildcards.srx,
-        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique().tolist()
+        'srr': queue.get_srrs(wildcards.srx)
     }
     return expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam", **fill)
 
@@ -303,7 +302,7 @@ rule expMerge:
 def _layout(wildcards):
     fill = {
         'srx': wildcards.srx,
-        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
+        'srr': queue.get_srrs(wildcards.srx)[0]
     }
     return expand(rules.hisat2.input.layout, **fill)[0]
 
@@ -311,7 +310,7 @@ def _layout(wildcards):
 def _strand(wildcards):
     fill = {
         'srx': wildcards.srx,
-        'srr': sample_table[(sample_table.srx == wildcards.srx)].srr.unique()[0]
+        'srr': queue.get_srrs(wildcards.srx)[0]
     }
     return expand(rules.hisat2.input.strand, **fill)[0]
 
