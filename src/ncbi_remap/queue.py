@@ -84,7 +84,7 @@ class Queue:
 
     @property
     def sample_table(self):
-        return self.srx2srr.query(f"srx == {self.srxs}").sort_values(["srx", "srr"])
+        return self.srx2srr.query(f"srx == {self.srxs} & srr == {list(self._srrs)}").sort_values(["srx", "srr"])
 
     @property
     def n_srxs(self):
