@@ -155,23 +155,25 @@ class Queue:
             if Path(name).is_dir():
                 return {x.stem for x in Path(name).iterdir()}
 
-            return set([name])
+            return set()
 
         if isinstance(name, Sequence):
             return set().union(*(self._get_values(value) for value in name))
 
-    def _translate_sample(self, values: Set[str]) -> Tuple[Set[str], Set[str]]:
-        value = next(iter(values))
-        if re.match(self._srx_pattern, value):
-            srxs = values
-            srrs = set(self.srx2srr.query(f"srx == {list(srxs)}").srr.values)
-        elif re.match(self._srr_pattern, value):
-            srrs = values
-            srxs = set(self.srx2srr.query(f"srr == {list(srrs)}").srx.values)
-        else:
-            return set(), set()
 
-        return srxs, srrs
+    def _translate_sample(self, values: Set[str]) -> Tuple[Set[str], Set[str]]:
+        if len(values) > 0:
+            value = next(iter(values))
+            if re.match(self._srx_pattern, value):
+                # values are SRXs
+                return values, set(self.srx2srr.query(f"srx == {list(values)}").srr.values)
+
+            if re.match(self._srr_pattern, value):
+                # values are SRRs
+                return set(self.srx2srr.query(f"srr == {list(values)}").srx.values), values
+
+        return set(), set()
+
 
     @staticmethod
     def sort_accession(x):
