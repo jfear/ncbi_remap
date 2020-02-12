@@ -91,7 +91,7 @@ queue = Queue(
         "../output/aln-wf/bigwig_bad",
     ],
     srx2srr="../output/srx2srr.csv", 
-    size=2
+    size=1000
 )
 
 rule run_all:

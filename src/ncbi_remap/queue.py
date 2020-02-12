@@ -65,6 +65,9 @@ class Queue:
         """
         self._srxs = set()
         self._srrs = set()
+        self._srxs_short = None
+        self._srrs_short = None
+        self._sample_table = None
         self.srx2srr = None
         self.size = size
 
@@ -73,20 +76,19 @@ class Queue:
         self._load_completed(completed)
         self._load_problems(problems)
         self._load_subset(subset)
+        self.update_filter_set()
 
     @property
     def srxs(self):
-        return sorted(self._srxs, key=self.sort_accession)[: self.size]
+        return self._srxs_short
 
     @property
     def srrs(self):
-        return self.sample_table.srr.unique().tolist()
+        return self._srrs_short
 
     @property
     def sample_table(self):
-        return self.srx2srr.query(f"srx == {self.srxs} & srr == {list(self._srrs)}").sort_values(
-            ["srx", "srr"]
-        )
+        return self._sample_table
 
     @property
     def n_srxs(self):
@@ -97,10 +99,39 @@ class Queue:
         return len(self._srrs)
 
     def get_srrs(self, srx: str) -> List[str]:
-        return self.sample_table.query(f"srx == '{srx}'").srr.unique().tolist()
+        """Get a list of SRRs from the provided SRX."""
+        return self._sample_table.query(f"srx == '{srx}'").srr.unique().tolist()
 
     def get_srx(self, srr: str) -> str:
-        return self.sample_table.query(f"srr == '{srr}'").srx.values[0]
+        """Get an SRX from the given SRR."""
+        return self._sample_table.query(f"srr == '{srr}'").srx.values[0]
+
+    def update_filter_set(self, size=None):
+        """Updates filter set using new size.
+
+        Parameters
+        ----------
+        size : int, optional
+            If size is provided then it updates the filtered feature set to
+            include this many SRXs.
+        """
+        if size:
+            self.size = size
+
+        self._srxs_short = sorted(self._srxs, key=self.sort_accession)[: self.size]
+        self._srrs_short = (
+            self.srx2srr.query(f"srx == {self._srxs_short} & srr == {list(self._srrs)}")
+            .srr.unique()
+            .tolist()
+        )
+        self._sample_table = self.srx2srr.query(f"srr == {self._srrs_short}").sort_values(
+            ["srx", "srr"]
+        )
+
+    @staticmethod
+    def sort_accession(x):
+        match = re.findall(r"\d+", x)[0]
+        return int(match)
 
     def _load_srx2srr(self, file_name):
         file_name = file_name or self._module_path / "../../output/srx2srr.csv"
@@ -160,7 +191,6 @@ class Queue:
         if isinstance(name, Sequence):
             return set().union(*(self._get_values(value) for value in name))
 
-
     def _translate_sample(self, values: Set[str]) -> Tuple[Set[str], Set[str]]:
         if len(values) > 0:
             value = next(iter(values))
@@ -173,12 +203,6 @@ class Queue:
                 return set(self.srx2srr.query(f"srr == {list(values)}").srx.values), values
 
         return set(), set()
-
-
-    @staticmethod
-    def sort_accession(x):
-        match = re.findall(r"\d+", x)[0]
-        return int(match)
 
 
 def dask_run_srr_checker(
