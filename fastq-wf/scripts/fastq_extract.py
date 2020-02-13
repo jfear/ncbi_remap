@@ -7,8 +7,7 @@ from multiprocessing import Pool
 
 from snakemake.shell import shell
 
-# TMPDIR = os.getenv("TMPDIR", "/tmp")
-TMPDIR = "/home/fearjm/scratch/tmp"
+TMPDIR = os.getenv("TMPDIR", "/tmp")
 
 
 def main():
