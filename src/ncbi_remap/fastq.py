@@ -1,47 +1,38 @@
 import os
+import re
+from typing import TextIO, Tuple
 import hashlib
 
 
-def check_fastq(fn):
+def fastq_is_empty(file_object: TextIO) -> bool:
     """Checks if a FASTQ file actually has data in it."""
-    try:
-        assert os.stat(fn).st_size > 10000
+    file_object.seek(1000, 0)
+    if file_object.tell() == 0:
         return True
-    except (FileNotFoundError, AssertionError) as err:
-        return False
-    except:
-        raise
 
 
-def md5sum(fn):
-    """Calculates the md5sum of the raw fastq file."""
-    md5 = hashlib.md5()
-    with open(fn, 'rb') as f:
-        for chunk in iter(lambda: f.read(128 * md5.block_size), b''):
-            md5.update(chunk)
-    return md5.hexdigest()
-
-
-def fastq_stats(fn):
+def fastq_read_stats(file_object: TextIO) -> Tuple[int, float]:
     """Calculates the number of reads (libsize) and the average read length."""
     libsize, lens = 0, 0
-
-    with open(fn, 'r') as fh:
-        for i, row in enumerate(fh):
-            if (i % 4 == 1):
-                libsize += 1
-                lens += len(row.strip())
+    for i, row in enumerate(file_object):
+        if i % 4 == 1:
+            libsize += 1
+            lens += len(row.strip())
 
     avgLen = lens / libsize
     return libsize, avgLen
 
 
-def fastq_abi_solid(fn):
-    """Look at reads and determine if they are likely abi solid"""
-    with open(fn, 'r') as fh:
-        _, seq = fh.readline(), fh.readline()
+def fastq_is_abi_solid(file_object: TextIO) -> bool:
+    """Look at read and determine if using abi colorspace.
 
-    if seq.startswith('T'):
+    An Abi Solid read has the format:
+        @SRR######.1 solid0527_####### length=50
+        T120202210232000020002.00301000012.100...00........
+        +SRR######.1 solid0527_####### length=50
+        !/<%2/:%*)-%%0'--'')/.!%('1'%),+/%!&',!!!'+!!!!!!!!
+
+    """
+    _, seq = file_object.readline(), file_object.readline()
+    if re.match(r"^T[\d\.]+$", seq):
         return True
-
-    return False
