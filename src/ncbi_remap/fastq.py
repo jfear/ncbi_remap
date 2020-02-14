@@ -6,8 +6,7 @@ import hashlib
 
 def fastq_is_empty(file_object: TextIO) -> bool:
     """Checks if a FASTQ file actually has data in it."""
-    file_object.seek(1000, 0)
-    if file_object.tell() == 0:
+    if len(file_object.readline()) == 0:
         return True
 
 

@@ -32,11 +32,11 @@ rule sra_prefetch:
     shell: "prefetch --output-file {output[0]} {wildcards.srr} > {log} 2>&1"
 
 
-rule fastq_gz:
+rule fastq_dump:
     input: rules.sra_prefetch.output[0]
     output: 
-        r1="../output/fastq-wf/fastqs/{srr}_1.fastq.gz",
-        r2="../output/fastq-wf/fastqs/{srr}_2.fastq.gz",
+        r1="../output/fastq-wf/fastqs/{srr}_1.fastq",
+        r2="../output/fastq-wf/fastqs/{srr}_2.fastq",
     conda: "./conda.yaml"
     threads: 8
     resources:
@@ -48,8 +48,8 @@ rule fastq_gz:
 rule fastq_check:
     input: 
         sra=rules.sra_prefetch.output[0],
-        r1=rules.fastq_gz.output.r1,
-        r2=rules.fastq_gz.output.r2,
+        r1=rules.fastq_dump.output.r1,
+        r2=rules.fastq_dump.output.r2,
         download_log=rules.sra_prefetch.log[0]
     output: 
         layout="../output/fastq-wf/fastq_info/{srr}/LAYOUT",
