@@ -67,6 +67,11 @@ else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
+# FASTQ Workflow
+subworkflow fastq_wf:
+    workdir: "../fastq-wf"
+    snakefile: "../fastq-wf/Snakefile"
+
 # Set working dir
 workdir: '.'
 
@@ -79,13 +84,14 @@ localrules: atropos_summary, hisat2_summary, srx_complete
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    targets="../output/library_strategy-wf/rnaseq.pkl", 
+    # targets="../output/library_strategy-wf/rnaseq.pkl", 
+    targets="../output/example_srxs.pkl", 
     completed="../output/aln-wf/done", 
     problems=[
-        "../output/prealn-wf/download_bad",
-        "../output/prealn-wf/alignment_bad",
+        "../output/fastq-wf/download_bad",
+        "../output/fastq-wf/abi_solid",
         "../output/prealn-wf/atropos_bad",
-        "../output/prealn-wf/abi_solid",
+        "../output/prealn-wf/alignment_bad",
         "../output/aln-wf/atropos_bad",
         "../output/aln-wf/alignment_bad",
         "../output/aln-wf/bigwig_bad",
@@ -119,87 +125,17 @@ onerror:
 
 
 ###############################################################################
-# Build References
-###############################################################################
-rule intergenic:
-    input: config['references']['dmel']['db']
-    output:
-        bed="../output/dmel_r6-11.intergenic.bed",
-        gtf="../output/dmel_r6-11.intergenic.gtf"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    script: "scripts/intergenic_region.py"
-
-
-rule segment_exons_ignore_strand:
-    input: config['references']['dmel']['db']
-    output: "../output/aln-wf/nonstranded_exon_segments.gtf"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    script: "scripts/segment_exons_ignore_strand.py"
-
-
-rule segment_exons_with_strand:
-    input: config['references']['dmel']['db']
-    output: "../output/aln-wf/stranded_exon_segments.gtf"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    script: "scripts/segment_exons_with_strand.py"
-
-
-rule fuse_exons_ignore_strand:
-    input: config['references']['dmel']['db']
-    output: "../output/aln-wf/nonstranded_exon_fusions.gtf"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    script: "scripts/fuse_exons_ignore_strand.py"
-
-
-rule fuse_exons_with_strand:
-    input: config['references']['dmel']['db']
-    output: "../output/aln-wf/stranded_exon_fusions.gtf"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    script: "scripts/fuse_exons_with_strand.py"
-
-
-###############################################################################
-# FASTQ dump and check for SE or PE
-###############################################################################
-# TODO: Refactor to use prefetch and fasterq-dump
-rule fastq_dump:
-    """Downloads fastq and checks if there is one or two sets of reads."""
-    output:
-        fq1=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz"),
-        fq2=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_2.fastq.gz"),
-        flag="../output/prealn-wf/samples/{srx}/{srr}/LAYOUT",
-        summary="../output/prealn-wf/samples/{srx}/{srr}/{srr}.fastq.tsv",
-    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq.gz.log"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 12
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('../wrappers/fastq_dump')
-
-
-###############################################################################
 # FASTQ Pre-process
 ###############################################################################
 rule atropos:
     """Filter reads that are less than 25bp."""
     input:
-        R1=rules.fastq_dump.output.fq1,
-        R2=rules.fastq_dump.output.fq2,
-        layout=rules.fastq_dump.output.flag
+        R1=fastq_wf("../output/fastq-wf/fastqs/{srr}_1.fastq"),
+        R2=fastq_wf("../output/fastq-wf/fastqs/{srr}_2.fastq"),
+        layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT")
     output:
-        R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz"),
-        R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz")
+        R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
+        R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
     params:
         extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
@@ -222,26 +158,14 @@ rule atropos_summary:
 ###############################################################################
 # Alignment
 ###############################################################################
-rule hisat2_splice_site:
-    """Generate splicesite information from known annotations."""
-    input: gtf=config['references']['dmel']['gtf']
-    output: "../output/prealn-wf/known_splice_sites_r6-11.txt"
-    conda: "conda.yaml"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 1,
-      time_hr=lambda wildcards, attempt: attempt * 1
-    shell: "hisat2_extract_splice_sites.py {input.gtf} > {output}"
-
-
 rule hisat2:
     """Basic alignment."""
     input:
-        flag=rules.fastq_dump.output.flag,
         index=config['references']['dmel']['hisat2'],
-        splice_sites=rules.hisat2_splice_site.output[0],
-        R1=rules.atropos.output.R1,
-        R2=rules.atropos.output.R2,
-        layout=rules.fastq_dump.output.flag,
+        splice_sites=config['references']['dmel']['known_splice_sites'],
+        r1=rules.atropos.output.R1,
+        r2=rules.atropos.output.R2,
+        layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT"),
         strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
     output:
         bam=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
@@ -551,4 +475,13 @@ rule srx_complete:
         rules.flybase_bigwig_first.output[0],
         rules.flybase_bigwig_second.output[0],
     output: "../output/aln-wf/done/{srx}"
-    shell: "touch {output[0]}"
+    params: 
+        srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
+    shell: """
+    touch {output[0]}
+    for SRR in {params.srrs}; do
+        rm ../output/fastq-wf/fastqs/$(SRR)_1.fastq \
+        && rm ../output/fastq-wf/fastqs/$(SRR)_2.fastq \
+        && rm ../output/fastq-wf/sra_cache/$SRR.sra
+    done
+    """

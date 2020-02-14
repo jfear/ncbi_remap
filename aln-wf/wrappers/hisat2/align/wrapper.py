@@ -3,10 +3,12 @@ __copyright__ = "Copyright 2016, Justin Fear"
 __email__ = "justin.fear@nih.gov"
 __license__ = "MIT"
 
+import sys
 from tempfile import NamedTemporaryFile
 from snakemake.shell import shell
 from lcdblib.snakemake import aligners
 
+sys.path.insert(0, '../src')
 from ncbi_remap.snakemake import get_flag
 
 r1 = snakemake.input.r1
