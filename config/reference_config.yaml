@@ -3,8 +3,14 @@ references:
     fasta: ../lcdb-references/dmel/r6-11/fasta/dmel_r6-11.fasta
     gtf:  ../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf
     db:  ../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf.db
+    intergenic: ../output/dmel_r6-11.intergenic.gtf
+    nonstranded_segments: ../output/nonstranded_exon_segments.gtf
+    stranded_segments: ../output/stranded_exon_segments.gtf
+    nonstranded_fusions: ../output/nonstranded_exon_fusions.gtf
+    stranded_fusions: ../output/stranded_exon_fusions.gtf
     bowtie2: ../lcdb-references/dmel/r6-11/bowtie2/dmel_r6-11.1.bt2
     hisat2: ../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11.1.ht2
+    known_splice_sites: "../output/known_splice_sites_r6-11.txt"
     refflat: ../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.refflat
     chromSizes: ../lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes
     fb_chromSizes: ../output/dmel_r6-11.flybase.chromsizes

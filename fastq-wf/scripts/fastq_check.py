@@ -1,6 +1,5 @@
 """Looks at R1 and R2 to determine library layout"""
 import os
-import gzip
 from pathlib import Path
 from collections import namedtuple
 
@@ -42,9 +41,9 @@ def verify_sra_download(download_log: str):
             raise DownloadException
 
 
-def summarize(fastq_gz: str) -> ReadSummary:
-    """Summarize Gzip'd FASTQ files."""
-    with gzip.open(fastq_gz, "rt") as fastq_handle:
+def summarize(fastq: str) -> ReadSummary:
+    """Summarize FASTQ file."""
+    with open(fastq, "r") as fastq_handle:
         if fastq_is_empty(fastq_handle):
             return ReadSummary(0, 0)
 
@@ -119,8 +118,8 @@ if __name__ == "__main__":
         snakemake = snakemake_debug(
             input=dict(
                 sra="../../output/fastq-wf/sra_cache/SRR031744.sra",
-                r1="../../output/fastq-wf/fastqs/SRR031744_1.fastq.gz",
-                r2="../../output/fastq-wf/fastqs/SRR031744_2.fastq.gz",
+                r1="../../output/fastq-wf/fastqs/SRR031744_1.fastq",
+                r2="../../output/fastq-wf/fastqs/SRR031744_2.fastq",
                 download_log="../../output/fastq-wf/sra_download_logs/SRR031744.log",
             ),
             params=dict(
