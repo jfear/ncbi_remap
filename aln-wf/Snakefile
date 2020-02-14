@@ -48,6 +48,7 @@ convertBedGraphToBigWig
 import os
 import sys
 from pathlib import Path
+import re
 
 from more_itertools import flatten
 import numpy as np
@@ -150,9 +151,16 @@ rule atropos:
 
 
 rule atropos_summary:
-    input: rules.atropos.log
+    input: rules.atropos.log[0]
     output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
     script: "../scripts/atropos_check.py"
+
+
+rule atropos_summary_agg:
+    input: lambda wildcards: expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
+    output: "../output/aln-wf/samples/{srx}/{srx}.trim.clean.tsv"
+    run:
+        pd.concat([pd.read_table(file_name) for file_name in input], axis=0).to_csv(output[0], sep="\t", index=False)
 
 
 ###############################################################################
@@ -175,7 +183,7 @@ rule hisat2:
       mem_gb=lambda wildcards, attempt: attempt * 16,
       time_hr=lambda wildcards, attempt: attempt * 4
     params:
-        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=rules.hisat2_splice_site.output[0]),
+        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
         samtools_view_extra="--threads 4 -q 20",
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     log: "../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
@@ -188,6 +196,17 @@ rule hisat2_summary:
     input: rules.hisat2.log
     output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
     script: "../scripts/hisat2_check.py"
+
+
+rule hisat2_summary_agg:
+    input: lambda wildcards: expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
+    output: "../output/aln-wf/samples/{srx}/{srx}.hisat2.bam.tsv"
+    run:
+        dfs = []
+        for file_name in input:
+            srr = re.findall(".*(SRR\d+).*", file_name)[0]
+            dfs.append(pd.read_table(file_name).assign(srx=wildcards.srx, srr=srr))
+        pd.concat(dfs, axis=0).set_index(["srx", "srr"]).to_csv(output[0], sep="\t")
 
 
 ###############################################################################
@@ -267,7 +286,7 @@ rule feature_counts_intergenic:
     Count reads in intergenic regions with featureCounts from the subread package
     """
     input:
-        annotation=rules.intergenic.output.gtf,
+        annotation=config['references']['dmel']['intergenic'],
         bam=rules.expMerge.output.bam,
         layout=_layout,
     output:
@@ -464,6 +483,8 @@ rule flybase_bigwig_second:
 ###############################################################################
 rule srx_complete:
     input: 
+        rules.atropos_summary_agg.output[0],
+        rules.hisat2_summary_agg.output[0],
         rules.expMerge.output.bam,
         rules.feature_counts.output.counts,
         rules.feature_counts_intergenic.output.counts,
@@ -480,8 +501,8 @@ rule srx_complete:
     shell: """
     touch {output[0]}
     for SRR in {params.srrs}; do
-        rm ../output/fastq-wf/fastqs/$(SRR)_1.fastq \
-        && rm ../output/fastq-wf/fastqs/$(SRR)_2.fastq \
+        rm ../output/fastq-wf/fastqs/${{SRR}}_1.fastq \
+        && rm ../output/fastq-wf/fastqs/${{SRR}}_2.fastq \
         && rm ../output/fastq-wf/sra_cache/$SRR.sra
     done
     """
