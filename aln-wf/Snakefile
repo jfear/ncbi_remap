@@ -331,6 +331,30 @@ rule feature_counts_segments:
         wrapper_for('../wrappers/featurecounts')
 
 
+rule feature_counts_fusions:
+    """
+    Count reads in intergenic regions with featureCounts from the subread package
+    """
+    input:
+        annotation=config['references']['dmel']['nonstranded_fusions'],
+        bam=rules.expMerge.output.bam,
+        layout=_layout,
+    output:
+        counts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts",
+        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.jcounts",
+        summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.summary",
+    params:
+        extra_pe = '-p -P -C -J -t fusion ',
+        extra_se = '-J -t fusion '
+    threads: 2
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 4,
+      time_hr=lambda wildcards, attempt: attempt * 2
+    log: "../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.log"
+    conda: "conda.yaml"
+    wrapper:
+        wrapper_for('../wrappers/featurecounts')
+
 
 ###############################################################################
 # Salmon Quantification
@@ -513,6 +537,8 @@ rule srx_complete:
         rules.expMerge.output.bam,
         rules.feature_counts.output.counts,
         rules.feature_counts_intergenic.output.counts,
+        rules.feature_counts_segments.output.counts,
+        rules.feature_counts_fusions.output.counts,
         rules.run_stats.output.samtools_stats,
         rules.run_stats.output.samtools_idxstats,
         rules.run_stats.output.bamtools_stats,
