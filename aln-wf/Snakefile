@@ -204,7 +204,7 @@ rule hisat2_summary_agg:
     run:
         dfs = []
         for file_name in input:
-            srr = re.findall(".*(SRR\d+).*", file_name)[0]
+            srr = re.findall(".*([DSE]RR\d+).*", file_name)[0]
             dfs.append(pd.read_table(file_name).assign(srx=wildcards.srx, srr=srr))
         pd.concat(dfs, axis=0).set_index(["srx", "srr"]).to_csv(output[0], sep="\t")
 
