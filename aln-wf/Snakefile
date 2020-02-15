@@ -305,7 +305,32 @@ rule feature_counts_intergenic:
     wrapper:
         wrapper_for('../wrappers/featurecounts')
 
-# TODO: Add feature counts for Segments and Fusions
+
+rule feature_counts_segments:
+    """
+    Count reads in intergenic regions with featureCounts from the subread package
+    """
+    input:
+        annotation=config['references']['dmel']['nonstranded_segments'],
+        bam=rules.expMerge.output.bam,
+        layout=_layout,
+    output:
+        counts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts",
+        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.jcounts",
+        summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.summary",
+    params:
+        extra_pe = '-p -P -C -J -t segment ',
+        extra_se = '-J -t segment '
+    threads: 2
+    resources:
+      mem_gb=lambda wildcards, attempt: attempt * 4,
+      time_hr=lambda wildcards, attempt: attempt * 2
+    log: "../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.log"
+    conda: "conda.yaml"
+    wrapper:
+        wrapper_for('../wrappers/featurecounts')
+
+
 
 ###############################################################################
 # Salmon Quantification
