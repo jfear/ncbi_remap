@@ -319,8 +319,8 @@ rule feature_counts_segments:
         jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.jcounts",
         summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.summary",
     params:
-        extra_pe = '-p -P -C -J -t segment ',
-        extra_se = '-J -t segment '
+        extra_pe = '-p -P -C -J -t segment -g ID ',
+        extra_se = '-J -t segment -g ID '
     threads: 2
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
@@ -344,8 +344,8 @@ rule feature_counts_fusions:
         jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.jcounts",
         summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.summary",
     params:
-        extra_pe = '-p -P -C -J -t fusion ',
-        extra_se = '-J -t fusion '
+        extra_pe = '-p -P -C -J -t fusion -g ID ',
+        extra_se = '-J -t fusion -g ID '
     threads: 2
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
