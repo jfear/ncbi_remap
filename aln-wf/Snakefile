@@ -59,10 +59,13 @@ from lcdblib.utils import utils
 from lcdblib.pandas.utils import cartesian_product
 
 from ncbi_remap.queue import Queue
-from ncbi_remap.snakemake import wrapper_for 
+from ncbi_remap.snakemake import wrapper_for
+
+# NOTE: Change to True if you want to only run downstream part of the workflow.
+DOWNSTREAM_ONLY = False
 
 # Setup tempdir to work with lscratch
-if os.getenv("SLURM_JOBID", False):
+if os.getenv("SLURM_JOBID"):
     TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
@@ -85,9 +88,9 @@ localrules: atropos_summary, hisat2_summary, srx_complete
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    # targets="../output/library_strategy-wf/rnaseq.pkl", 
-    targets="../output/example_srxs.pkl", 
-    completed="../output/aln-wf/done", 
+    # targets="../output/library_strategy-wf/rnaseq.pkl",
+    targets="../output/example_srxs.pkl",
+    completed="../output/aln-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
@@ -97,7 +100,7 @@ queue = Queue(
         "../output/aln-wf/alignment_bad",
         "../output/aln-wf/bigwig_bad",
     ],
-    srx2srr="../output/srx2srr.csv", 
+    srx2srr="../output/srx2srr.csv",
     size=1000
 )
 
@@ -128,32 +131,33 @@ onerror:
 ###############################################################################
 # FASTQ Pre-process
 ###############################################################################
-rule atropos:
-    """Filter reads that are less than 25bp."""
-    input:
-        R1=fastq_wf("../output/fastq-wf/fastqs/{srr}_1.fastq"),
-        R2=fastq_wf("../output/fastq-wf/fastqs/{srr}_2.fastq"),
-        layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT")
-    output:
-        R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
-        R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
-    params:
-        extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
-        extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
-    log: "../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
-    threads: 8
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8,
-      time_hr=lambda wildcards, attempt: attempt * 12
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('../wrappers/atropos')
+if not DOWNSTREAM_ONLY:
+    rule atropos:
+        """Filter reads that are less than 25bp."""
+        input:
+            R1=fastq_wf("../output/fastq-wf/fastqs/{srr}_1.fastq"),
+            R2=fastq_wf("../output/fastq-wf/fastqs/{srr}_2.fastq"),
+            layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT")
+        output:
+            R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
+            R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
+        params:
+            extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
+            extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
+        log: "../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
+        threads: 8
+        resources:
+            mem_gb=lambda wildcards, attempt: attempt * 8,
+            time_hr=lambda wildcards, attempt: attempt * 12
+        conda: "conda.yaml"
+        wrapper:
+            wrapper_for('../wrappers/atropos')
 
 
-rule atropos_summary:
-    input: rules.atropos.log[0]
-    output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
-    script: "../scripts/atropos_check.py"
+    rule atropos_summary:
+        input: rules.atropos.log[0]
+        output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
+        script: "../scripts/atropos_check.py"
 
 
 rule atropos_summary_agg:
@@ -166,36 +170,37 @@ rule atropos_summary_agg:
 ###############################################################################
 # Alignment
 ###############################################################################
-rule hisat2:
-    """Basic alignment."""
-    input:
-        index=config['references']['dmel']['hisat2'],
-        splice_sites=config['references']['dmel']['known_splice_sites'],
-        r1=rules.atropos.output.R1,
-        r2=rules.atropos.output.R2,
-        layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT"),
-        strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
-    output:
-        bam=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
-        bai=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
-    threads: 8
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 16,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    params:
-        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
-        samtools_view_extra="--threads 4 -q 20",
-        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log: "../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('wrappers/hisat2/align')
+if not DOWNSTREAM_ONLY:
+    rule hisat2:
+        """Basic alignment."""
+        input:
+            index=config['references']['dmel']['hisat2'],
+            splice_sites=config['references']['dmel']['known_splice_sites'],
+            r1=rules.atropos.output.R1,
+            r2=rules.atropos.output.R2,
+            layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT"),
+            strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
+        output:
+            bam=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
+            bai=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
+        threads: 8
+        resources:
+            mem_gb=lambda wildcards, attempt: attempt * 16,
+            time_hr=lambda wildcards, attempt: attempt * 4
+        params:
+            hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
+            samtools_view_extra="--threads 4 -q 20",
+            samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
+        log: "../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
+        conda: "conda.yaml"
+        wrapper:
+            wrapper_for('wrappers/hisat2/align')
 
 
-rule hisat2_summary:
-    input: rules.hisat2.log
-    output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
-    script: "../scripts/hisat2_check.py"
+    rule hisat2_summary:
+        input: rules.hisat2.log
+        output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
+        script: "../scripts/hisat2_check.py"
 
 
 rule hisat2_summary_agg:
@@ -247,7 +252,7 @@ def _layout(wildcards):
         'srx': wildcards.srx,
         'srr': queue.get_srrs(wildcards.srx)[0]
     }
-    return expand(rules.hisat2.input.layout, **fill)[0]
+    return expand("../output/fastq-wf/fastq_info/{srr}/LAYOUT", **fill)[0]
 
 
 def _strand(wildcards):
@@ -255,7 +260,7 @@ def _strand(wildcards):
         'srx': wildcards.srx,
         'srr': queue.get_srrs(wildcards.srx)[0]
     }
-    return expand(rules.hisat2.input.strand, **fill)[0]
+    return expand("../output/prealn-wf/samples/{srx}/{srr}/STRAND", **fill)[0]
 
 
 rule feature_counts:
@@ -531,7 +536,7 @@ rule flybase_bigwig_second:
 # What to keep
 ###############################################################################
 rule srx_complete:
-    input: 
+    input:
         rules.atropos_summary_agg.output[0],
         rules.hisat2_summary_agg.output[0],
         rules.expMerge.output.bam,
@@ -547,13 +552,16 @@ rule srx_complete:
         rules.flybase_bigwig_first.output[0],
         rules.flybase_bigwig_second.output[0],
     output: "../output/aln-wf/done/{srx}"
-    params: 
+    params:
         srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
-    shell: """
-    touch {output[0]}
-    for SRR in {params.srrs}; do
-        rm ../output/fastq-wf/fastqs/${{SRR}}_1.fastq \
-        && rm ../output/fastq-wf/fastqs/${{SRR}}_2.fastq \
-        && rm ../output/fastq-wf/sra_cache/$SRR.sra
-    done
-    """
+    run:
+        Path(output[0]).touch()
+        for srr in params.srrs:
+            if Path(f"../output/fastq-wf/fastqs/{srr}_1.fastq").exists():
+                Path(f"../output/fastq-wf/fastqs/{srr}_1.fastq").unlink(missing_ok=True)
+
+            if Path(f"../output/fastq-wf/fastqs/{srr}_2.fastq").exists():
+                Path(f"../output/fastq-wf/fastqs/{srr}_2.fastq").unlink(missing_ok=True)
+
+            if Path(f"../output/fastq-wf/sra_cache/{srr}.sra").exists():
+                Path(f"../output/fastq-wf/sra_cache/{srr}.sra").unlink(missing_ok=True)
