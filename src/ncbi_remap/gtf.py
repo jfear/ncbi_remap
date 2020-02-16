@@ -106,8 +106,8 @@ class GtfFeature:
             "\t".join(
                 [
                     f"{self.chrom}",
-                    "Fear",
-                    "segment",
+                    f"{self.source}",
+                    f"{self.featuretype}",
                     f"{self.start}",
                     f"{self.end}",
                     f".",
