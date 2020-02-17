@@ -129,7 +129,7 @@ def write_output(file_name, df):
         return
 
     if Path(file_name).exists():
-        cols = pd.read_csv(file_name, index_col=0, nrows=1).columns
+        cols = pd.read_csv(file_name, sep="\t", index_col=0, nrows=1).columns
         df.reindex(columns=cols).to_csv(file_name, header=False, mode="a", sep="\t")
     else:
         df.to_csv(file_name, sep="\t")
