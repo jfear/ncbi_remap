@@ -35,7 +35,9 @@ def main():
     df.to_csv(snakemake.output[0], sep="\t")
 
     if df.total_written[0] < 1000:
-        Path(Path(snakemake.output[0]).parent, "ATROPOS_BAD").touch()
+        atropos_bad_path = Path(Path(snakemake.output[0]).parents[3], "atropos_bad")
+        atropos_bad_path.mkdir(exist_ok=True)
+        Path(atropos_bad_path, snakemake.wildcards.srr).touch()
 
 
 

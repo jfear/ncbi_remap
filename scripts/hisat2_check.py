@@ -43,7 +43,9 @@ def main():
     )
 
     if (df.iloc[0, :]["per_alignment"] < 1) | (uniquely_aligned < 1000):
-        Path(Path(snakemake.input[0]).parent, "ALIGNMENT_BAD").touch()
+        alignment_bad_path = Path(Path(snakemake.input[0]).parents[3], "alignment_bad")
+        alignment_bad_path.mkdir(exist_ok=True)
+        Path(alignment_bad_path, snakemake.wildcards.srr).touch()
 
 
 if __name__ == "__main__":

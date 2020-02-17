@@ -7,13 +7,12 @@ channels:
 dependencies:
   - atropos=1.1.25
   - bamtools=2.5.1
-  - bowtie2=2.3.5.1
-  - fastq-screen=0.13.0
-  - fastqc=0.11.9
+  - deeptools=3.3.2
   - hisat2=2.1.0
   - lcdblib=0.1.4.post
-  - picard=2.21.8
   - python=3.7
   - r-base=3.5.1
   - samtools=1.10
   - subread=1.6.4
+  - ucsc-bedgraphtobigwig=357
+  - ucsc-bedsort=357

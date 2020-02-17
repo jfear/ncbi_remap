@@ -183,6 +183,9 @@ class Queue:
             if name.endswith(".pkl"):
                 return set(pickle.load(open(name, "rb")))
 
+            if name.endswith(".txt"):
+                return set(open(name, "r").read().strip().split())
+
             if Path(name).is_dir():
                 return {x.stem for x in Path(name).iterdir()}
 
