@@ -9,11 +9,10 @@ dependencies:
   - bamtools=2.4.1
   - deeptools=2.5.4
   - hisat2=2.1.0
-  - lcdblib=0.1.2.post
+  - lcdblib=0.1.4.post
   - python=3.6.3
   - r-base=3.4.1
   - samtools=1.9
-  - sra-tools=2.8.2
   - subread=1.5.2
   - ucsc-bedgraphtobigwig=357
   - ucsc-bedsort=357
