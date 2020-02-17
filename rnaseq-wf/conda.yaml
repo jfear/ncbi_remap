@@ -5,14 +5,14 @@ channels:
   - lcdb
   - jfear
 dependencies:
-  - atropos=1.1.10
-  - bamtools=2.4.1
-  - deeptools=2.5.4
+  - atropos=1.1.25
+  - bamtools=2.5.1
+  - deeptools=3.3.2
   - hisat2=2.1.0
   - lcdblib=0.1.4.post
-  - python=3.6.3
-  - r-base=3.4.1
-  - samtools=1.9
-  - subread=1.5.2
+  - python=3.7
+  - r-base=3.5.1
+  - samtools=1.10
+  - subread=1.6.4
   - ucsc-bedgraphtobigwig=357
   - ucsc-bedsort=357
