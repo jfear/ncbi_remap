@@ -82,7 +82,7 @@ workdir: '.'
 # import config
 configfile: '../config/reference_config.yaml'
 
-localrules: atropos_summary, hisat2_summary, srx_complete
+localrules: atropos_summary_agg, hisat2_summary_agg, srx_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
@@ -145,6 +145,7 @@ if not DOWNSTREAM_ONLY:
             extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
         log: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
         threads: 8
+        group: "atropos"
         resources:
             mem_gb=lambda wildcards, attempt: attempt * 8,
             time_hr=lambda wildcards, attempt: attempt * 12
@@ -156,6 +157,11 @@ if not DOWNSTREAM_ONLY:
     rule atropos_summary:
         input: rules.atropos.log[0]
         output: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
+        threads: 8
+        group: "atropos"
+        resources:
+            mem_gb=lambda wildcards, attempt: attempt * 8,
+            time_hr=lambda wildcards, attempt: attempt * 12
         script: "../scripts/atropos_check.py"
 
 
@@ -183,6 +189,7 @@ if not DOWNSTREAM_ONLY:
             bam=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
             bai=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
         threads: 8
+        group: "hisat2"
         resources:
             mem_gb=lambda wildcards, attempt: attempt * 16,
             time_hr=lambda wildcards, attempt: attempt * 4
@@ -199,6 +206,11 @@ if not DOWNSTREAM_ONLY:
     rule hisat2_summary:
         input: rules.hisat2.log
         output: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
+        threads: 8
+        group: "hisat2"
+        resources:
+            mem_gb=lambda wildcards, attempt: attempt * 16,
+            time_hr=lambda wildcards, attempt: attempt * 4
         script: "../scripts/hisat2_check.py"
 
 
@@ -276,6 +288,7 @@ rule feature_counts:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
     threads: 2
+    group: "featureCount"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
@@ -301,6 +314,7 @@ rule feature_counts_intergenic:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
     threads: 2
+    group: "featureCount"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
@@ -326,6 +340,7 @@ rule feature_counts_segments:
         extra_pe = '-p -P -C -J -t segment -g ID ',
         extra_se = '-J -t segment -g ID '
     threads: 2
+    group: "featureCount"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
@@ -351,6 +366,7 @@ rule feature_counts_fusions:
         extra_pe = '-p -P -C -J -t fusion -g ID ',
         extra_se = '-J -t fusion -g ID '
     threads: 2
+    group: "featureCount"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
@@ -408,6 +424,7 @@ rule bamCoverage_first:
     params:
         extra=bamCoverage_options + '--filterRNAstrand forward'
     threads: 8
+    group: "bamCoverage"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 16,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -424,6 +441,7 @@ rule bamCoverage_second:
     params:
         extra=bamCoverage_options + '--filterRNAstrand reverse'
     threads: 8
+    group: "bamCoverage"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 16,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -436,6 +454,7 @@ rule convertToFlybase_first:
     input: rules.bamCoverage_first.output[0]
     output: temp("../output/rnaseq-wf/samples/{srx}/{srx}.flybase.first.bedgraph")
     conda: 'conda.yaml'
+    group: "FlyBaseConvert"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -452,6 +471,7 @@ rule convertToFlybase_second:
     input: rules.bamCoverage_second.output[0]
     output: temp("../output/rnaseq-wf/samples/{srx}/{srx}.flybase.second.bedgraph")
     conda: 'conda.yaml'
+    group: "FlyBaseConvert"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -473,6 +493,7 @@ rule bigwig_first:
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.first.bw"
     conda: 'conda.yaml'
+    group: "BigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -489,6 +510,7 @@ rule bigwig_second:
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.second.bw"
     conda: 'conda.yaml'
+    group: "BigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -505,6 +527,7 @@ rule flybase_bigwig_first:
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.first.bw"
     conda: 'conda.yaml'
+    group: "FlyBaseBigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
@@ -521,6 +544,7 @@ rule flybase_bigwig_second:
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.second.bw"
     conda: 'conda.yaml'
+    group: "FlyBaseBigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
