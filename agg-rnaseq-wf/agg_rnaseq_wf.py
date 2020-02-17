@@ -35,8 +35,9 @@ def get_completed_srxs() -> set:
 def aggregate_gene_counts(srxs, pool):
     parsed_srxs = check_already_parsed(GENE_OUTPUT)
     files = [Path(INPUT_DIR, "samples", srx, f"{srx}.bam.counts") for srx in srxs - parsed_srxs]
-    df = load_data(files, pool)
-    write_output(GENE_OUTPUT, df)
+    for _files in grouper(files, 1000):
+        df = load_data(_files, pool)
+        write_output(GENE_OUTPUT, df)
 
 
 def aggregate_intergenic_counts(srxs, pool):
@@ -45,8 +46,9 @@ def aggregate_intergenic_counts(srxs, pool):
         Path(INPUT_DIR, "samples", srx, f"{srx}.bam.intergenic.counts")
         for srx in srxs - parsed_srxs
     ]
-    df = load_data(files, pool)
-    write_output(INTERGENIC_OUTPUT, df)
+    for _files in grouper(files, 1000):
+        df = load_data(_files, pool)
+        write_output(INTERGENIC_OUTPUT, df)
 
 
 def aggregate_junction_counts(srxs, pool):
@@ -54,8 +56,9 @@ def aggregate_junction_counts(srxs, pool):
     files = [
         Path(INPUT_DIR, "samples", srx, f"{srx}.bam.counts.jcounts") for srx in srxs - parsed_srxs
     ]
-    df = load_data(files, pool, parse_junction_counts)
-    write_output(JUNCTION_OUTPUT, df)
+    for _files in grouper(files, 1000):
+        df = load_data(_files, pool, parse_junction_counts)
+        write_output(JUNCTION_OUTPUT, df)
 
 
 def aggregate_segment_counts(srxs, pool):
@@ -64,8 +67,9 @@ def aggregate_segment_counts(srxs, pool):
         Path(INPUT_DIR, "samples", srx, f"{srx}.bam.exon_segments.counts")
         for srx in srxs - parsed_srxs
     ]
-    df = load_data(files, pool)
-    write_output(SEGMENT_OUTPUT, df)
+    for _files in grouper(files, 1000):
+        df = load_data(_files, pool)
+        write_output(SEGMENT_OUTPUT, df)
 
 
 def aggregate_fusion_counts(srxs, pool):
@@ -74,17 +78,15 @@ def aggregate_fusion_counts(srxs, pool):
         Path(INPUT_DIR, "samples", srx, f"{srx}.bam.exon_fusions.counts")
         for srx in srxs - parsed_srxs
     ]
-    df = load_data(files, pool)
-    write_output(FUSION_OUTPUT, df)
+    for _files in grouper(files, 1000):
+        df = load_data(_files, pool)
+        write_output(FUSION_OUTPUT, df)
 
 
 def check_already_parsed(file_name) -> set:
     if Path(file_name).exists():
         reader = csv.reader(open(file_name, "r"), delimiter="\t")
-        return {
-            row[0]
-            for row in reader
-        }
+        return {row[0] for row in reader}
     return set()
 
 
@@ -99,8 +101,7 @@ def parse_feature_counts(file_name) -> pd.Series:
         .squeeze()
         .rename(srx)
         .to_frame()
-        .T
-        .rename_axis("srx")
+        .T.rename_axis("srx")
     )
 
 
@@ -109,11 +110,7 @@ def parse_junction_counts(file_name) -> pd.Series:
         return
 
     srx = Path(file_name).parent.stem
-    df = (
-        pd.read_csv(file_name, sep="\t", comment="#")
-        .assign(srx=srx)
-        .set_index("srx")
-    )
+    df = pd.read_csv(file_name, sep="\t", comment="#").assign(srx=srx).set_index("srx")
     cols = df.columns.tolist()
     cols[-1] = "Count"
     df.columns = cols
@@ -129,7 +126,7 @@ def load_data(files, pool, func=parse_feature_counts) -> pd.DataFrame:
 
 def write_output(file_name, df):
     if df is None:
-        return 
+        return
 
     if Path(file_name).exists():
         cols = pd.read_csv(file_name, index_col=0, nrows=0).columns
