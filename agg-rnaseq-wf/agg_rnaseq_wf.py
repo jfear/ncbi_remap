@@ -1,4 +1,6 @@
 """Aggregate counts tables from the rnaseq-wf"""
+import os
+import multiprocessing
 from multiprocessing import Pool
 from pathlib import Path
 import csv
@@ -6,6 +8,7 @@ import csv
 import pandas as pd
 from more_itertools import grouper
 
+CPUS = int(os.getenv("SLURM_CPUS_PER_TASK", max(1, multiprocessing.cpu_count() - 2)))
 
 INPUT_DIR = "../output/rnaseq-wf"
 GENE_OUTPUT = "../output/agg-rnaseq-wf/gene_counts.tsv"
@@ -16,7 +19,7 @@ FUSION_OUTPUT = "../output/agg-rnaseq-wf/fusion_counts.tsv"
 
 
 def main():
-    pool = Pool(1)
+    pool = multiprocessing.Pool(CPUS)
     srxs = get_completed_srxs()
     aggregate_gene_counts(srxs, pool)
     aggregate_intergenic_counts(srxs, pool)
