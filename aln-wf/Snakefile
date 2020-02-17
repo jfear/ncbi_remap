@@ -1,6 +1,6 @@
-"""Alignment workflow.
+"""RNA-Seq Alignment workflow.
 
-The goal of the alignment workflow is to use parameters determined in the
+The goal of the RNA-Seq workflow is to use parameters determined in the
 pre-alignment workflow and processing files. This workflow uses a queue in
 `../output/sra.h5`. To update the queue you need to run `./aln-store.py queue update
 -j 8`. The major file types output by the alignment workflow include:
@@ -90,22 +90,22 @@ localrules: atropos_summary, hisat2_summary, srx_complete
 queue = Queue(
     # targets="../output/library_strategy-wf/rnaseq.pkl",
     targets="../output/example_srxs.pkl",
-    completed="../output/aln-wf/done",
+    completed="../output/ranseq-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
         "../output/prealn-wf/atropos_bad",
         "../output/prealn-wf/alignment_bad",
-        "../output/aln-wf/atropos_bad",
-        "../output/aln-wf/alignment_bad",
-        "../output/aln-wf/bigwig_bad",
+        "../output/ranseq-wf/atropos_bad",
+        "../output/ranseq-wf/alignment_bad",
+        "../output/ranseq-wf/bigwig_bad",
     ],
     srx2srr="../output/srx2srr.csv",
     size=1000
 )
 
 rule run_all:
-    input: expand("../output/aln-wf/done/{srx}", srx=queue.srxs)
+    input: expand("../output/ranseq-wf/done/{srx}", srx=queue.srxs)
 
 
 def slack(text):
@@ -120,12 +120,12 @@ def slack(text):
 
 onsuccess:
     print('All Finished')
-    slack('aln-wf: All Finished')
+    slack('ranseq-wf: All Finished')
 
 
 onerror:
     print('Something went wrong, you need to re-run')
-    slack('aln-wf: Something went wrong, you need to re-run')
+    slack('ranseq-wf: Something went wrong, you need to re-run')
 
 
 ###############################################################################
@@ -139,12 +139,12 @@ if not DOWNSTREAM_ONLY:
             R2=fastq_wf("../output/fastq-wf/fastqs/{srr}_2.fastq"),
             layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT")
         output:
-            R1=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
-            R2=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
+            R1=temp("../output/ranseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
+            R2=temp("../output/ranseq-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
         params:
             extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
             extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
-        log: "../output/aln-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
+        log: "../output/ranseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
         threads: 8
         resources:
             mem_gb=lambda wildcards, attempt: attempt * 8,
@@ -156,13 +156,13 @@ if not DOWNSTREAM_ONLY:
 
     rule atropos_summary:
         input: rules.atropos.log[0]
-        output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
+        output: "../output/ranseq-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
         script: "../scripts/atropos_check.py"
 
 
 rule atropos_summary_agg:
-    input: lambda wildcards: expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
-    output: "../output/aln-wf/samples/{srx}/{srx}.trim.clean.tsv"
+    input: lambda wildcards: expand("../output/ranseq-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.trim.clean.tsv"
     run:
         pd.concat([pd.read_table(file_name) for file_name in input], axis=0).to_csv(output[0], sep="\t", index=False)
 
@@ -181,8 +181,8 @@ if not DOWNSTREAM_ONLY:
             layout=fastq_wf("../output/fastq-wf/fastq_info/{srr}/LAYOUT"),
             strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
         output:
-            bam=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
-            bai=temp("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
+            bam=temp("../output/ranseq-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
+            bai=temp("../output/ranseq-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
         threads: 8
         resources:
             mem_gb=lambda wildcards, attempt: attempt * 16,
@@ -191,7 +191,7 @@ if not DOWNSTREAM_ONLY:
             hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
             samtools_view_extra="--threads 4 -q 20",
             samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-        log: "../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
+        log: "../output/ranseq-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
         conda: "conda.yaml"
         wrapper:
             wrapper_for('wrappers/hisat2/align')
@@ -199,13 +199,13 @@ if not DOWNSTREAM_ONLY:
 
     rule hisat2_summary:
         input: rules.hisat2.log
-        output: "../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
+        output: "../output/ranseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
         script: "../scripts/hisat2_check.py"
 
 
 rule hisat2_summary_agg:
-    input: lambda wildcards: expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
-    output: "../output/aln-wf/samples/{srx}/{srx}.hisat2.bam.tsv"
+    input: lambda wildcards: expand("../output/ranseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.hisat2.bam.tsv"
     run:
         dfs = []
         for file_name in input:
@@ -222,14 +222,14 @@ def _input_expMerge(wildcards):
         'srx': wildcards.srx,
         'srr': queue.get_srrs(wildcards.srx)
     }
-    return expand("../output/aln-wf/samples/{srx}/{srr}/{srr}.fq.bam", **fill)
+    return expand("../output/ranseq-wf/samples/{srx}/{srr}/{srr}.fq.bam", **fill)
 
 
 rule expMerge:
     input: _input_expMerge
     output:
-        bam="../output/aln-wf/samples/{srx}/{srx}.bam",
-        bai="../output/aln-wf/samples/{srx}/{srx}.bam.bai"
+        bam="../output/ranseq-wf/samples/{srx}/{srx}.bam",
+        bai="../output/ranseq-wf/samples/{srx}/{srx}.bam.bai"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 8,
@@ -270,9 +270,9 @@ rule feature_counts:
         layout=_layout,
         strand=_strand,
     output:
-        counts="../output/aln-wf/samples/{srx}/{srx}.bam.counts",
-        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.counts.jcounts",
-        summary="../output/aln-wf/samples/{srx}/{srx}.bam.counts.summary",
+        counts="../output/ranseq-wf/samples/{srx}/{srx}.bam.counts",
+        jcounts="../output/ranseq-wf/samples/{srx}/{srx}.bam.counts.jcounts",
+        summary="../output/ranseq-wf/samples/{srx}/{srx}.bam.counts.summary",
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
@@ -280,7 +280,7 @@ rule feature_counts:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log: "../output/aln-wf/samples/{srx}/{srx}.bam.counts.log"
+    log: "../output/ranseq-wf/samples/{srx}/{srx}.bam.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
@@ -295,9 +295,9 @@ rule feature_counts_intergenic:
         bam=rules.expMerge.output.bam,
         layout=_layout,
     output:
-        counts="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts",
-        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.jcounts",
-        summary="../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.summary",
+        counts="../output/ranseq-wf/samples/{srx}/{srx}.bam.intergenic.counts",
+        jcounts="../output/ranseq-wf/samples/{srx}/{srx}.bam.intergenic.counts.jcounts",
+        summary="../output/ranseq-wf/samples/{srx}/{srx}.bam.intergenic.counts.summary",
     params:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
@@ -305,7 +305,7 @@ rule feature_counts_intergenic:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log: "../output/aln-wf/samples/{srx}/{srx}.bam.intergenic.counts.log"
+    log: "../output/ranseq-wf/samples/{srx}/{srx}.bam.intergenic.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
@@ -320,9 +320,9 @@ rule feature_counts_segments:
         bam=rules.expMerge.output.bam,
         layout=_layout,
     output:
-        counts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts",
-        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.jcounts",
-        summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.summary",
+        counts="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts",
+        jcounts="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts.jcounts",
+        summary="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts.summary",
     params:
         extra_pe = '-p -P -C -J -t segment -g ID ',
         extra_se = '-J -t segment -g ID '
@@ -330,7 +330,7 @@ rule feature_counts_segments:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log: "../output/aln-wf/samples/{srx}/{srx}.bam.exon_segments.counts.log"
+    log: "../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
@@ -345,9 +345,9 @@ rule feature_counts_fusions:
         bam=rules.expMerge.output.bam,
         layout=_layout,
     output:
-        counts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts",
-        jcounts="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.jcounts",
-        summary="../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.summary",
+        counts="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts",
+        jcounts="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.jcounts",
+        summary="../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.summary",
     params:
         extra_pe = '-p -P -C -J -t fusion -g ID ',
         extra_se = '-J -t fusion -g ID '
@@ -355,7 +355,7 @@ rule feature_counts_fusions:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 4,
       time_hr=lambda wildcards, attempt: attempt * 2
-    log: "../output/aln-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.log"
+    log: "../output/ranseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.log"
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../wrappers/featurecounts')
@@ -374,9 +374,9 @@ rule run_stats:
         bam=rules.expMerge.output.bam,
         bai=rules.expMerge.output.bai,
     output:
-        samtools_stats="../output/aln-wf/samples/{srx}/{srx}.bam.samtools.stats",
-        samtools_idxstats="../output/aln-wf/samples/{srx}/{srx}.bam.samtools.idxstats",
-        bamtools_stats="../output/aln-wf/samples/{srx}/{srx}.bam.bamtools.stats",
+        samtools_stats="../output/ranseq-wf/samples/{srx}/{srx}.bam.samtools.stats",
+        samtools_idxstats="../output/ranseq-wf/samples/{srx}/{srx}.bam.samtools.idxstats",
+        bamtools_stats="../output/ranseq-wf/samples/{srx}/{srx}.bam.bamtools.stats",
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 2,
@@ -405,7 +405,7 @@ rule bamCoverage_first:
     input:
         bam=rules.expMerge.output.bam,
         bai=rules.expMerge.output.bai,
-    output: temp('../output/aln-wf/samples/{srx}/{srx}.first.bedgraph')
+    output: temp('../output/ranseq-wf/samples/{srx}/{srx}.first.bedgraph')
     params:
         extra=bamCoverage_options + '--filterRNAstrand forward'
     threads: 8
@@ -421,7 +421,7 @@ rule bamCoverage_second:
     input:
         bam=rules.expMerge.output.bam,
         bai=rules.expMerge.output.bai,
-    output: temp('../output/aln-wf/samples/{srx}/{srx}.second.bedgraph')
+    output: temp('../output/ranseq-wf/samples/{srx}/{srx}.second.bedgraph')
     params:
         extra=bamCoverage_options + '--filterRNAstrand reverse'
     threads: 8
@@ -435,7 +435,7 @@ rule bamCoverage_second:
 
 rule convertToFlybase_first:
     input: rules.bamCoverage_first.output[0]
-    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.first.bedgraph")
+    output: temp("../output/ranseq-wf/samples/{srx}/{srx}.flybase.first.bedgraph")
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -451,7 +451,7 @@ rule convertToFlybase_first:
 
 rule convertToFlybase_second:
     input: rules.bamCoverage_second.output[0]
-    output: temp("../output/aln-wf/samples/{srx}/{srx}.flybase.second.bedgraph")
+    output: temp("../output/ranseq-wf/samples/{srx}/{srx}.flybase.second.bedgraph")
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -472,7 +472,7 @@ rule bigwig_first:
     input:
         bedgraph=rules.bamCoverage_first.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
-    output: "../output/aln-wf/samples/{srx}/{srx}.first.bw"
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.first.bw"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -488,7 +488,7 @@ rule bigwig_second:
     input:
         bedgraph=rules.bamCoverage_second.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
-    output: "../output/aln-wf/samples/{srx}/{srx}.second.bw"
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.second.bw"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -504,7 +504,7 @@ rule flybase_bigwig_first:
     input:
         bedgraph=rules.convertToFlybase_first.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
-    output: "../output/aln-wf/samples/{srx}/{srx}.flybase.first.bw"
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.flybase.first.bw"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -520,7 +520,7 @@ rule flybase_bigwig_second:
     input:
         bedgraph=rules.convertToFlybase_second.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
-    output: "../output/aln-wf/samples/{srx}/{srx}.flybase.second.bw"
+    output: "../output/ranseq-wf/samples/{srx}/{srx}.flybase.second.bw"
     conda: 'conda.yaml'
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -551,7 +551,7 @@ rule srx_complete:
         rules.bigwig_second.output[0],
         rules.flybase_bigwig_first.output[0],
         rules.flybase_bigwig_second.output[0],
-    output: "../output/aln-wf/done/{srx}"
+    output: "../output/ranseq-wf/done/{srx}"
     params:
         srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
     run:
