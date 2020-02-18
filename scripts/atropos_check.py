@@ -23,31 +23,42 @@ from pathlib import Path
 import pandas as pd
 
 
+class AtroposException(Exception):
+    """Basic exception when there are problems running Atropos"""
+
+
 def main():
+    try:
+        df = pd.DataFrame(
+            [parse_atropos(snakemake.input[0])],
+            columns=["total_processed", "total_written", "too_short"],
+        )
+        df.index = pd.MultiIndex.from_tuples(
+            [(snakemake.wildcards.srx, snakemake.wildcards.srr)], names=["srx", "srr"]
+        )
+        df.to_csv(snakemake.output[0], sep="\t")
 
-    df = pd.DataFrame(
-        [parse_atropos(snakemake.input[0])],
-        columns=["total_processed", "total_written", "too_short"],
-    )
-    df.index = pd.MultiIndex.from_tuples(
-        [(snakemake.wildcards.srx, snakemake.wildcards.srr)], names=["srx", "srr"]
-    )
-    df.to_csv(snakemake.output[0], sep="\t")
+        if df.total_written[0] < 1000:
+            raise AtroposException
 
-    if df.total_written[0] < 1000:
+    except AtroposException:
         atropos_bad_path = Path(Path(snakemake.output[0]).parents[3], "atropos_bad")
         atropos_bad_path.mkdir(exist_ok=True)
         Path(atropos_bad_path, snakemake.wildcards.srr).touch()
 
 
-
 def parse_atropos(file_name):
     with open(file_name) as fh:
         string = fh.read().replace(",", "")
-    tot_processed = int(re.findall(r"Total read.*processed:\s+(\d+)", string)[0])
-    tot_written = int(re.findall(r"[Read|Pair]s written \(passing filters\):\s+(\d+)", string)[0])
-    too_short = int(re.findall(r"[Read|Pair]s that were too short:\s+(\d+)", string)[0])
-    return tot_processed, tot_written, too_short
+    try:
+        tot_processed = int(re.findall(r"Total read.*processed:\s+(\d+)", string)[0])
+        tot_written = int(
+            re.findall(r"[Read|Pair]s written \(passing filters\):\s+(\d+)", string)[0]
+        )
+        too_short = int(re.findall(r"[Read|Pair]s that were too short:\s+(\d+)", string)[0])
+        return tot_processed, tot_written, too_short
+    except IndexError:
+        raise AtroposException
 
 
 if __name__ == "__main__":
