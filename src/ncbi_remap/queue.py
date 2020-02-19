@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from dask.distributed import Client
 
 
 class Queue:
@@ -230,48 +229,3 @@ class Queue:
             f"SRRs: ({self.n_srrs:,}, {len(self._srrs_short):,}), "
         )
 
-
-def dask_run_srr_checker(
-    ids: pd.DataFrame, checker: Callable, pattern: str, client: Client
-) -> List[pd.DataFrame]:
-    """Helper function to run function using dask."""
-    futures = client.map(lambda x: checker(x["srx"], x["srr"], pattern), ids.to_dict("records"))
-    return client.gather(futures)
-
-
-def dask_run_srx_checker(srxs: List, checker: Callable, client: Client) -> List[pd.DataFrame]:
-    """Helper function to run function using dask."""
-    futures = client.map(checker, srxs)
-    return client.gather(futures)
-
-
-def build_parsed(fname: str, parser: Callable, **kwargs) -> pd.DataFrame:
-    df = parser(fname)
-    if df is None:
-        return None
-    return df.assign(**kwargs).set_index(sorted(kwargs.keys(), reverse=True))
-
-
-def dask_run_srr_parser(
-    ids: pd.DataFrame, parser: Callable, pattern: str, client: Client
-) -> List[pd.DataFrame]:
-    """Helper function to run function using dask."""
-    futures = client.map(lambda x: build_parsed(parser, pattern, **x), ids.to_dict("records"))
-    return client.gather(futures)
-
-
-def dask_run_srx_parser(
-    srxs: List[str], parser: Callable, pattern: str, client: Client
-) -> List[pd.DataFrame]:
-    """Helper function to run function using dask."""
-    futures = client.map(lambda srx: build_parsed(parser, pattern, srx=srx), srxs)
-    return client.gather(futures)
-
-
-def check_indicator_file(srx: str, srr: str, pattern: str) -> Tuple:
-    """Check if an indicator file is present."""
-    fname = Path(pattern.format(srx=srx, srr=srr))
-    if fname.exists():
-        return srx, srr
-
-    return np.nan, np.nan
