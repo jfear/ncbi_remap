@@ -38,7 +38,7 @@ class Queue:
         problems: Optional[Union[str, List[str]]] = None,
         subset: Optional[Union[str, List[str]]] = None,
         srx2srr: Optional[str] = None,
-        size: int = 100,
+        size: Union[int, str] = 100,
     ):
         """File based queue system.
 
@@ -59,8 +59,9 @@ class Queue:
             A list of SRXs|SRRs that should be run if in targets.
         srx2srr : str, optional
             A file containing all SRX|SRR pairs.
-        size : int, optional
-            Number of samples to queue, by default 100
+        size : int or 'none', optional
+            Number of samples to queue. If 'none' is provided then all
+            samples will be used. [default 100]
 
         """
         self._srxs = set()
@@ -111,14 +112,19 @@ class Queue:
 
         Parameters
         ----------
-        size : int, optional
+        size : int or 'none', optional
             If size is provided then it updates the filtered feature set to
-            include this many SRXs.
+            include this many SRXs. If 'none is provided then all SRXs will
+            be included.
         """
-        if size:
+        if isinstance(size, int) | (size == "none"):
             self.size = size
 
-        self._srxs_short = sorted(self._srxs, key=self.sort_accession)[: self.size]
+        if self.size == "none":
+            self._srxs_short = sorted(self._srxs, key=self.sort_accession)
+        else:
+            self._srxs_short = sorted(self._srxs, key=self.sort_accession)[: self.size]
+
         self._srrs_short = (
             self.srx2srr.query(f"srx == {self._srxs_short} & srr == {list(self._srrs)}")
             .srr.unique()
