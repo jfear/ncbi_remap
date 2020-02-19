@@ -1,8 +1,9 @@
-from pathlib import Path
-from typing import Optional, Union, List, Tuple, Set, Callable, TYPE_CHECKING
 import pickle
 import re
 from collections.abc import Sequence
+from pathlib import Path
+from textwrap import dedent
+from typing import TYPE_CHECKING, Callable, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -212,6 +213,22 @@ class Queue:
                 return set(self.srx2srr.query(f"srr == {list(values)}").srx.values), values
 
         return set(), set()
+
+    def __str__(self):
+        return dedent(
+            f"""
+            Total SRXs:\t{self.n_srxs:,}
+            Total SRRs:\t{self.n_srrs:,}
+            Queued SRXs:\t{len(self._srxs_short):,}
+            Queued SRRs:\t{len(self._srrs_short):,}
+            """
+        )
+
+    def __repr__(self):
+        return (
+            f"SRXs: ({self.n_srxs:,}, {len(self._srxs_short):,}), "
+            f"SRRs: ({self.n_srrs:,}, {len(self._srrs_short):,}), "
+        )
 
 
 def dask_run_srr_checker(
