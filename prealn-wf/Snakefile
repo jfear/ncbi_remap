@@ -63,9 +63,8 @@ from lcdblib.utils import utils
 from ncbi_remap.queue import Queue
 from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
 
-
 # Setup tempdir to work with lscratch
-if os.getenv("SLURM_JOBID", False):
+if os.getenv("SLURM_JOBID"):
     TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
 else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
@@ -75,6 +74,7 @@ shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 subworkflow fastq_wf:
     workdir: "../fastq-wf"
     snakefile: "../fastq-wf/Snakefile"
+    configfile: "../config/reference_config.yaml"
 
 # Set working dir
 workdir: '.'
@@ -82,24 +82,22 @@ workdir: '.'
 # import config
 configfile: '../config/reference_config.yaml'
 
-localrules: atropos_summary, hisat2_summary
-
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    # targets="../output/library_strategy-wf/rnaseq.pkl", 
-    targets="../output/example_srxs.pkl", 
-    completed="../output/prealn-wf/done", 
+    targets="../output/library_strategy-wf/rnaseq.pkl",
+    completed="../output/prealn-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
         "../output/prealn-wf/atropos_bad",
         "../output/prealn-wf/alignment_bad",
     ],
-    srx2srr="../output/srx2srr.csv", 
-    size=1000
+    srx2srr="../output/srx2srr.csv",
+    size=1_000
 )
+print(queue)
 
 rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
@@ -144,8 +142,8 @@ rule fastq_screen:
     output: txt="../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt"
     log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt.log"
     resources:
-      mem_gb=lambda wildcards, attempt: attempt * 3,
-      time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb=lambda wildcards, attempt: attempt * 3,
+        time_hr=lambda wildcards, attempt: attempt * 1
     conda: "conda.yaml"
     wrapper:
         wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
@@ -168,6 +166,7 @@ rule atropos:
         extra_se='--minimum-length 25',
     log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
     threads: 8
+    group: "atropos"
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 8,
         time_hr=lambda wildcards, attempt: attempt * 12
@@ -177,11 +176,16 @@ rule atropos:
 
 
 rule atropos_summary:
-    input: rules.atropos.log
+    input: rules.atropos.log[0]
     output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
+    threads: 8
+    group: "atropos"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 8,
+        time_hr=lambda wildcards, attempt: attempt * 12
     script: "../scripts/atropos_check.py"
 
-    
+
 ###############################################################################
 # Alignment
 ###############################################################################
@@ -201,27 +205,59 @@ rule hisat2:
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
     conda: "conda.yaml"
     threads: 8
+    group: "hisat2"
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 4
+        time_hr=lambda wildcards, attempt: attempt * 8
     wrapper:
         wrapper_for('wrappers/hisat2/align')
-
-
-rule hisat2_summary:
-    input: rules.hisat2.log
-    output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
-    script: "../scripts/hisat2_check.py"
 
 
 rule bai:
     input: rules.hisat2.output.bam
     output: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bai")
+    threads: 8
+    group: "hisat2"
     resources:
-        mem_gb=lambda wildcards, attempt: attempt * 1,
-        time_hr=lambda wildcards, attempt: attempt * 1
+        mem_gb=lambda wildcards, attempt: attempt * 16,
+        time_hr=lambda wildcards, attempt: attempt * 8
     conda: "conda.yaml"
     shell: "samtools index {input[0]}"
+
+
+rule run_stats:
+    input:
+        bam=rules.hisat2.output.bam,
+        bai=rules.bai.output[0],
+    output:
+        samtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats",
+        samtools_idxstats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats",
+        bamtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats",
+    threads: 8
+    group: "hisat2"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 16,
+        time_hr=lambda wildcards, attempt: attempt * 8
+    conda: "conda.yaml"
+    shell:
+        'BAM=$(mktemp --suffix=".bam") '
+        '&& cp {input.bam} $BAM '
+        '&& cp {input.bam}.bai $BAM.bai '
+        '&& samtools stats $BAM > {output.samtools_stats} '
+        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
+        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
+        '&& rm $BAM'
+
+
+rule hisat2_summary:
+    input: rules.hisat2.log[0]
+    output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
+    threads: 8
+    group: "hisat2"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 16,
+        time_hr=lambda wildcards, attempt: attempt * 8
+    script: "../scripts/hisat2_check.py"
 
 
 ###############################################################################
@@ -291,11 +327,9 @@ rule collectrnaseqmetrics_agg:
         from ncbi_remap.parser import parse_picardCollect_summary
         srx = wildcards.srx
         srr = wildcards.srr
-        dfU = parse_picardCollect_summary(input.unstranded.format(srx=srx,
-                                                                  srr=srr))
+        dfU = parse_picardCollect_summary(input.unstranded.format(srx=srx, srr=srr))
         dfF = parse_picardCollect_summary(input.first.format(srx=srx, srr=srr))
-        dfS = parse_picardCollect_summary(input.second.format(srx=srx,
-                                                              srr=srr))
+        dfS = parse_picardCollect_summary(input.second.format(srx=srx, srr=srr))
 
         if dfF.PCT_CORRECT_STRAND_READS.values[0] >= .75:
             flag = 'same_strand'
@@ -334,31 +368,6 @@ rule feature_counts:
 
 
 ###############################################################################
-# Stats
-###############################################################################
-rule run_stats:
-    input:
-        bam=rules.hisat2.output.bam,
-        bai=rules.bai.output[0],
-    output:
-        samtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats",
-        samtools_idxstats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats",
-        bamtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats",
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 2,
-        time_hr=lambda wildcards, attempt: attempt * 2
-    conda: "conda.yaml"
-    shell:
-        'BAM=$(mktemp --suffix=".bam") '
-        '&& cp {input.bam} $BAM '
-        '&& cp {input.bam}.bai $BAM.bai '
-        '&& samtools stats $BAM > {output.samtools_stats} '
-        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
-        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
-        '&& rm $BAM'
-
-
-###############################################################################
 # PICARD RNA Seq Metrics
 ###############################################################################
 rule markduplicates:
@@ -382,19 +391,20 @@ rule markduplicates:
 def _srr_complete(wildcards):
     srr = wildcards.srr
     srx = queue.get_srx(srr)
-    return [
-        rules.fastq_screen.output.txt.format(srx=srx, srr=srr),
-        rules.atropos_summary.output[0].format(srx=srx, srr=srr),
-        rules.hisat2_summary.output[0].format(srx=srx, srr=srr),
-        rules.collectrnaseqmetrics_agg.output[0].format(srx=srx, srr=srr),
-        rules.feature_counts.output.counts.format(srx=srx, srr=srr),
-        rules.feature_counts.output.jcounts.format(srx=srx, srr=srr),
-        rules.feature_counts.output.summary.format(srx=srx, srr=srr),
-        rules.run_stats.output.samtools_stats.format(srx=srx, srr=srr),
-        rules.run_stats.output.samtools_idxstats.format(srx=srx, srr=srr),
-        rules.run_stats.output.bamtools_stats.format(srx=srx, srr=srr),
-        rules.markduplicates.output.metrics.format(srx=srx, srr=srr),
+    file_names = [
+        rules.fastq_screen.output.txt,
+        rules.atropos_summary.output[0],
+        rules.hisat2_summary.output[0],
+        rules.run_stats.output.samtools_stats,
+        rules.run_stats.output.samtools_idxstats,
+        rules.run_stats.output.bamtools_stats,
+        rules.collectrnaseqmetrics_agg.output[0],
+        rules.feature_counts.output.counts,
+        rules.feature_counts.output.jcounts,
+        rules.feature_counts.output.summary,
+        rules.markduplicates.output.metrics,
     ]
+    return [file_name.format(srx=srx, srr=srr) for file_name in file_names]
 
 rule srr_complete:
     input: _srr_complete
