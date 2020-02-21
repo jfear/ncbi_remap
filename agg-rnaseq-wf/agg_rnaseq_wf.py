@@ -22,11 +22,21 @@ def main():
     pool = ThreadPool(CPUS)
     try:
         srxs = get_completed_srxs()
+
+        print(aggregate_gene_counts.__name__)
         aggregate_gene_counts(srxs, pool)
+
+        print(aggregate_intergenic_counts.__name__)
         aggregate_intergenic_counts(srxs, pool)
-        aggregate_junction_counts(srxs, pool)
+
+        print(aggregate_segment_counts.__name__)
         aggregate_segment_counts(srxs, pool)
+
+        print(aggregate_fusion_counts.__name__)
         aggregate_fusion_counts(srxs, pool)
+
+        print(aggregate_junction_counts.__name__)
+        aggregate_junction_counts(srxs, pool)
     finally:
         pool.close()
 
