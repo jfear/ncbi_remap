@@ -97,7 +97,7 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=5_000
+    size=500
 )
 print(queue)
 
@@ -142,8 +142,8 @@ rule sra_prefetch:
 rule fastq_dump:
     input: rules.sra_prefetch.output[0]
     output: 
-        r1="../output/fastq-wf/fastqs/{srr}_1.fastq",
-        r2="../output/fastq-wf/fastqs/{srr}_2.fastq",
+        r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq"),
+        r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq"),
     conda: "./sratools.yaml"
     threads: 8
     resources:
