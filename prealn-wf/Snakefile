@@ -71,16 +71,18 @@ else:
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 # FASTQ Workflow
-subworkflow fastq_wf:
-    workdir: "../fastq-wf"
-    snakefile: "../fastq-wf/Snakefile"
-    configfile: "../config/reference_config.yaml"
+# subworkflow fastq_wf:
+#     workdir: "../fastq-wf"
+#     snakefile: "../fastq-wf/Snakefile"
+#     configfile: "../config/reference_config.yaml"
 
 # Set working dir
 workdir: '.'
 
 # import config
 configfile: '../config/reference_config.yaml'
+
+localrules: srr_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
@@ -95,7 +97,7 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=100
+    size=5_000
 )
 print(queue)
 
@@ -130,7 +132,7 @@ rule sra_prefetch:
     """Downloads container file from the SRA"""
     output: "../output/fastq-wf/sra_cache/{srr}.sra"
     log: "../output/fastq-wf/sra_download_logs/{srr}.log"
-    conda: "./conda.yaml"
+    conda: "./sratools.yaml"
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 2,
         time_hr=lambda wildcards, attempt: attempt * 8
@@ -147,7 +149,7 @@ rule fastq_dump:
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 4,
         time_hr=lambda wildcards, attempt: attempt * 12
-    script: "./scripts/fastq_extract.py"
+    script: "../fastq-wf/scripts/fastq_extract.py"
 
 
 rule fastq_check:
@@ -165,7 +167,7 @@ rule fastq_check:
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 4,
         time_hr=lambda wildcards, attempt: attempt * 12
-    script: "./scripts/fastq_check.py"
+    script: "../fastq-wf/scripts/fastq_check.py"
 
 
 ###############################################################################
@@ -220,6 +222,7 @@ rule atropos:
         wrapper_for('../wrappers/atropos')
 
 
+# TODO: add atropos output to garuntee run.
 rule atropos_summary:
     input: rules.atropos.log[0]
     output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
