@@ -13,7 +13,7 @@ def main():
             header = _tpm.columns
             _tpm.to_csv(snakemake.output[0], sep="\t")
         else:
-            _tpm.reindex(header).to_csv(snakemake.output[0], sep="\t", header=None, mode="a")
+            _tpm.reindex(header).to_csv(snakemake.output[0], sep="\t", header=False, mode="a")
 
 
 
