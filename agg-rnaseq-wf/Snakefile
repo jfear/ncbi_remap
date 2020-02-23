@@ -1,0 +1,87 @@
+from ncbi_remap.queue import Queue
+
+queue = Queue(targets="../output/rnaseq-wf/done")
+
+rule run_all:
+    input: 
+        "../output/agg-rnaseq-wf/gene_counts.done",
+        "../output/agg-rnaseq-wf/junction_counts.done",
+        "../output/agg-rnaseq-wf/segment_counts.done",
+        "../output/agg-rnaseq-wf/fusion_counts.done",
+        "../output/agg-rnaseq-wf/intergenic_counts.done",
+        "../output/agg-rnaseq-wf/tpm_gene_counts.tsv",
+
+################################################################################
+# Aggregate Counts Tables
+################################################################################
+rule agg_gene_counts:
+    input: expand("../output/rnaseq-wf/samples/{srx}/{srx}.bam.counts", srx=queue.srxs)
+    output: "../output/agg-rnaseq-wf/gene_counts.done"
+    params: "../output/agg-rnaseq-wf/gene_counts.tsv",
+    threads: 12
+    group: "aggregate"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 24,
+        time_hr=lambda wildcards, attempt: attempt * 4
+    script: "scripts/agg_feature_counts.py"
+
+
+rule agg_junction_counts:
+    input: expand("../output/rnaseq-wf/samples/{srx}/{srx}.bam.counts.jcounts", srx=queue.srxs)
+    output: "../output/agg-rnaseq-wf/junction_counts.done"
+    params: "../output/agg-rnaseq-wf/junction_counts.tsv",
+    threads: 12
+    group: "aggregate"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 24,
+        time_hr=lambda wildcards, attempt: attempt * 4
+    script: "scripts/agg_junction_counts.py"
+
+
+rule agg_segment_counts:
+    input: expand("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts", srx=queue.srxs)
+    output: "../output/agg-rnaseq-wf/segment_counts.done"
+    params: "../output/agg-rnaseq-wf/segment_counts.tsv",
+    threads: 12
+    group: "aggregate"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 24,
+        time_hr=lambda wildcards, attempt: attempt * 4
+    script: "scripts/agg_feature_counts.py"
+
+
+rule agg_fusion_counts:
+    input: expand("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts", srx=queue.srxs)
+    output: "../output/agg-rnaseq-wf/fusion_counts.done"
+    params: "../output/agg-rnaseq-wf/fusion_counts.tsv",
+    threads: 12
+    group: "aggregate"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 24,
+        time_hr=lambda wildcards, attempt: attempt * 4
+    script: "scripts/agg_feature_counts.py"
+
+
+rule agg_intergenic_counts:
+    input: expand("../output/rnaseq-wf/samples/{srx}/{srx}.bam.intergenic.counts", srx=queue.srxs)
+    output: "../output/agg-rnaseq-wf/intergenic_counts.done"
+    params: "../output/agg-rnaseq-wf/intergenic_counts.tsv",
+    threads: 12
+    group: "aggregate"
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 24,
+        time_hr=lambda wildcards, attempt: attempt * 4
+    script: "scripts/agg_feature_counts.py"
+
+
+################################################################################
+# TPM Normalize Counts
+################################################################################
+rule tpm_gene_counts:
+    input: 
+        _=rules.agg_gene_counts.output[0],
+        counts=rules.agg_gene_counts.params[0],
+        gene_lengths="../output/gene_ts_lengths.tsv"
+    output: "../output/agg-rnaseq-wf/tpm_gene_counts.tsv"
+    script: "scripts/tpm.py"
+
