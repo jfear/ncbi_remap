@@ -7,13 +7,13 @@ def main():
     gene_lengths = pd.read_csv(snakemake.input.gene_lengths, sep="\t", index_col=0).squeeze()
     header = None
 
-    for i, df in enumerate(pd.read_csv(snakemake.input.counts, sep="\t", chunksize=2_000, index_col=0)):
-        _tpm = tpm(df.T, gene_lengths).dropna().T
-        if i == 0:
-            header = _tpm.columns
-            _tpm.to_csv(snakemake.output[0], sep="\t")
-        else:
-            _tpm.reindex(header).to_csv(snakemake.output[0], sep="\t", header=False, mode="a")
+    with open(snakemake.output[0], "w") as file_out:
+        for i, df in enumerate(pd.read_csv(snakemake.input.counts, sep="\t", chunksize=200, index_col=0)):
+            _tpm = tpm(df.T, gene_lengths).dropna().T
+            if i == 0:
+                file_out.write(_tpm.to_csv(sep="\t"))
+            else:
+                file_out.write(_tpm.to_csv(sep="\t", header=False)
 
 
 
