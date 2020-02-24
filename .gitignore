@@ -36,4 +36,3 @@ lib/test_xml.xml
 *.log
 *.bak
 dask_info.json
-*.ipynb
