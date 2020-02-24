@@ -434,7 +434,8 @@ rule feature_counts_fusions:
 bamCoverage_options = (
     '--outFileFormat bedgraph '
     '--binSize 1 '
-    '--normalizeTo1x 129000000 '
+    '--effectiveGenomeSize 129000000 '
+    '--normalizeUsing RPGC '
     '--ignoreForNormalization chrX '
 )
 
