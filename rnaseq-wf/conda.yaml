@@ -14,5 +14,3 @@ dependencies:
   - r-base=3.5.1
   - samtools=1.10
   - subread=1.6.4
-  - ucsc-bedgraphtobigwig=377
-  - ucsc-bedsort=377
