@@ -138,7 +138,7 @@ rule sra_prefetch:
 
 rule fastq_dump:
     input: rules.sra_prefetch.output[0]
-    output: 
+    output:
         r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq"),
         r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq"),
     conda: "./sratools.yaml"
@@ -176,7 +176,7 @@ rule atropos:
 
 
 rule atropos_summary:
-    input: 
+    input:
         _=rules.atropos.output.R1,
         log="../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
     output: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
@@ -229,7 +229,7 @@ rule hisat2:
 
 
 rule hisat2_summary:
-    input: 
+    input:
         _=rules.hisat2.output.bam,
         log=rules.hisat2.log[0]
     output: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
@@ -515,7 +515,7 @@ rule bigwig_first:
         bedgraph=rules.bamCoverage_first.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.first.bw"
-    conda: 'conda.yaml'
+    conda: 'ucsc.yaml'
     group: "BigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -532,7 +532,7 @@ rule bigwig_second:
         bedgraph=rules.bamCoverage_second.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.second.bw"
-    conda: 'conda.yaml'
+    conda: 'ucsc.yaml'
     group: "BigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -549,7 +549,7 @@ rule flybase_bigwig_first:
         bedgraph=rules.convertToFlybase_first.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.first.bw"
-    conda: 'conda.yaml'
+    conda: 'ucsc.yaml'
     group: "FlyBaseBigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
@@ -566,7 +566,7 @@ rule flybase_bigwig_second:
         bedgraph=rules.convertToFlybase_second.output[0],
         chromSizes=config['references']['dmel']['fb_chromSizes']
     output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.second.bw"
-    conda: 'conda.yaml'
+    conda: 'ucsc.yaml'
     group: "FlyBaseBigWig"
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
