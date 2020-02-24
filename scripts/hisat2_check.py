@@ -33,7 +33,7 @@ from ncbi_remap.parser import parse_hisat2
 
 
 def main():
-    df = parse_hisat2(snakemake.input[0])
+    df = parse_hisat2(snakemake.input.log)
     df.to_csv(snakemake.output[0], sep="\t", index=False)
 
     df.fillna(0, inplace=True)
@@ -43,7 +43,7 @@ def main():
     )
 
     if (df.iloc[0, :]["per_alignment"] < 1) | (uniquely_aligned < 1000):
-        alignment_bad_path = Path(Path(snakemake.input[0]).parents[3], "alignment_bad")
+        alignment_bad_path = Path(Path(snakemake.input.log).parents[3], "alignment_bad")
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, snakemake.wildcards.srr).touch()
 

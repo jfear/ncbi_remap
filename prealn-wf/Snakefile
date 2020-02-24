@@ -70,12 +70,6 @@ else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-# FASTQ Workflow
-# subworkflow fastq_wf:
-#     workdir: "../fastq-wf"
-#     snakefile: "../fastq-wf/Snakefile"
-#     configfile: "../config/reference_config.yaml"
-
 # Set working dir
 workdir: '.'
 
@@ -97,9 +91,9 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=500
+    size=1_000
 )
-print(queue)
+# print(queue)
 
 rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
@@ -222,9 +216,10 @@ rule atropos:
         wrapper_for('../wrappers/atropos')
 
 
-# TODO: add atropos output to garuntee run.
 rule atropos_summary:
-    input: rules.atropos.log[0]
+    input: 
+        _=rules.atropos.output.R1,
+        log=rules.atropos.log[0]
     output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
     threads: 8
     group: "atropos"
@@ -298,7 +293,9 @@ rule run_stats:
 
 
 rule hisat2_summary:
-    input: rules.hisat2.log[0]
+    input: 
+        _=rules.hisat2.output.bam,
+        log=rules.hisat2.log[0]
     output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
     threads: 8
     group: "hisat2"

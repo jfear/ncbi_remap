@@ -30,7 +30,7 @@ class AtroposException(Exception):
 def main():
     try:
         df = pd.DataFrame(
-            [parse_atropos(snakemake.input[0])],
+            [parse_atropos(snakemake.input.log)],
             columns=["total_processed", "total_written", "too_short"],
         )
         df.index = pd.MultiIndex.from_tuples(
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         # SRX, SRR = "SRX010901", "SRR027010"  # keep R2
 
         snakemake = MockSnake(
-            input=f"output/aln-wf/samples/{SRX}/{SRR}/{SRR}_1.trim.clean.fastq.gz.log",
+            input=dict(log=f"output/aln-wf/samples/{SRX}/{SRR}/{SRR}_1.trim.clean.fastq.gz.log"),
             wildcards=dict(srx=SRX, srr=SRR),
         )
 
