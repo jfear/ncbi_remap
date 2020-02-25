@@ -132,4 +132,44 @@ rule sample_ball_tree:
 ################################################################################
 # Genes
 ################################################################################
+rule sample_pca_gene_counts:
+    """Rotate sample-space to principal components"""
+    input: rules.tpm_gene_counts.output[0]
+    output: 
+        scaler="../output/agg-rnaseq-wf/sample_scaler.pkl",
+        reducer="../output/agg-rnaseq-wf/sample_pca_reducer.pkl",
+        reduced="../output/agg-rnaseq-wf/sample_principal_components.parquet"
+    script: "scripts/sample_pca_gene_counts.py"
+
+
+rule sample_pca_select_components:
+    """Select PCs reducing sample-space dimensions"""
+    input:
+        model=rules.sample_pca_gene_counts.output.reducer,
+        reduced_values=rules.sample_pca_gene_counts.output.reduced
+    output:
+        variance="../output/agg-rnaseq-wf/sample_pca_explained_variance.svg",
+        selected_values="../output/agg-rnaseq-wf/sample_pca_select_components.parquet"
+    params: n_comp=2_000
+    script: "scripts/sample_pca_select_components.py"
+
+
+rule sample_cov:
+    """Calculate Cov and Cov^-1 for sample prinicpal components"""
+    input: rules.sample_pca_select_components.output.selected_values
+    output: 
+        model="../output/agg-rnaseq-wf/sample_cov_model.pkl",
+        cov="../output/agg-rnaseq-wf/sample_cov.pkl",
+        inv_cov="../output/agg-rnaseq-wf/sample_inverse_cov.pkl",
+    script: "scripts/sample_cov.py"
+
+
+rule feature_ball_tree:
+    """Build Ball Tree to search for KNN genes"""
+    input:
+        selected_values=rules.sample_pca_select_components.output.selected_values,
+        vi=rules.sample_cov.output.inv_cov
+    output: "../output/agg-rnaseq-wf/feature_balltree.pkl"
+    script: "scripts/feature_balltree.py"
+
 
