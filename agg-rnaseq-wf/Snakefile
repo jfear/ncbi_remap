@@ -86,6 +86,11 @@ rule tpm_gene_counts:
     output: "../output/agg-rnaseq-wf/tpm_gene_counts.tsv"
     script: "scripts/tpm.py"
 
+rule umap_embedding_gene_counts:
+    input: rules.tpm_gene_counts.output[0]
+    output: "../output/agg-rnaseq-wf/umap_embedding_gene_counts.parquet",
+    script: "scripts/umap_embedding_gene_counts.py"
+
 ################################################################################
 # Samples
 ################################################################################
