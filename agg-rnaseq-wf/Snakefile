@@ -10,6 +10,7 @@ rule run_all:
         "../output/agg-rnaseq-wf/fusion_counts.done",
         "../output/agg-rnaseq-wf/intergenic_counts.done",
         "../output/agg-rnaseq-wf/tpm_gene_counts.tsv",
+        "../output/agg-rnaseq-wf/gene_counts_reduced.parquet",
 
 ################################################################################
 # Aggregate Counts Tables
@@ -84,4 +85,51 @@ rule tpm_gene_counts:
         gene_lengths="../output/gene_ts_lengths.tsv"
     output: "../output/agg-rnaseq-wf/tpm_gene_counts.tsv"
     script: "scripts/tpm.py"
+
+################################################################################
+# Samples
+################################################################################
+rule feature_pca_gene_counts:
+    """Rotate gene-space to principal components"""
+    input: rules.tpm_gene_counts.output[0]
+    output: 
+        scaler="../output/agg-rnaseq-wf/feature_scaler.pkl",
+        reducer="../output/agg-rnaseq-wf/feature_pca_reducer.pkl",
+        reduced="../output/agg-rnaseq-wf/feature_principal_components.parquet"
+    script: "scripts/feature_pca_gene_counts.py"
+
+
+rule feature_pca_select_components:
+    """Select PCs reducing gene-space dimensions"""
+    input:
+        model=rules.feature_pca_gene_counts.output.reducer,
+        reduced_values=rules.feature_pca_gene_counts.output.reduced
+    output:
+        variance="../output/agg-rnaseq-wf/feature_pca_explained_variance.svg",
+        selected_values="../output/agg-rnaseq-wf/feature_pca_select_components.parquet"
+    params: n_comp=2_000
+    script: "scripts/feature_pca_select_components.py"
+
+
+rule feature_cov:
+    """Calculate Cov and Cov^-1 for gene prinicpal components"""
+    input: rules.feature_pca_select_components.output.selected_values
+    output: 
+        model="../output/agg-rnaseq-wf/feature_cov_model.pkl",
+        cov="../output/agg-rnaseq-wf/feature_cov.pkl",
+        inv_cov="../output/agg-rnaseq-wf/feature_inverse_cov.pkl",
+    script: "scripts/feature_cov.py"
+
+
+rule sample_ball_tree:
+    """Build Ball Tree to search for KNN samples"""
+    input:
+        selected_values=rules.feature_pca_select_components.output.selected_values,
+        vi=rules.feature_cov.output.inv_cov
+    output: "../output/agg-rnaseq-wf/sample_balltree.pkl"
+    script: "scripts/sample_balltree.py"
+
+################################################################################
+# Genes
+################################################################################
 
