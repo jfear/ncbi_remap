@@ -15,7 +15,7 @@ def main():
     df = pd.read_parquet(
         snakemake.input.reduced_values,
         columns=[f"PC{x + 1}" for x in range(snakemake.params.n_comp)],
-    ).rename_axis("srx")
+    ).rename_axis("FBgn")
 
     df.to_parquet(snakemake.output.selected_values)
 
