@@ -1,0 +1,21 @@
+"""Aggregate the Pre-alignment workflow.
+"""
+
+from ncbi_remap.queue import Queue
+
+queue = Queue(targets="../output/prealn-wf/done", srx2srr="../output/srx2srr.csv", size="none")
+
+rule run_all:
+    input: 
+        "../output/agg-prealn-wf/layout.done",
+
+################################################################################
+# FASTQ Info
+################################################################################
+rule layout:
+    input: expand("../output/fastq-wf/fastq_info/{srr}/LAYOUT", srr=queue._srrs)
+    output: temp("../output/agg-prealn-wf/layout.done")
+    params: 
+        queue=queue,
+        data_store="../output/agg-prealn-wf/layout.tsv"
+    script: "scripts/layout.py"
