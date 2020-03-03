@@ -74,6 +74,14 @@ class Plot(NcbiPlotter):
         sns.despine(ax=self.ax, left=True)
         sns.despine(ax=self.ax2, left=True)
 
+        self.color_axis(self.ax, self.bar_plot_kwargs["color"])
+        self.color_axis(self.ax2, self.reg_plot_kwargs["color"])
+
     def stats(self):
         model = ols("num_samples ~ year", data=df).fit()
         model.summary()
+
+    @staticmethod
+    def color_axis(ax, color):
+        ax.tick_params(axis="y", color=color, labelcolor=color)
+        ax.yaxis.label.set_color(color)

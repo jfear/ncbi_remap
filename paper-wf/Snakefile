@@ -87,7 +87,7 @@ rule sample_submission_panel:
     output: "../output/paper-wf/figure_panels/sample_submission.svg"
     params:
         style=("sra"),
-        figsize = [2.22 *1.8, 1.67 *1.2],
+        figsize = [3.4, 1.7],
         bar_plot_kwargs=dict(color="C0"),
         reg_plot_kwargs=dict(lowess=True, color="C1"),
     script: "scripts/plot_sample_submission.py"
@@ -99,7 +99,7 @@ rule fig1:
         distribution=rules.sample_submission_panel.output[0]
     output: "../output/paper-wf/fig1.svg"
     params: 
-        figsize=[3.4, 4],
+        figsize=[3.4, 4.55],
         label_font=LABEL_FONT,
         label_size=LABEL_SIZE,
         label_weight=LABEL_WEIGHT,
