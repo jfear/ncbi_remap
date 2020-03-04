@@ -8,6 +8,52 @@ from more_itertools import grouper
 import pandas as pd
 
 
+def pull_processed_samples(file_name: str, col_number: int = 0, header=True, **kwargs) -> set:
+    """Create a set of sample IDs that have already been processed.
+    
+    Parameters
+    ----------
+    file_name : str
+        CSV file name to pull IDs from.
+    col_number : int, optional
+        The column with ID, by default 0
+    header : bool, optional
+        Indicates if file has a header, by default True
+    kwargs : optional
+        Passed to csv.reader
+    
+    Returns
+    -------
+    set
+        [description]
+    """
+    with open(file_name, newline="") as csvfile:
+        reader = csv.reader(csvfile, **kwargs)
+        if header:
+            _header = next(reader)
+        return {row[col_number] for row in reader}
+
+
+def touch_agg_file(file_name: str, header: list, **kwargs):
+    """If files does not exists create file with header.
+    
+    Parameters
+    ----------
+    file_name : str
+        CSV file to write to.
+    header : list
+        Header that will be writen to the file
+    kwargs : optional
+        Passed to csv.writer
+    """
+    if Path(file_name).exists():
+        return
+
+    with open(file_name, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile, **kwargs)
+        writer.writerow(header)
+
+
 def file_name_to_sample_name(
     file_names: Iterable, pattern: re.Pattern
 ) -> Generator[Tuple[str, str], None, None]:
