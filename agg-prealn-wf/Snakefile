@@ -16,16 +16,15 @@ rule run_all:
 rule layout:
     input: expand("../output/fastq-wf/fastq_info/{srr}/LAYOUT", srr=queue._srrs)
     output: temp("../output/agg-prealn-wf/layout.done")
-    params: 
-        queue=queue,
-        data_store="../output/agg-prealn-wf/layout.tsv"
+    params: "../output/agg-prealn-wf/layout.tsv"
     script: "scripts/layout.py"
 
 
 rule fastq_summary:
     input: expand("../output/fastq-wf/fastq_info/{srr}/summary.tsv", srr=queue._srrs)
     output: temp("../output/agg-prealn-wf/fastq_summary.done")
-    params: 
-        queue=queue,
-        data_store="../output/agg-prealn-wf/fastq_summary.tsv"
+    params: "../output/agg-prealn-wf/fastq_summary.tsv"
     script: "scripts/fastq_summary.py"
+
+
+rule :
