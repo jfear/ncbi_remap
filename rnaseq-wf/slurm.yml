@@ -13,6 +13,12 @@ atropos:
 hisat2:
   gres: "lscratch:250"
 
+expMerge:
+  gres: "lscratch:250"
+
+run_stats:
+  gres: "lscratch:250"
+
 bamCoverage:
   gres: "lscratch:250"
 
