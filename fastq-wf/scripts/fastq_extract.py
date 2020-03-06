@@ -4,6 +4,7 @@ import gzip
 import shutil
 from pathlib import Path
 from multiprocessing import Pool
+from subprocess import CalledProcessError
 
 from snakemake.shell import shell
 
@@ -14,14 +15,15 @@ def main():
     staged_data = stage_data()
     extract_fastq(staged_data)
 
-    if Path(TMPDIR, f"{snakemake.wildcards.srr}.sra.fastq").exists():
-        # Single ended
-        shutil.move(f"{TMPDIR}/{snakemake.wildcards.srr}.sra.fastq", snakemake.output.r1)
-        Path(snakemake.output.r2).touch()  # always out R2 even for SE.
-    elif Path(TMPDIR, f"{snakemake.wildcards.srr}.sra_1.fastq").exists():
-        # Paired ended
-        shutil.move(f"{TMPDIR}/{snakemake.wildcards.srr}.sra_1.fastq", snakemake.output.r1)
-        shutil.move(f"{TMPDIR}/{snakemake.wildcards.srr}.sra_2.fastq", snakemake.output.r2)
+    for file_name in Path(TMPDIR).glob(f"{snakemake.wildcards.srr}*.fastq"):
+        if "_1" in file_name.as_posix():
+            shutil.move(file_name.absolute().as_posix(), snakemake.output.r1)
+        elif "_2" in file_name.as_posix():
+            shutil.move(file_name.absolute().as_posix(), snakemake.output.r2)
+        else:
+            # Single-ended read
+            shutil.move(file_name.absolute().as_posix(), snakemake.output.r1)
+            Path(snakemake.output.r2).touch()  # always out R2 even for SE.
 
 
 def stage_data() -> str:
@@ -33,16 +35,24 @@ def stage_data() -> str:
 
 
 def extract_fastq(sra_file):
-    shell(
-        f"fasterq-dump {sra_file} "
-        "--split-3 "
-        "--skip-technical "
-        "--min-read-len 20 "
-        f"-O {TMPDIR} "
-        f"-t {TMPDIR} "
-        f"-e {snakemake.threads} "
-    )
-
+    try:
+        shell(
+            f"fasterq-dump {sra_file} "
+            "--split-3 "
+            "--skip-technical "
+            "--min-read-len 20 "
+            f"-O {TMPDIR} "
+            f"-t {TMPDIR} "
+            f"-e {snakemake.threads} "
+        )
+    except CalledProcessError:
+        shell(
+            f"fastq-dump {sra_file} "
+            "--split-3 "
+            "--skip-technical "
+            "--minReadLen 20 "
+            f"-O {TMPDIR} "
+        )
 
 
 if __name__ == "__main__":
