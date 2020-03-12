@@ -133,7 +133,7 @@ rule sra_prefetch:
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 2,
         time_hr=lambda wildcards, attempt: attempt * 8
-    shell: "prefetch --output-file {output[0]} {wildcards.srr} > {log} 2>&1"
+    shell: "prefetch --output-file {output[0]} --max-size 40G {wildcards.srr} > {log} 2>&1"
 
 
 rule fastq_dump:
