@@ -82,7 +82,6 @@ localrules: srr_complete
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    targets="../output/library_strategy-wf/rnaseq.pkl",
     completed="../output/prealn-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
