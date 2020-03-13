@@ -6,7 +6,6 @@ rule targets:
     input:
         # Database Info
         "output/srx2srr.csv",
-        "output/prealn_queue.date",
         # Additional References
         "output/known_splice_sites_r6-11.txt",
         "output/dmel_r6-11.intergenic.gtf",
@@ -25,23 +24,8 @@ rule sra2mongo:
 
 rule srx2srr:
     input: rules.sra2mongo.output[0]
-    output: "output/srx2srr.csv"
+    output: "output/srx2srr.csv",
     script: "scripts/srx2srr.py"
-
-
-rule initialize_prealn_queue:
-    input: rules.sra2mongo.output[0]
-    output: "output/prealn_queue.date"
-    threads: 2
-    shell: """
-    ./prealn-wf/prealn-store.py init --append -j {threads} && \
-    date > {output[0]}
-    """
-
-
-rule initialize_store:
-    threads: 2
-    shell: "./prealn-wf/prealn-store.py init -j {threads}"
 
 
 ###############################################################################
