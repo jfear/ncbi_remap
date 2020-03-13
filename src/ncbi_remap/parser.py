@@ -1,4 +1,5 @@
 import re
+import csv
 from io import StringIO
 from collections import OrderedDict
 
@@ -6,22 +7,42 @@ import numpy as np
 import pandas as pd
 
 
-# Parsing functions
-def parse_fastq_summary(fname):
-    """Parser for fastq summary table.
+class FastqSummary:
+    header = ["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"]
 
-    Returns
-    -------
-    pandas.DataFrame: A single row dataframe.
-    """
-    dtypes = {
-        "libsize_R1": np.float64,
-        "avgLen_R1": np.float64,
-        "libsize_R2": np.float64,
-        "avgLen_R2": np.float64,
-    }
+    # "md5sum_R1", "libsize_R1", "avgLen_R1", "md5sum_R2", "libsize_R2", "avgLen_R2"
+    dtypes_6 = [str, int, float, str, int, float]
 
-    return pd.read_csv(fname, sep="\t", dtype=dtypes)
+    # "libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"
+    dtypes_4 = [int, float, int, float]
+
+    def __init__(self, file_name: str):
+        with open(file_name, newline="") as csvfile:
+            reader = csv.reader(csvfile, delimiter="\t")
+            _header = next(reader)
+            row = self.set_dtype(next(reader))
+
+        if len(row) == 4:
+            self.libsize_r1, self.avglen_r1, self.libsize_r2, self.avglen_r2 = row
+        else:
+            self.md5sum_r1, self.libsize_r1, self.avglen_r1, self.md5sum_r2, self.libsize_r2, self.avg.en_r2 = (
+                row
+            )
+
+    def set_dtype(self, row):
+        if len(row) == 4:
+            dtypes = self.dtypes_4
+        else:
+            dtypes = self.dtypes_6
+
+        return [dtype(value) for dtype, value in zip(dtypes, row)]
+
+    @property
+    def values(self):
+        return self.libsize_r1, self.avglen_r1, self.libsize_r2, self.avglen_r2
+
+    def __str__(self):
+        return "\n".join([",".join(self.header), ",".join(self.values)])
 
 
 def parse_fastq_screen(fname):
