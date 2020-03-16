@@ -1,8 +1,10 @@
 """Looks at R1 and R2 to determine library layout"""
 import os
+import sys
 from pathlib import Path
 from collections import namedtuple
 
+sys.path.insert(0, "../src")
 from ncbi_remap.fastq import fastq_is_empty, fastq_read_stats, fastq_is_abi_solid
 from ncbi_remap.snakemake import put_flag
 
