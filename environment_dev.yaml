@@ -20,6 +20,7 @@ dependencies:
   - pylint
   - pymongo
   - pytables
+  - rope
   - scikit-learn
   - scipy
   - seaborn
