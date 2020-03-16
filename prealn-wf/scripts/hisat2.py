@@ -1,12 +1,6 @@
-__author__ = "Justin Fear"
-__copyright__ = "Copyright 2016, Justin Fear"
-__email__ = "justin.fear@nih.gov"
-__license__ = "MIT"
-
 import sys
 from tempfile import NamedTemporaryFile
 from snakemake.shell import shell
-from lcdblib.snakemake import aligners
 
 sys.path.insert(0, '../src')
 from ncbi_remap.snakemake import get_flag
@@ -30,7 +24,7 @@ elif flag == 'keep_R2':
 else:
     fastqs = '-U {0} '.format(inputs.R1)
 
-prefix = aligners.prefix_from_hisat2_index(snakemake.input.index)
+prefix = '.'.join(snakemake.input.index.split('.')[:-2])
 
 # Create temporary files to store intermediates. Will use $TMDPIR if set.
 sam = NamedTemporaryFile(suffix='.sam', delete=False).name
@@ -65,4 +59,10 @@ shell(
     "&& cp {sort_bam} {outputs.bam} "
     "&& rm {bam} "
     "&& rm {sort_bam} "
+)
+
+# Make index
+shell(
+    "samtools index "
+    "{outputs.bam} "
 )

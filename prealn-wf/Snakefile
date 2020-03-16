@@ -107,81 +107,7 @@ rule run_all:
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/fastq_screen.smk"
 include: "rules/atropos.smk"
-
-
-###############################################################################
-# Alignment
-###############################################################################
-rule hisat2:
-    """Basic alignment."""
-    input:
-        index=config['references']['dmel']['hisat2'],
-        splice_sites=config['references']['dmel']['known_splice_sites'],
-        R1=rules.atropos.output.R1,
-        R2=rules.atropos.output.R2,
-        layout=rules.fastq_check.output.layout,
-    output:
-        bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam")
-    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.log"
-    params:
-        hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
-        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
-    wrapper:
-        wrapper_for('wrappers/hisat2/align')
-
-
-rule bai:
-    input: rules.hisat2.output.bam
-    output: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bai")
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
-    conda: "./wrappers/hisat2/align/environment.yaml"
-    shell: "samtools index {input[0]}"
-
-
-rule run_stats:
-    input:
-        bam=rules.hisat2.output.bam,
-        bai=rules.bai.output[0],
-    output:
-        samtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats",
-        samtools_idxstats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats",
-        bamtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats",
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
-    conda: "conda.yaml"
-    shell:
-        'BAM=$(mktemp --suffix=".bam") '
-        '&& cp {input.bam} $BAM '
-        '&& cp {input.bam}.bai $BAM.bai '
-        '&& samtools stats $BAM > {output.samtools_stats} '
-        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
-        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
-        '&& rm $BAM'
-
-
-rule hisat2_summary:
-    input: 
-        _=rules.hisat2.output.bam,
-        log=rules.hisat2.log[0]
-    output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
-    script: "../scripts/hisat2_check.py"
+include: "rules/align.smk"
 
 
 ###############################################################################
@@ -318,7 +244,7 @@ def _srr_complete(wildcards):
     file_names = [
         rules.parse_fastq_screen.output[0],
         rules.atropos_summary.output[0],
-        # rules.hisat2_summary.output[0],
+        rules.hisat2_summary.output[0],
         # rules.run_stats.output.samtools_stats,
         # rules.run_stats.output.samtools_idxstats,
         # rules.run_stats.output.bamtools_stats,
