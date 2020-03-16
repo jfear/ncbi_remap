@@ -36,4 +36,5 @@ lib/test_xml.xml
 *.log
 *.bak
 *.sif
+.env
 dask_info.json
