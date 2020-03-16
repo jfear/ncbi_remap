@@ -61,7 +61,7 @@ from lcdblib.snakemake import helpers
 from lcdblib.utils import utils
 
 from ncbi_remap.queue import Queue
-from ncbi_remap.snakemake import wrapper_for, put_flag, get_patterns
+from ncbi_remap.snakemake import slack, wrapper_for, put_flag, get_patterns
 
 # Setup tempdir to work with lscratch
 if os.getenv("SLURM_JOBID"):
@@ -97,21 +97,9 @@ queue = Queue(
 rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
 
-
-def slack(text):
-    try:
-        from slackclient import SlackClient
-        token = os.environ['SLACK_SNAKEMAKE_BOT_TOKEN']
-        sc = SlackClient(token)
-        sc.api_call('chat.postMessage', channel='U6N9L3ZSQ', text=text)
-    except (ImportError, KeyError):
-        pass
-
-
 onsuccess:
     print('All Finished')
     slack('prealn-wf: All Finished')
-
 
 onerror:
     print('Something went wrong, you need to re-run')
