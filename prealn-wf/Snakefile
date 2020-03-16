@@ -50,18 +50,16 @@ run_stats
 markduplicates
     run `picard markduplicates` to determine library complexity
 """
-
 import os
 import sys
-
-import pandas as pd
 from pathlib import Path
 
-from lcdblib.snakemake import helpers
-from lcdblib.utils import utils
+import pandas as pd
 
+sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
 from ncbi_remap.snakemake import slack, wrapper_for, put_flag, get_patterns
+
 
 # Setup tempdir to work with lscratch
 if os.getenv("SLURM_JOBID"):
@@ -70,11 +68,14 @@ else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-# Set working dir
-workdir: '.'
-
-# import config
+singularity: "../singularity/drosSRA_workflow.sif"
 configfile: '../config/reference_config.yaml'
+onsuccess:
+    print('All Finished')
+    slack('prealn-wf: All Finished')
+onerror:
+    print('Something went wrong, you need to re-run')
+    slack('prealn-wf: Something went wrong, you need to re-run') 
 
 localrules: srr_complete
 
@@ -92,128 +93,20 @@ queue = Queue(
     srx2srr="../output/srx2srr.csv",
     size=1_000
 )
-# print(queue)
+
+# If Dry-Run print queue
+if any([x == "-n" for x in sys.argv]):
+    print(queue)
 
 rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
 
-onsuccess:
-    print('All Finished')
-    slack('prealn-wf: All Finished')
-
-onerror:
-    print('Something went wrong, you need to re-run')
-    slack('prealn-wf: Something went wrong, you need to re-run')
-
-
 ###############################################################################
-# FASTQ
+# Load Rules
 ###############################################################################
-rule sra_prefetch:
-    """Downloads container file from the SRA"""
-    output: "../output/fastq-wf/sra_cache/{srr}.sra"
-    log: "../output/fastq-wf/sra_download_logs/{srr}.log"
-    conda: "./sratools.yaml"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 2,
-        time_hr=lambda wildcards, attempt: attempt * 8
-    shell: "prefetch --output-file {output[0]} --max-size 40G {wildcards.srr} > {log} 2>&1"
-
-
-rule fastq_dump:
-    input: rules.sra_prefetch.output[0]
-    output: 
-        r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq"),
-        r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq"),
-    conda: "./sratools.yaml"
-    threads: 8
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 4,
-        time_hr=lambda wildcards, attempt: attempt * 12
-    script: "../fastq-wf/scripts/fastq_extract.py"
-
-
-rule fastq_check:
-    input: 
-        sra=rules.sra_prefetch.output[0],
-        r1=rules.fastq_dump.output.r1,
-        r2=rules.fastq_dump.output.r2,
-        download_log=rules.sra_prefetch.log[0]
-    output: 
-        layout="../output/fastq-wf/fastq_info/{srr}/LAYOUT",
-        summary="../output/fastq-wf/fastq_info/{srr}/summary.tsv"
-    params:
-        download_bad="../output/fastq-wf/download_bad",
-        abi_solid="../output/fastq-wf/abi_solid",
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 4,
-        time_hr=lambda wildcards, attempt: attempt * 12
-    script: "../fastq-wf/scripts/fastq_check.py"
-
-
-###############################################################################
-# FASTQ QC
-###############################################################################
-rule fastq_screen:
-    """Check for contamination."""
-    input:
-        fastq=rules.fastq_dump.output.r1,
-        dm6=config['references']['dmel']['bowtie2'],
-        hg19=config['references']['human']['bowtie2'],
-        wolbachia=config['references']['wolbachia']['bowtie2'],
-        ecoli=config['references']['ecoli']['bowtie2'],
-        yeast=config['references']['yeast']['bowtie2'],
-        rRNA=config['references']['rRNA']['bowtie2'],
-        phix=config['references']['phix']['bowtie2'],
-        ercc=config['references']['ercc']['bowtie2'],
-        adapters=config['references']['adapters']['bowtie2']
-    output: txt="../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt"
-    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt.log"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 3,
-        time_hr=lambda wildcards, attempt: attempt * 1
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('../lcdb-wf/wrappers/wrappers/fastq_screen')
-
-
-###############################################################################
-# FASTQ Pre-process
-###############################################################################
-rule atropos:
-    """Filter reads that are less than 25bp."""
-    input:
-        R1=rules.fastq_dump.output.r1,
-        R2=rules.fastq_dump.output.r2,
-        layout=rules.fastq_check.output.layout
-    output:
-        R1=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
-        R2=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq"),
-    params:
-        extra_pe='-U 0 --minimum-length 25',
-        extra_se='--minimum-length 25',
-    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log"
-    threads: 8
-    group: "atropos"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 8,
-        time_hr=lambda wildcards, attempt: attempt * 12
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('../wrappers/atropos')
-
-
-rule atropos_summary:
-    input: 
-        _=rules.atropos.output.R1,
-        log=rules.atropos.log[0]
-    output: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.trim.clean.tsv"
-    threads: 8
-    group: "atropos"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 8,
-        time_hr=lambda wildcards, attempt: attempt * 12
-    script: "../scripts/atropos_check.py"
+include: "../fastq-wf/rules/download_fastq.smk"
+include: "rules/fastq_screen.smk"
+include: "rules/atropos.smk"
 
 
 ###############################################################################
@@ -233,7 +126,6 @@ rule hisat2:
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    conda: "conda.yaml"
     threads: 8
     group: "hisat2"
     resources:
@@ -251,7 +143,7 @@ rule bai:
     resources:
         mem_gb=lambda wildcards, attempt: attempt * 16,
         time_hr=lambda wildcards, attempt: attempt * 8
-    conda: "conda.yaml"
+    conda: "./wrappers/hisat2/align/environment.yaml"
     shell: "samtools index {input[0]}"
 
 
@@ -424,21 +316,20 @@ def _srr_complete(wildcards):
     srr = wildcards.srr
     srx = queue.get_srx(srr)
     file_names = [
-        rules.fastq_screen.output.txt,
-        rules.atropos_summary.output[0],
-        rules.hisat2_summary.output[0],
-        rules.run_stats.output.samtools_stats,
-        rules.run_stats.output.samtools_idxstats,
-        rules.run_stats.output.bamtools_stats,
-        rules.collectrnaseqmetrics_agg.output[0],
-        rules.feature_counts.output.counts,
-        rules.feature_counts.output.jcounts,
-        rules.feature_counts.output.summary,
-        rules.markduplicates.output.metrics,
+        rules.parse_fastq_screen.output[0],
+        # rules.atropos_summary.output[0],
+        # rules.hisat2_summary.output[0],
+        # rules.run_stats.output.samtools_stats,
+        # rules.run_stats.output.samtools_idxstats,
+        # rules.run_stats.output.bamtools_stats,
+        # rules.collectrnaseqmetrics_agg.output[0],
+        # rules.feature_counts.output.counts,
+        # rules.feature_counts.output.jcounts,
+        # rules.feature_counts.output.summary,
+        # rules.markduplicates.output.metrics,
     ]
     return [file_name.format(srx=srx, srr=srr) for file_name in file_names]
 
 rule srr_complete:
     input: _srr_complete
-    output: "../output/prealn-wf/done/{srr}"
-    shell: "touch {output[0]}"
+    output: touch("../output/prealn-wf/done/{srr}")
