@@ -10,7 +10,6 @@ dependencies:
   - gffutils
   - hdf5
   - ipython
-  - ipdb
   - jupyter
   - matplotlib
   - nltk
