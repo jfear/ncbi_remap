@@ -33,10 +33,8 @@ def main():
             [parse_atropos(snakemake.input.log)],
             columns=["total_processed", "total_written", "too_short"],
         )
-        df.index = pd.MultiIndex.from_tuples(
-            [(snakemake.wildcards.srx, snakemake.wildcards.srr)], names=["srx", "srr"]
-        )
-        df.to_csv(snakemake.output[0], sep="\t")
+        df.index = [snakemake.wildcards.srr]
+        df.to_parquet(snakemake.output[0])
 
         if df.total_written[0] < 1000:
             raise AtroposException

@@ -317,7 +317,7 @@ def _srr_complete(wildcards):
     srx = queue.get_srx(srr)
     file_names = [
         rules.parse_fastq_screen.output[0],
-        # rules.atropos_summary.output[0],
+        rules.atropos_summary.output[0],
         # rules.hisat2_summary.output[0],
         # rules.run_stats.output.samtools_stats,
         # rules.run_stats.output.samtools_idxstats,
