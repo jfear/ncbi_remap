@@ -9,6 +9,8 @@ else:
 
 shell.prefix(f"set -euo pipefail; export TMPDIR={TMPDIR};")
 
+singularity: "../singularity/drosSRA_workflow.sif"
+
 rule se_example:
     input: 
         layout="../output/fastq-wf/fastq_info/SRR031744/LAYOUT",
