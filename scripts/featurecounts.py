@@ -1,9 +1,6 @@
-__author__ = "Ryan Dale"
-__copyright__ = "Copyright 2016, Ryan Dale"
-__email__ = "dalerr@niddk.nih.gov"
-__license__ = "MIT"
-
 import sys
+from subprocess import SubprocessError
+
 from snakemake.shell import shell
 
 sys.path.insert(0, '../src')
@@ -18,17 +15,11 @@ log = snakemake.log_fmt_shell()
 flag = get_flag(inputs.layout)
 if flag == 'PE':
     extra = params.extra_pe
-elif flag == 'keep_R2':
-    extra = params.extra_se
 else:
     extra = params.extra_se
 
 # Look up strand
-try:
-    strand = get_flag(inputs.strand)
-except:
-    strand = 'unstranded'
-
+strand = get_flag(inputs.strand)
 if strand == 'first_strand':
     extra += '-s 1'
 elif strand == 'second_strand':
@@ -45,3 +36,7 @@ shell(
     "{inputs.bam} "
     "{log} "
 )
+
+with open(snakemake.log[0], "r") as fh:
+    if not "Summary of counting results" in fh.read():
+        raise SubprocessError(f"FeatureCounts log not complete: {snakemake.wildcards.srx}/{snakemake.wildcards.srr}")
