@@ -12,7 +12,7 @@ rule markduplicates:
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam"),
         metrics=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics"),
-    log: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics.log")
+    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics.log"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES

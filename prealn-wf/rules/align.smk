@@ -16,7 +16,7 @@ rule hisat2:
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam"),
         bai=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bai"),
-    log: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.log")
+    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.log"
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'

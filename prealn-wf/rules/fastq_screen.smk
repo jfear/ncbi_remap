@@ -20,7 +20,7 @@ rule fastq_screen:
         ercc=config['references']['ercc']['bowtie2'],
         adapters=config['references']['adapters']['bowtie2']
     output: txt=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt")
-    log: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt.log")
+    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.fastq_screen.txt.log"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES

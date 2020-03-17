@@ -16,7 +16,7 @@ rule feature_counts:
         counts=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts"),
         jcounts=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.jcounts"),
         summary=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.summary"),
-    log: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.log")
+    log: "../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts.log"
     params:
         extra_pe='-p -P -C -J ',
         extra_se='-J '
