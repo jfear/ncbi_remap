@@ -1,4 +1,11 @@
 """Run Atropos to Trim Reads"""
+THREADS = 8
+GROUP = "atropos"
+RESOURCES = dict(
+    mem_gb=lambda wildcards, attempt: attempt * 8,
+    time_hr=lambda wildcards, attempt: attempt * 12
+)
+
 rule atropos:
     """Filter reads that are less than 25bp."""
     input:
@@ -12,11 +19,9 @@ rule atropos:
         extra_pe='-U 0 --minimum-length 25',
         extra_se='--minimum-length 25',
     log: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz.log")
-    threads: 8
-    group: "atropos"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 8,
-        time_hr=lambda wildcards, attempt: attempt * 12
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../../scripts/atropos.py"
 
 
@@ -25,9 +30,7 @@ rule atropos_summary:
         _=lambda wildcards: queue.expand(rules.atropos.output.R1, wildcards.srr),
         log=lambda wildcards: queue.expand(rules.atropos.log[0], wildcards.srr)
     output: "../output/prealn-wf/atropos/{srr}.parquet"
-    threads: 8
-    group: "atropos"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 8,
-        time_hr=lambda wildcards, attempt: attempt * 12
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../../scripts/atropos_check.py"

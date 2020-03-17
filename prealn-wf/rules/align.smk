@@ -1,3 +1,9 @@
+THREADS = 8
+GROUP = "hisat2"
+RESOURCES = dict(
+    mem_gb=lambda wildcards, attempt: attempt * 16,
+    time_hr=lambda wildcards, attempt: attempt * 8
+)
 
 rule hisat2:
     """Basic alignment."""
@@ -14,11 +20,9 @@ rule hisat2:
     params:
         hisat2_extra='--max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
         samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../scripts/hisat2.py"
 
 
@@ -27,11 +31,9 @@ rule hisat2_summary:
         _=lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srr),
         log=lambda wildcards: queue.expand(rules.hisat2.log[0], wildcards.srr)
     output: "../output/prealn-wf/hisat2/{srr}.parquet"
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../../scripts/hisat2_check.py"
 
 
@@ -40,20 +42,26 @@ rule run_stats:
         bam=rules.hisat2.output.bam,
         bai=rules.hisat2.output.bai,
     output:
-        samtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats",
-        samtools_idxstats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.idxstats",
-        bamtools_stats="../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats",
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 8
+        samtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats"),
+        bamtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats"),
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     shell:
         'BAM=$(mktemp --suffix=".bam") '
         '&& cp {input.bam} $BAM '
         '&& cp {input.bam}.bai $BAM.bai '
         '&& samtools stats $BAM > {output.samtools_stats} '
-        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
         '&& bamtools stats -in $BAM > {output.bamtools_stats} '
         '&& rm $BAM'
 
+
+rule parse_stats:
+    input:
+        samtools=lambda wildcards: queue.expand(rules.run_stats.output.samtools_stats, wildcards.srr),
+        bamtools=lambda wildcards: queue.expand(rules.run_stats.output.bamtools_stats, wildcards.srr)
+    output: "../output/prealn-wf/aln_stats/{srr}.parquet"
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
+    script: "../scripts/parse_alignment_stats.py"
