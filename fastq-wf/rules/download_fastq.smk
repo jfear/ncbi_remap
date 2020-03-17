@@ -1,4 +1,10 @@
 """Rules to download FASTQ from the SRA."""
+THREADS = 8
+GROUP = "fastq-dump"
+RESOURCES = dict(
+    mem_gb=lambda wildcards, attempt: attempt * 4,
+    time_hr=lambda wildcards, attempt: attempt * 12
+)
 
 rule sra_prefetch:
     """Downloads container file from the SRA"""
@@ -15,11 +21,9 @@ rule fastq_dump:
     output: 
         r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq"),
         r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq"),
-    group: "fastq-dump"
-    threads: 8
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 4,
-        time_hr=lambda wildcards, attempt: attempt * 12
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../scripts/fastq_extract.py"
 
 
@@ -35,9 +39,7 @@ rule fastq_check:
     params:
         download_bad="../output/fastq-wf/download_bad",
         abi_solid="../output/fastq-wf/abi_solid",
-    group: "fastq-dump"
-    threads: 8
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 4,
-        time_hr=lambda wildcards, attempt: attempt * 12
+    group: GROUP
+    threads: THREADS
+    resources: **RESOURCES
     script: "../scripts/fastq_check.py"
