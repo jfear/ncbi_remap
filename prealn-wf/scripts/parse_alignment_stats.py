@@ -19,8 +19,10 @@ def _samtools():
             "average_quality",
             "insert_size_average",
             "insert_size_standard_deviation",
+            "inward_oriented_pairs",
+            "outward_oriented_pairs",
+            "pairs_with_other_orientation",
             "pairs_on_different_chromosomes",
-            "percentage_of_properly_paired_reads_(%)",
         ]
     ]
 
