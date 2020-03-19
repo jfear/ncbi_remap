@@ -17,7 +17,8 @@ FASTQ_INFO_PATH = Path("../output/fastq-wf/fastq_info")
 def main():
     convert_layout()
     convert_summary()
-    rmdir()
+    remove_fastq_dirs()
+    remove_prealn_dirs()
 
 
 def convert_layout():
@@ -51,11 +52,21 @@ def convert_summary():
         pth.unlink()
 
 
-def rmdir():
+def remove_fastq_dirs():
     for pth in FASTQ_INFO_PATH.iterdir():
         if not pth.is_dir():
             continue
         pth.rmdir()
+
+
+def remove_prealn_dirs():
+    """Remove prealn-wf SRRs that are download bad."""
+    srrs = set([pth.name for pth in Path("../output/fastq-wf/download_bad").iterdir()]).union(
+        set([pth.name for pth in Path("../output/fastq-wf/abi_solid").iterdir()])
+    )
+    for pth in Path("../output/prealn-wf/samples/").glob("**/SRR*"):
+        if pth.name in srrs:
+            shutil.rmtree(pth)
 
 
 if __name__ == "__main__":
