@@ -59,6 +59,11 @@ def main():
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, snakemake.wildcards.srr).touch()
 
+        # Remove hisat2 output if problems
+        Path(snakemake.input.bam).unlink()
+        Path(snakemake.input.bai).unlink()
+        Path(snakemake.input.log).unlink()
+
 
 if __name__ == "__main__":
     if os.getenv("SNAKE_DEBUG", False):
