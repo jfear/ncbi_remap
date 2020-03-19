@@ -34,8 +34,8 @@ rule fastq_check:
         r2=rules.fastq_dump.output.r2,
         download_log=rules.sra_prefetch.log[0]
     output: 
-        layout="../output/fastq-wf/fastq_info/{srr}/LAYOUT",
-        summary="../output/fastq-wf/fastq_info/{srr}/summary.tsv"
+        layout="../output/fastq-wf/layout/{srr}.parquet",
+        summary="../output/fastq-wf/libsize/{srr}.parquet"
     params:
         download_bad="../output/fastq-wf/download_bad",
         abi_solid="../output/fastq-wf/abi_solid",

@@ -2,6 +2,7 @@ import sys
 from subprocess import SubprocessError
 
 from snakemake.shell import shell
+import pandas as pd
 
 sys.path.insert(0, '../src')
 from ncbi_remap.snakemake import get_flag
@@ -12,7 +13,7 @@ params = snakemake.params
 log = snakemake.log_fmt_shell()
 
 # Look up Layout
-flag = get_flag(inputs.layout)
+flag = pd.read_parquet(inputs.layout).layout[0]
 if flag == 'PE':
     extra = params.extra_pe
 else:

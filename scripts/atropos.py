@@ -1,13 +1,5 @@
-__author__ = "Justin Fear"
-__copyright__ = "Copyright 2016, Justin Fear"
-__email__ = "justin.fear@nih.gov"
-__license__ = "MIT"
-
-import sys
 from snakemake.shell import shell
-
-sys.path.insert(0, "../src")
-from ncbi_remap.snakemake import get_flag
+import pandas as pd
 
 log = snakemake.log_fmt_shell()
 inputs = snakemake.input
@@ -15,7 +7,7 @@ outputs = snakemake.output
 params = snakemake.params
 
 # Look up Layout
-flag = get_flag(inputs.layout)
+flag = pd.read_parquet(inputs.layout).layout[0]
 if flag == "PE":
     in_R1 = inputs.R1
     in_R2 = inputs.R2
