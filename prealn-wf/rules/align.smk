@@ -13,6 +13,7 @@ rule hisat2:
         R1=rules.atropos.output.R1,
         R2=rules.atropos.output.R2,
         layout=rules.fastq_check.output.layout,
+        _=rules.atropos_summary.output[0]
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam"),
         bai=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bai"),

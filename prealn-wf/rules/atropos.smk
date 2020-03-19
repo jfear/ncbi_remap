@@ -27,7 +27,8 @@ rule atropos:
 
 rule atropos_summary:
     input: 
-        _=lambda wildcards: queue.expand(rules.atropos.output.R1, wildcards.srr),
+        R1=lambda wildcards: queue.expand(rules.atropos.output.R1, wildcards.srr),
+        R2=lambda wildcards: queue.expand(rules.atropos.output.R2, wildcards.srr),
         log=lambda wildcards: queue.expand(rules.atropos.log[0], wildcards.srr)
     output: "../output/prealn-wf/atropos/{srr}.parquet"
     group: GROUP
