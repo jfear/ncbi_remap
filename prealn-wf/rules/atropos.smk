@@ -25,7 +25,7 @@ rule atropos:
     script: "../../scripts/atropos.py"
 
 
-rule atropos_summary:
+rule atropos_check:
     input: 
         R1=lambda wildcards: queue.expand(rules.atropos.output.R1, wildcards.srr),
         R2=lambda wildcards: queue.expand(rules.atropos.output.R2, wildcards.srr),

@@ -13,7 +13,7 @@ rule hisat2:
         R1=rules.atropos.output.R1,
         R2=rules.atropos.output.R2,
         layout=rules.fastq_check.output.layout,
-        _=rules.atropos_summary.output[0]
+        _=rules.atropos_check.output[0]
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam"),
         bai=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bai"),
@@ -27,9 +27,10 @@ rule hisat2:
     script: "../scripts/hisat2.py"
 
 
-rule hisat2_summary:
+rule hisat2_check:
     input: 
-        _=lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srr),
+        bam=lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srr),
+        bai=lambda wildcards: queue.expand(rules.hisat2.output.bai, wildcards.srr),
         log=lambda wildcards: queue.expand(rules.hisat2.log[0], wildcards.srr)
     output: "../output/prealn-wf/hisat2/{srr}.parquet"
     group: GROUP
@@ -42,6 +43,7 @@ rule run_stats:
     input:
         bam=rules.hisat2.output.bam,
         bai=rules.hisat2.output.bai,
+        _=hisat2_check.output[0]
     output:
         samtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats"),
         bamtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats"),
