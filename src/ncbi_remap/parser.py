@@ -6,6 +6,9 @@ from collections import OrderedDict
 import numpy as np
 import pandas as pd
 
+SRR_PATTERN = re.compile(r"[SDE]RR\d+")
+SRX_PATTERN = re.compile(r"[SDE]RX\d+")
+
 
 class FastqSummary:
     header = ["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"]
@@ -25,9 +28,14 @@ class FastqSummary:
         if len(row) == 4:
             self.libsize_r1, self.avglen_r1, self.libsize_r2, self.avglen_r2 = row
         else:
-            self.md5sum_r1, self.libsize_r1, self.avglen_r1, self.md5sum_r2, self.libsize_r2, self.avg.en_r2 = (
-                row
-            )
+            (
+                self.md5sum_r1,
+                self.libsize_r1,
+                self.avglen_r1,
+                self.md5sum_r2,
+                self.libsize_r2,
+                self.avg.en_r2,
+            ) = row
 
     def set_dtype(self, row):
         if len(row) == 4:
