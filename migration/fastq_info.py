@@ -19,6 +19,7 @@ def main():
     convert_summary()
     rmdir()
 
+
 def convert_layout():
     outdir = Path("../output/fastq-wf/layout").mkdir(exist_ok=True)
     for pth in FASTQ_INFO_PATH.glob("**/LAYOUT"):
@@ -48,6 +49,7 @@ def convert_summary():
         df.index = idx
         df.to_parquet(f"../output/fastq-wf/libsize/{srr}.parquet")
         pth.unlink()
+
 
 def rmdir():
     for pth in FASTQ_INFO_PATH.iterdir():
