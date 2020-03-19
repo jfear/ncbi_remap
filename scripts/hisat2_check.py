@@ -40,10 +40,8 @@ class Hisat2Exception(Exception):
 
 def main():
     try:
-        df = parse_hisat2(snakemake.input.log)
-        df.fillna(0, inplace=True)
-
-        df.index = [snakemake.wildcards.srr]
+        df = parse_hisat2(snakemake.input.log).fillna(0)
+        df.index = pd.Index([snakemake.wildcards.srr], name="srr")
         df.to_parquet(snakemake.output[0])
 
         uniquely_aligned = (
