@@ -24,7 +24,7 @@ sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_fastq_screen
 
 
-df = parse_fastq_screen(snakemake.input[0]).set_index("reference")
+df = parse_fastq_screen(snakemake.input[0]).set_index("reference").fillna(0)
 summarized = (
     (
         (df.one_hit_one_library_count + df.multiple_hits_one_library_count)
@@ -32,8 +32,10 @@ summarized = (
         * 100
     )
     .rename(snakemake.wildcards.srr)
+    .rename_axis("")
     .to_frame()
     .T
+    .rename_axis("srr")
 )
 
 summarized.columns = [f"{col}_pct_reads_mapped" for col in summarized.columns]

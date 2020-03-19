@@ -69,7 +69,7 @@ include: "rules/markduplicates.smk"
 
 rule srr_complete:
     input: 
-        rules.parse_fastq_screen.output[0],
+        rules.fastq_screen_summary.output[0],
         rules.atropos_check.output[0],
         rules.hisat2_check.output[0],
         rules.parse_stats.output[0],

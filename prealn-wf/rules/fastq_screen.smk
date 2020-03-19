@@ -28,10 +28,10 @@ rule fastq_screen:
     script: "../scripts/fastq_screen.py"
 
 
-rule parse_fastq_screen:
+rule fastq_screen_summary:
     input: lambda wildcards: queue.expand(rules.fastq_screen.output[0], wildcards.srr)
     output: "../output/prealn-wf/fastq_screen/{srr}.parquet"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
-    script: "../scripts/parse_fastq_screen.py"
+    script: "../scripts/fastq_screen_summary.py"
