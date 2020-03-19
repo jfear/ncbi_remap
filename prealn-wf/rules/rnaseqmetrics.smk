@@ -9,7 +9,8 @@ RESOURCES = dict(
 rule collectrnaseqmetrics_unstrand:
     input:
         bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        refflat=config['references']['dmel']['refflat'],
+        _=rules.hisat2_check.output[0]
     output: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.NONE.picard.collectrnaseqmetrics")
     params:
         extra='STRAND=NONE',
@@ -23,7 +24,8 @@ rule collectrnaseqmetrics_unstrand:
 rule collectrnaseqmetrics_first:
     input:
         bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        refflat=config['references']['dmel']['refflat'],
+        _=rules.hisat2_check.output[0]
     output: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.FIRST_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics")
     params:
         extra='STRAND=FIRST_READ_TRANSCRIPTION_STRAND',
@@ -37,7 +39,8 @@ rule collectrnaseqmetrics_first:
 rule collectrnaseqmetrics_second:
     input:
         bam=rules.hisat2.output.bam,
-        refflat=config['references']['dmel']['refflat']
+        refflat=config['references']['dmel']['refflat'],
+        _=rules.hisat2_check.output[0]
     output: temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.SECOND_READ_TRANSCRIPTION_STRAND.picard.collectrnaseqmetrics")
     params:
         extra='STRAND=SECOND_READ_TRANSCRIPTION_STRAND'

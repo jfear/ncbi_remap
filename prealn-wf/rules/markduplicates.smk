@@ -8,7 +8,8 @@ RESOURCES = dict(
 
 rule markduplicates:
     input:
-        bam=rules.hisat2.output.bam
+        bam=rules.hisat2.output.bam,
+        _=rules.hisat2_check.output[0]
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.bam"),
         metrics=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.picard.markduplicates.metrics"),
