@@ -31,9 +31,9 @@ def main():
     try:
         df = pd.DataFrame(
             [parse_atropos(snakemake.input.log)],
+            index=pd.Index([snakemake.wildcards.srr], name="srr"),
             columns=["total_processed", "total_written", "too_short"],
         )
-        df.index = [snakemake.wildcards.srr]
         df.to_parquet(snakemake.output[0])
 
         if df.total_written[0] < 1000:
