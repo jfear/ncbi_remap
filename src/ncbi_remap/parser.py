@@ -10,6 +10,16 @@ SRR_PATTERN = re.compile(r"[SDE]RR\d+")
 SRX_PATTERN = re.compile(r"[SDE]RX\d+")
 
 
+def parse_srr(file_name: str) -> str:
+    """Given a file name pull out the SRR."""
+    return re.findall(SRR_PATTERN, file_name)[0]
+
+
+def parse_srx(file_name: str) -> str:
+    """Given a file name pull out the SRX."""
+    return re.findall(SRX_PATTERN, file_name)[0]
+
+
 class FastqSummary:
     header = ["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"]
 
