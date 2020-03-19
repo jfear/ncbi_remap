@@ -10,6 +10,7 @@ rule fastq_screen:
     """Check for contamination."""
     input:
         fastq=rules.fastq_dump.output.r1,
+        layout=rules.fastq_check.output.layout,
         dm6=config['references']['dmel']['bowtie2'],
         hg19=config['references']['human']['bowtie2'],
         wolbachia=config['references']['wolbachia']['bowtie2'],

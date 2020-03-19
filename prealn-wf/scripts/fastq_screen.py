@@ -17,10 +17,18 @@ log = snakemake.log_fmt_shell()
 tmp = tempfile.NamedTemporaryFile(delete=False).name
 with open(tmp, "w") as fout:
     for k, v in snakemake.input.items():
-        if k != "fastq":
-            label = k
-            index = ".".join(v.replace(".rev", "").split(".")[:-2])
-            fout.write("\t".join(["DATABASE", label, index, aligner.upper()]) + "\n")
+        if k == "layout":
+            # Only included layout to make sure download checks were run.
+            continue
+
+        if k == "fastq":
+            # skip because not reference
+            continue
+
+        label = k
+        index = ".".join(v.replace(".rev", "").split(".")[:-2])
+        fout.write("\t".join(["DATABASE", label, index, aligner.upper()]) + "\n")
+
     config_file = tmp
 
 # fastq_screen hard-codes filenames according to this prefix. We will send
