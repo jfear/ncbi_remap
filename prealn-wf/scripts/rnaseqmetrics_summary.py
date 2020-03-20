@@ -13,7 +13,7 @@ def main():
     if parse_stranded(snakemake.input.first):
         strand = "same_strand"
     elif parse_stranded(snakemake.input.second):
-        strand = "same_strand"
+        strand = "opposite_strand"
     else:
         strand = "unstranded"
 
@@ -33,7 +33,7 @@ def main():
 
 
 def parse_stranded(file_name):
-    return parse_picardCollect_summary(file_name).PCT_CORRECT_STRAND_READS >= 0.75
+    return (parse_picardCollect_summary(file_name).PCT_CORRECT_STRAND_READS >= 0.75)[0]
 
 
 def parse_table(file_name):

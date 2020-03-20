@@ -18,9 +18,9 @@ else:
 
 # Look up strand
 strand = pd.read_parquet(inputs.strand).strand[0]
-if strand == "first_strand":
+if strand == "same_strand":
     extra += "-s 1"
-elif strand == "second_strand":
+elif strand == "opposite_strand":
     extra += "-s 2"
 else:
     extra += "-s 0"
