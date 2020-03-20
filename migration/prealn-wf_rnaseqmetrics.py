@@ -107,6 +107,12 @@ def parse_table(files):
                 "MEDIAN_5PRIME_TO_3PRIME_BIAS",
             ]
         ].fillna(0.0)
+        df.PCT_CODING_BASES = df.PCT_CODING_BASES * 100
+        df.PCT_UTR_BASES = df.PCT_UTR_BASES * 100
+        df.PCT_INTRONIC_BASES = df.PCT_INTRONIC_BASES * 100
+        df.PCT_INTERGENIC_BASES = df.PCT_INTERGENIC_BASES * 100
+        df.PCT_MRNA_BASES = df.PCT_MRNA_BASES * 100
+
         df.columns = [x.lower() for x in df.columns]
         df.columns = [x.replace("pct_", "percent_") for x in df.columns]
         df.index = files.idx
