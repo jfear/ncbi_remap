@@ -49,7 +49,7 @@ def parse_table(file_name):
             "MEDIAN_3PRIME_BIAS",
             "MEDIAN_5PRIME_TO_3PRIME_BIAS",
         ]
-    ]
+    ].fillan(0.0)
     df.columns = [x.lower() for x in df.columns]
     df.columns = [x.replace("pct_", "percent_") for x in df.columns]
     return df
