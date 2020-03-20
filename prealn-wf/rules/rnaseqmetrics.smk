@@ -57,9 +57,9 @@ rule collectrnaseqmetrics_summary:
         first=lambda wildcards: queue.expand(rules.collectrnaseqmetrics_first.output[0], wildcards.srr),
         second=lambda wildcards: queue.expand(rules.collectrnaseqmetrics_second.output[0], wildcards.srr)
     output: 
-        flag="../output/prealn-wf/strand/{srr}",
+        strand="../output/prealn-wf/strand/{srr}.parquet",
         table="../output/prealn-wf/rnaseqmetrics/{srr}.parquet",
-        gene_coverage="../output/prealn-wf/gene_coverage/{srr}.parquet"
+        genebody_coverage="../output/prealn-wf/genebody_coverage/{srr}.parquet"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES

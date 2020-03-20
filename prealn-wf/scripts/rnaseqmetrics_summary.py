@@ -4,10 +4,11 @@ import pandas as pd
 
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_picardCollect_summary, parse_picardCollect_hist
-from ncbi_remap.snakemake import put_flag
 
 
 def main():
+    idx = pd.Index([snakemake.wildcards.srr], name="srr")
+
     # Parse the flags
     if parse_stranded(snakemake.input.first):
         strand = "same_strand"
@@ -16,26 +17,27 @@ def main():
     else:
         strand = "unstranded"
 
-    put_flag(snakemake.output.flag, strand)
+    # Write strand flag
+    df = pd.DataFrame([[strand]], index=idx, columns=["strand"])
+    df.to_parquet(snakemake.output.strand)
 
     # Parse main table
-    df = parse_unstranded()
-    df["strand"] = strand
-    df.index = [snakemake.wildcards.srr]
+    df = parse_table(snakemake.input.unstranded)
+    df.index = idx
     df.to_parquet(snakemake.output.table)
 
     # Parse genome coverage histogram
     df = parse_picardCollect_hist(snakemake.input.unstranded)
-    df.index = [snakemake.wildcards.srr]
-    df.to_parquet(snakemake.output.gene_coverage)
+    df.index = idx
+    df.to_parquet(snakemake.output.genebody_coverage)
 
 
 def parse_stranded(file_name):
-    parse_picardCollect_summary(file_name).PCT_CORRECT_STRAND_READS >= 0.75
+    return parse_picardCollect_summary(file_name).PCT_CORRECT_STRAND_READS >= 0.75
 
 
-def parse_unstranded():
-    df = parse_picardCollect_summary(snakemake.input.unstranded)[
+def parse_table(file_name):
+    df = parse_picardCollect_summary(file_name)[
         [
             "PCT_CODING_BASES",
             "PCT_UTR_BASES",
