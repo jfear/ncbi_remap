@@ -72,7 +72,7 @@ rule srr_complete:
         rules.fastq_screen_summary.output[0],
         rules.atropos_check.output[0],
         rules.hisat2_check.output[0],
-        rules.parse_stats.output[0],
+        rules.aln_stats_summary.output[0],
         rules.collectrnaseqmetrics_summary.output.flag,
         rules.collectrnaseqmetrics_summary.output.table,
         rules.collectrnaseqmetrics_summary.output.gene_coverage,

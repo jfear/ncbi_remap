@@ -39,7 +39,7 @@ rule hisat2_check:
     script: "../../scripts/hisat2_check.py"
 
 
-rule run_stats:
+rule aln_stats:
     input:
         bam=rules.hisat2.output.bam,
         bai=rules.hisat2.output.bai,
@@ -59,12 +59,12 @@ rule run_stats:
         '&& rm $BAM'
 
 
-rule parse_stats:
+rule aln_stats_summary:
     input:
-        samtools=lambda wildcards: queue.expand(rules.run_stats.output.samtools_stats, wildcards.srr),
-        bamtools=lambda wildcards: queue.expand(rules.run_stats.output.bamtools_stats, wildcards.srr)
+        samtools=lambda wildcards: queue.expand(rules.aln_stats.output.samtools_stats, wildcards.srr),
+        bamtools=lambda wildcards: queue.expand(rules.aln_stats.output.bamtools_stats, wildcards.srr)
     output: "../output/prealn-wf/aln_stats/{srr}.parquet"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
-    script: "../scripts/parse_alignment_stats.py"
+    script: "../scripts/aln_stats_summary.py"
