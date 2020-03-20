@@ -38,7 +38,8 @@ shell(
 
 # Check log for completeness
 with open(snakemake.log[0], "r") as fh:
-    if not "Summary of counting results" in fh.read():
+    log = fh.read()
+    if not ("Read assignment finished" in log or "Summary of counting results" in log):
         raise SubprocessError(
             f"FeatureCounts log not complete: {snakemake.wildcards.srx}/{snakemake.wildcards.srr}"
         )
