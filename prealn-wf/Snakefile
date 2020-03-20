@@ -64,8 +64,8 @@ include: "rules/fastq_screen.smk"
 include: "rules/atropos.smk"
 include: "rules/align.smk"
 include: "rules/rnaseqmetrics.smk"
-include: "rules/featurecounts.smk"
 include: "rules/markduplicates.smk"
+include: "rules/featurecounts.smk"
 
 rule srr_complete:
     input: 
@@ -76,6 +76,6 @@ rule srr_complete:
         rules.collectrnaseqmetrics_summary.output.flag,
         rules.collectrnaseqmetrics_summary.output.table,
         rules.collectrnaseqmetrics_summary.output.genebody_coverage,
-        rules.featurecounts_summary.output[0],
         rules.markduplicates_summary.output[0],
+        rules.featurecounts_summary.output[0],
     output: touch("../output/prealn-wf/done/{srr}")
