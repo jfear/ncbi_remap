@@ -23,7 +23,7 @@ df = pd.DataFrame(
         "number_junction_reads",
         "number_junctions_on",
     ],
-    index=[snakemake.wildcards.srr],
+    index=pd.Index([snakemake.wildcards.srr], name="srr"),
 )
 
 df.to_parquet(snakemake.output[0])
