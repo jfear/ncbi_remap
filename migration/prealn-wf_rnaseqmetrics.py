@@ -47,7 +47,6 @@ def main():
             parse_table(files)
             genebody_coverage(files)
         except PicardException:
-            pass
             remove_file(files.strand)
             remove_file(files.table)
             remove_file(files.genebody_coverage)
