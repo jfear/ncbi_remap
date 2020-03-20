@@ -78,4 +78,7 @@ rule srr_complete:
         rules.collectrnaseqmetrics_summary.output.genebody_coverage,
         rules.markduplicates_summary.output[0],
         rules.featurecounts_summary.output[0],
-    output: touch("../output/prealn-wf/done/{srr}")
+    output: "../output/prealn-wf/done/{srr}"
+    params: lambda wildcards: queue.expand("../output/prealn-wf/samples/{srx}/{srr}", wildcards.srr)
+    shell: "rm -r {params[0]} && touch {output[0]}"
+
