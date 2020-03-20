@@ -8,7 +8,7 @@ from ncbi_remap.parser import parse_bamtools_stats, parse_samtools_stats
 
 def main():
     df = pd.concat([_samtools(), _bamtools()], axis=1, sort=False)
-    df.index = [snakemake.wildcards.srr]
+    df.index = pd.Index([snakemake.wildcards.srr], name="srr")
     df.to_parquet(snakemake.output[0])
 
 
