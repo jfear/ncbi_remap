@@ -59,7 +59,7 @@ rule collectrnaseqmetrics_summary:
     output: 
         strand="../output/prealn-wf/strand/{srr}.parquet",
         table="../output/prealn-wf/rnaseqmetrics/{srr}.parquet",
-        gene_coverage="../output/prealn-wf/genebody_coverage/{srr}.parquet"
+        genebody_coverage="../output/prealn-wf/genebody_coverage/{srr}.parquet"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
