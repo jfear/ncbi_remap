@@ -7,7 +7,6 @@ from yaml import full_load
 
 import numpy as np
 import pandas as pd
-from IPython.display import display
 
 
 def patterns(fname):
