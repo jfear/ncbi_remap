@@ -49,7 +49,7 @@ def parse_table(file_name):
             "MEDIAN_3PRIME_BIAS",
             "MEDIAN_5PRIME_TO_3PRIME_BIAS",
         ]
-    ].fillan(0.0)
+    ].fillna(0.0)
     df.PCT_CODING_BASES = df.PCT_CODING_BASES * 100
     df.PCT_UTR_BASES = df.PCT_UTR_BASES * 100
     df.PCT_INTRONIC_BASES = df.PCT_INTRONIC_BASES * 100

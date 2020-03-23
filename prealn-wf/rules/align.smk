@@ -43,7 +43,7 @@ rule aln_stats:
     input:
         bam=rules.hisat2.output.bam,
         bai=rules.hisat2.output.bai,
-        _=hisat2_check.output[0]
+        _=rules.hisat2_check.output[0]
     output:
         samtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.samtools.stats"),
         bamtools_stats=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.bamtools.stats"),

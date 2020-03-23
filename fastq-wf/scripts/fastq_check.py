@@ -94,7 +94,7 @@ def save_summary(r1: ReadSummary, r2: ReadSummary):
     df = pd.DataFrame(
         [[r1.library_size, r1.read_length, r2.library_size, r2.read_length,]],
         index=idx,
-        columns=[["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"]],
+        columns=["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"],
     )
     df.to_parquet(snakemake.output.summary)
 
