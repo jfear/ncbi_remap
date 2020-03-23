@@ -10,6 +10,8 @@ create the lookup table. There maybe technologies missed, but I should capture
 most of the information.
 
 """
+import sys 
+
 import numpy as np
 import pandas as pd
 
@@ -20,6 +22,7 @@ from nltk.tokenize import regexp_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
+sys.path.insert(0, "../src")
 from ncbi_remap.nlp import lookups
 
 

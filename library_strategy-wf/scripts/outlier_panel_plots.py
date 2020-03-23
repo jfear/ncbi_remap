@@ -1,8 +1,10 @@
 import os
+import sys
 
 import pandas as pd
 import matplotlib.pyplot as plt
 
+sys.path.insert(0, "../src")
 from ncbi_remap.plotting.umap_panel import Plot
 
 
