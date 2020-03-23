@@ -32,6 +32,8 @@ select_library_strategy
     selects the best category.
 
 """
+singularity: "../singularity/drosSRA_workflow.sif"
+
 rule targets:
     input:
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
