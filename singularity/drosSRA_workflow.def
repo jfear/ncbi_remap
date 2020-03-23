@@ -1,0 +1,15 @@
+Bootstrap: docker
+From: continuumio/miniconda3:latest
+
+%files
+    environment.yaml
+
+%environment
+    export LC_ALL=C
+
+%post
+    /opt/conda/bin/conda env update -n base --file environment.yaml
+    /opt/conda/bin/conda clean --all
+
+%runscript
+    exec "$@"

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from snakemake.io import expand
 
 
 class Queue:
@@ -106,6 +107,13 @@ class Queue:
     def get_srx(self, srr: str) -> str:
         """Get an SRX from the given SRR."""
         return self._sample_table.query(f"srr == '{srr}'").srx.values[0]
+
+    def expand(self, file_name: str, wildcard: str) -> Union[str, List[str]]:
+        """Fill `file_name` by looking up corresponding SRX or SRR"""
+        if wildcard.startswith("SRR") or wildcard.startswith("ERR") or wildcard.startswith("DRR"):
+            return file_name.format(srr=wildcard, srx=self.get_srx(wildcard))
+        elif wildcard.startswith("SRX") or wildcard.startswith("ERX") or wildcard.startswith("DRX"):
+            return expand(file_name, srx=wildcard, srr=self.get_srrs(wildcard))
 
     def update_filter_set(self, size=None):
         """Updates filter set using new size.

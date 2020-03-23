@@ -35,4 +35,6 @@ lib/test_xml.xml
 *.h5
 *.log
 *.bak
+*.sif
+.env
 dask_info.json

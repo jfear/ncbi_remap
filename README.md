@@ -1,4 +1,4 @@
-# NCBI Remap
+# DrosSRA Workflow
 
 ## Objectives
 
@@ -11,3 +11,17 @@
    common reference using multiple pipelines.
 2. Perform extensive QC to ensure metadata quality.
 3. Using reference guided methods (Flybase r6.07) generate a new annotation.
+
+## Notes
+
+``$ENTREZ_API_KEY``
+
+## Setup
+```bash
+$ conda env create --file environment.yaml
+```
+
+## Development
+```bash
+$ conda env update -n drosSRA_workflow --file environment_dev.yaml
+```

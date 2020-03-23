@@ -1,10 +1,21 @@
 #!/usr/bin/env python
 """Set of helpers for use with snakemake."""
+import os
 from itertools import zip_longest
 from yaml import full_load
 
 import pandas as pd
 from .logging import logger
+
+
+def slack(text):
+    try:
+        from slackclient import SlackClient
+        token = os.environ['SLACK_SNAKEMAKE_BOT_TOKEN']
+        sc = SlackClient(token)
+        sc.api_call('chat.postMessage', channel='U6N9L3ZSQ', text=text)
+    except (ImportError, KeyError):
+        pass
 
 
 def wrapper_for(path):

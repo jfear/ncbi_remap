@@ -31,25 +31,33 @@ def main():
     try:
         df = pd.DataFrame(
             [parse_atropos(snakemake.input.log)],
+            index=pd.Index([snakemake.wildcards.srr], name="srr"),
             columns=["total_processed", "total_written", "too_short"],
         )
-        df.index = pd.MultiIndex.from_tuples(
-            [(snakemake.wildcards.srx, snakemake.wildcards.srr)], names=["srx", "srr"]
-        )
-        df.to_csv(snakemake.output[0], sep="\t")
+        df.to_parquet(snakemake.output[0])
 
         if df.total_written[0] < 1000:
             raise AtroposException
 
     except AtroposException:
+        # Add to bad list
         atropos_bad_path = Path(Path(snakemake.output[0]).parents[3], "atropos_bad")
         atropos_bad_path.mkdir(exist_ok=True)
         Path(atropos_bad_path, snakemake.wildcards.srr).touch()
+
+        # Delete atropos data if problems
+        Path(snakemake.input.R1).unlink()
+        Path(snakemake.input.R2).unlink()
+        Path(snakemake.input.log).unlink()
 
 
 def parse_atropos(file_name):
     with open(file_name) as fh:
         string = fh.read().replace(",", "")
+
+    if "ERROR" in string:
+        raise AtroposException
+
     try:
         tot_processed = int(re.findall(r"Total read.*processed:\s+(\d+)", string)[0])
         tot_written = int(

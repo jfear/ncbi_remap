@@ -25,27 +25,42 @@
 69.84% overall alignment rate
 """
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_hisat2
 
 
+class Hisat2Exception(Exception):
+    """Basic exception when there are problems running Hisat2"""
+
+
 def main():
-    df = parse_hisat2(snakemake.input.log)
-    df.to_csv(snakemake.output[0], sep="\t", index=False)
+    try:
+        df = parse_hisat2(snakemake.input.log).fillna(0)
+        df.index = pd.Index([snakemake.wildcards.srr], name="srr")
+        df.to_parquet(snakemake.output[0])
 
-    df.fillna(0, inplace=True)
-    uniquely_aligned = (
-        df.iloc[0, :]["num_concordant_reads_uniquely_aligned"]
-        + df.iloc[0, :]["num_uniquely_aligned"]
-    )
+        uniquely_aligned = (
+            df.iloc[0, :]["num_concordant_reads_uniquely_aligned"]
+            + df.iloc[0, :]["num_uniquely_aligned"]
+        )
 
-    if (df.iloc[0, :]["per_alignment"] < 1) | (uniquely_aligned < 1000):
+        if (df.iloc[0, :]["per_alignment"] < 1) | (uniquely_aligned < 1000):
+            raise Hisat2Exception
+
+    except Hisat2Exception:
         alignment_bad_path = Path(Path(snakemake.input.log).parents[3], "alignment_bad")
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, snakemake.wildcards.srr).touch()
+
+        # Remove hisat2 output if problems
+        Path(snakemake.input.bam).unlink()
+        Path(snakemake.input.bai).unlink()
+        Path(snakemake.input.log).unlink()
 
 
 if __name__ == "__main__":

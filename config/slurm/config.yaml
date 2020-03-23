@@ -11,4 +11,5 @@ keep-going: true
 rerun-incomplete: true
 verbose: true
 use-conda: true
+use-singularity: true
 printshellcmds: true

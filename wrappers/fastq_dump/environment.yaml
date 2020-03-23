@@ -1,7 +1,0 @@
-channels:
-  - bioconda
-  - lcdb
-dependencies:
-  - python=3.5
-  - sra-tools ==2.8.2
-  - pandas

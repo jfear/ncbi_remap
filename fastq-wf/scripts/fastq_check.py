@@ -1,12 +1,14 @@
 """Looks at R1 and R2 to determine library layout"""
 import os
+import sys
 from pathlib import Path
 from collections import namedtuple
 
-from ncbi_remap.fastq import fastq_is_empty, fastq_read_stats, fastq_is_abi_solid
-from ncbi_remap.snakemake import put_flag
+import numpy as np
+import pandas as pd
 
-SAMPLE_NAME = snakemake.wildcards.get("srr", snakemake.wildcards.get("srx"))
+sys.path.insert(0, "../src")
+from ncbi_remap.fastq import fastq_is_empty, fastq_read_stats, fastq_is_abi_solid
 
 ReadSummary = namedtuple("ReadSummary", "library_size read_length")
 
@@ -27,10 +29,10 @@ def main():
         create_flags(r1, r2)
         save_summary(r1, r2)
     except AbiException:
-        Path(snakemake.params.abi_solid, SAMPLE_NAME).touch()
+        Path(snakemake.params.abi_solid, snakemake.wildcards.srr).touch()
         remove_sample_due_to_problems()
     except DownloadException:
-        Path(snakemake.params.download_bad, SAMPLE_NAME).touch()
+        Path(snakemake.params.download_bad, snakemake.wildcards.srr).touch()
         remove_sample_due_to_problems()
 
 
@@ -45,7 +47,7 @@ def summarize(fastq: str) -> ReadSummary:
     """Summarize FASTQ file."""
     with open(fastq, "r") as fastq_handle:
         if fastq_is_empty(fastq_handle):
-            return ReadSummary(0, 0)
+            return ReadSummary(0, 0.0)
 
         fastq_handle.seek(0, 0)  # Go back to the begining of the file
         if fastq_is_abi_solid(fastq_handle):
@@ -82,24 +84,19 @@ def create_flags(r1: ReadSummary, r2: ReadSummary):
         # We have a problem because R1 and R2 look bad
         raise DownloadException
 
-    put_flag(snakemake.output.layout, layout)
+    idx = pd.Index([snakemake.wildcards.srr], name="srr")
+    df = pd.DataFrame([[layout]], index=[idx], columns=["layout"])
+    df.to_parquet(snakemake.output.layout)
 
 
 def save_summary(r1: ReadSummary, r2: ReadSummary):
-    with open(snakemake.output.summary, "w") as file_out:
-        file_out.write("\t".join(["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"]))
-        file_out.write("\n")
-        file_out.write(
-            "\t".join(
-                [
-                    str(r1.library_size),
-                    str(r1.read_length),
-                    str(r2.library_size),
-                    str(r2.read_length),
-                ]
-            )
-        )
-        file_out.write("\n")
+    idx = pd.Index([snakemake.wildcards.srr], name="srr")
+    df = pd.DataFrame(
+        [[r1.library_size, r1.read_length, r2.library_size, r2.read_length,]],
+        index=idx,
+        columns=["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"],
+    )
+    df.to_parquet(snakemake.output.summary)
 
 
 def remove_sample_due_to_problems():
