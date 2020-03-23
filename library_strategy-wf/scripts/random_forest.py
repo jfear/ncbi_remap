@@ -47,15 +47,15 @@ def main():
     Y_pred = multi_target_forest.predict(X_test)
 
     with open(snakemake.output["metrics"], "w") as fh:
-        fh.write(f"Overall Score: {overall_score}")
-        fh.write(f"Library Strategy OOB: {multi_target_forest.estimators_[0].oob_score_}")
+        fh.write(f"Overall Score: {overall_score}\n")
+        fh.write(f"Library Strategy OOB: {multi_target_forest.estimators_[0].oob_score_}\n")
         fh.write(
             classification_report(
                 Y_test[:, 0], Y_pred[:, 0], target_names=Y.strategy_encoder.classes_
             )
         )
-        fh.write(f"{'-' * 80}")
-        fh.write(f"Library Selection OOB: {multi_target_forest.estimators_[1].oob_score_}")
+        fh.write(f"{'-' * 80}\n")
+        fh.write(f"Library Selection OOB: {multi_target_forest.estimators_[1].oob_score_}\n")
         fh.write(
             classification_report(
                 Y_test[:, 1], Y_pred[:, 1], target_names=Y.selection_encoder.classes_
@@ -84,7 +84,7 @@ def main():
         .sort_values("Importance (Library Strategy)", ascending=False)
     )
 
-    feature_importance.to_csv(snakemake.output["feature_importance"], sep="\t", header=False)
+    feature_importance.to_csv(snakemake.output["feature_importance"], sep="\t")
 
     # Make predictions on entire dataset including the OTHERs
     Y_pred_all = multi_target_forest.predict(features.values)

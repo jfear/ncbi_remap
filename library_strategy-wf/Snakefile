@@ -46,16 +46,15 @@ rule targets:
 
 
 rule build_prealn_feature_set:
+    input: "../output/srx2srr.csv"
     params:
         libsize="../output/fastq-wf/libsize",
-        layout="../output/fastq-wf/layout",
         fastq_screen="../output/prealn-wf/fastq_screen",
         atropos="../output/prealn-wf/atropos",
         hisat2="../output/prealn-wf/hisat2",
         aln_stats="../output/prealn-wf/aln_stats",
         rnaseqmetrics="../output/prealn-wf/rnaseqmetrics",
         genebody_coverage="../output/prealn-wf/genebody_coverage",
-        strand="../output/prealn-wf/strand",
         markduplicates="../output/prealn-wf/markduplicates",
         count_summary="../output/prealn-wf/count_summary",
         done="../output/prealn-wf/done"
