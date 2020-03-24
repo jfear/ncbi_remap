@@ -54,12 +54,9 @@ from more_itertools import flatten
 import numpy as np
 import pandas as pd
 
-from lcdblib.snakemake import helpers
-from lcdblib.utils import utils
-from lcdblib.pandas.utils import cartesian_product
-
+sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
-from ncbi_remap.snakemake import wrapper_for
+from ncbi_remap.snakemake import slack
 
 
 # Setup tempdir to work with lscratch
@@ -69,11 +66,14 @@ else:
     TMPDIR = os.getenv('TMPDIR', "/tmp")
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
-# Set working dir
-workdir: '.'
-
-# import config
+singularity: "../singularity/drosSRA_workflow.sif"
 configfile: '../config/reference_config.yaml'
+onsuccess:
+    print('All Finished')
+    slack('rnaseq-wf: All Finished')
+onerror:
+    print('Something went wrong, you need to re-run')
+    slack('rnaseq-wf: Something went wrong, you need to re-run') 
 
 localrules: atropos_summary_agg, hisat2_summary_agg, srx_complete
 
@@ -96,7 +96,10 @@ queue = Queue(
     srx2srr="../output/srx2srr.csv",
     size=1_000
 )
-# print(queue)
+
+# If Dry-Run print queue
+if any([x == "-n" for x in sys.argv]):
+    print(queue)
 
 rule run_all:
     input: expand("../output/rnaseq-wf/done/{srx}", srx=queue.srxs)
