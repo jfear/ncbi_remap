@@ -108,74 +108,7 @@ include: "rules/atropos.smk"
 include: "rules/align.smk"
 include: "rules/merge.smk"
 include: "rules/featurecounts.smk"
-
-
-
-###############################################################################
-# Make BedGraphs
-###############################################################################
-bamCoverage_options = (
-    '--outFileFormat bedgraph '
-    '--binSize 1 '
-    '--effectiveGenomeSize 129000000 '
-    '--normalizeUsing RPGC '
-    '--ignoreForNormalization chrX '
-)
-
-rule bamCoverage_first:
-    input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
-    output: temp('../output/rnaseq-wf/samples/{srx}/{srx}.first.bedgraph')
-    params:
-        extra=bamCoverage_options + '--filterRNAstrand forward'
-    threads: 8
-    group: "bamCoverage"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 16,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('wrappers/deeptools/bamCoverage')
-
-
-rule bamCoverage_second:
-    input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
-    output: temp('../output/rnaseq-wf/samples/{srx}/{srx}.second.bedgraph')
-    params:
-        extra=bamCoverage_options + '--filterRNAstrand reverse'
-    threads: 8
-    group: "bamCoverage"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 16,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('wrappers/deeptools/bamCoverage')
-
-
-rule convertToFlybase_first:
-    input: rules.bamCoverage_first.output[0]
-    output: temp("../output/rnaseq-wf/samples/{srx}/{srx}.flybase.first.bedgraph")
-    conda: 'conda.yaml'
-    group: "FlyBaseConvert"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    script: "scripts/chrom_convert.py"
-
-
-rule convertToFlybase_second:
-    input: rules.bamCoverage_second.output[0]
-    output: temp("../output/rnaseq-wf/samples/{srx}/{srx}.flybase.second.bedgraph")
-    conda: 'conda.yaml'
-    group: "FlyBaseConvert"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    script: "scripts/chrom_convert.py"
+include: "rules/bedgraph.smk"
 
 
 ###############################################################################
