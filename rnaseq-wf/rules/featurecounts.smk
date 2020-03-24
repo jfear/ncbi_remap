@@ -124,7 +124,7 @@ rule feature_counts_fusions:
         jcounts=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.jcounts"),
         summary=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.summary"),
     log: "../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts.log"
-   params:
+    params:
         extra_pe = '-p -P -C -J -t fusion -g ID ',
         extra_se = '-J -t fusion -g ID '
     group: GROUP
