@@ -106,61 +106,7 @@ rule run_all:
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/atropos.smk"
 include: "rules/align.smk"
-
-
-###############################################################################
-# Merge Bams
-###############################################################################
-def _input_expMerge(wildcards):
-    fill = {
-        'srx': wildcards.srx,
-        'srr': queue.get_srrs(wildcards.srx)
-    }
-    return expand("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam", **fill)
-
-
-rule expMerge:
-    input: _input_expMerge
-    output:
-        bam="../output/rnaseq-wf/samples/{srx}/{srx}.bam",
-        bai="../output/rnaseq-wf/samples/{srx}/{srx}.bam.bai"
-    conda: 'conda.yaml'
-    group: "merge"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    threads: 4
-    shell:
-        'samtools merge '
-        '-f '
-        '-@ {threads} '
-        '{output.bam} '
-        '{input} && '
-        'samtools index {output.bam}'
-
-
-rule run_stats:
-    input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
-    output:
-        samtools_stats="../output/rnaseq-wf/samples/{srx}/{srx}.bam.samtools.stats",
-        samtools_idxstats="../output/rnaseq-wf/samples/{srx}/{srx}.bam.samtools.idxstats",
-        bamtools_stats="../output/rnaseq-wf/samples/{srx}/{srx}.bam.bamtools.stats",
-    conda: 'conda.yaml'
-    group: "merge"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 8,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    threads: 4
-    shell:
-        'BAM=$(mktemp --suffix=".bam") '
-        '&& cp {input.bam} $BAM '
-        '&& cp {input.bam}.bai $BAM.bai '
-        '&& samtools stats $BAM > {output.samtools_stats} '
-        '&& samtools idxstats $BAM > {output.samtools_idxstats} '
-        '&& bamtools stats -in $BAM > {output.bamtools_stats} '
-        '&& rm $BAM'
+include: "rules/merge.smk"
 
 
 ###############################################################################
