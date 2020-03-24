@@ -105,60 +105,7 @@ rule run_all:
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/atropos.smk"
-
-
-###############################################################################
-# Alignment
-###############################################################################
-rule hisat2:
-    """Basic alignment."""
-    input:
-        index=config['references']['dmel']['hisat2'],
-        splice_sites=config['references']['dmel']['known_splice_sites'],
-        r1=rules.atropos.output.R1,
-        r2=rules.atropos.output.R2,
-        layout="../output/fastq-wf/fastq_info/{srr}/LAYOUT",
-        strand="../output/prealn-wf/samples/{srx}/{srr}/STRAND"
-    output:
-        bam=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
-        bai=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam.bai")
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 4
-    params:
-        hisat2_extra='--dta --max-intronlen 300000 --known-splicesite-infile {splice} '.format(splice=config['references']['dmel']['known_splice_sites']),
-        samtools_view_extra="--threads 4 -q 20",
-        samtools_sort_extra='--threads 4 -l 9 -m 3G -T $TMPDIR/samtools_sort'
-    log: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam.log"
-    conda: "conda.yaml"
-    wrapper:
-        wrapper_for('wrappers/hisat2/align')
-
-
-rule hisat2_summary:
-    input:
-        _=rules.hisat2.output.bam,
-        log=rules.hisat2.log[0]
-    output: "../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv"
-    threads: 8
-    group: "hisat2"
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 16,
-        time_hr=lambda wildcards, attempt: attempt * 4
-    script: "../scripts/hisat2_check.py"
-
-
-rule hisat2_summary_agg:
-    input: lambda wildcards: expand("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.tsv", srx=wildcards.srx, srr=queue.get_srrs(wildcards.srx))
-    output: "../output/rnaseq-wf/samples/{srx}/{srx}.hisat2.bam.tsv"
-    run:
-        dfs = []
-        for file_name in input:
-            srr = re.findall(".*([DSE]RR\d+).*", file_name)[0]
-            dfs.append(pd.read_table(file_name).assign(srx=wildcards.srx, srr=srr))
-        pd.concat(dfs, axis=0).set_index(["srx", "srr"]).to_csv(output[0], sep="\t")
+include: "rules/align.smk"
 
 
 ###############################################################################
