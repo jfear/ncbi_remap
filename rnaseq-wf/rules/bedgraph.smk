@@ -15,8 +15,8 @@ bamCoverage_options = (
 
 rule bamCoverage_first:
     input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
+        bam=rules.bamMerge.output.bam,
+        bai=rules.bamMerge.output.bai,
     output: temp('../output/rnaseq-wf/samples/{srx}/{srx}.first.bedgraph')
     params:
         extra=bamCoverage_options + '--filterRNAstrand forward'
@@ -28,8 +28,8 @@ rule bamCoverage_first:
 
 rule bamCoverage_second:
     input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
+        bam=rules.bamMerge.output.bam,
+        bai=rules.bamMerge.output.bai,
     output: temp('../output/rnaseq-wf/samples/{srx}/{srx}.second.bedgraph')
     params:
         extra=bamCoverage_options + '--filterRNAstrand reverse'
