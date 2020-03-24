@@ -481,13 +481,7 @@ rule convertToFlybase_first:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'chrom_convert '
-        '--from UCSC '
-        '--to FlyBase '
-        '--fileType BED '
-        '-i {input[0]} '
-        '-o {output[0]}'
+    script: "scripts/chrom_convert.py"
 
 
 rule convertToFlybase_second:
@@ -498,13 +492,7 @@ rule convertToFlybase_second:
     resources:
       mem_gb=lambda wildcards, attempt: attempt * 12,
       time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'chrom_convert '
-        '--from UCSC '
-        '--to FlyBase '
-        '--fileType BED '
-        '-i {input[0]} '
-        '-o {output[0]}'
+    script: "scripts/chrom_convert.py"
 
 
 ###############################################################################
