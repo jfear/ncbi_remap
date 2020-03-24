@@ -26,7 +26,7 @@ rule bigwig_second:
     input:
         bedgraph=rules.bamCoverage_second.output[0],
         chromSizes=config['references']['dmel']['chromSizes']
-    output: "../output/rnaseq-wf/uscs_bigwigs/{srx}.second.bw"
+    output: "../output/rnaseq-wf/ucsc_bigwigs/{srx}.second.bw"
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
