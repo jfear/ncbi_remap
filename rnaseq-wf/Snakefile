@@ -142,9 +142,18 @@ rule srx_complete:
         srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
     run:
         Path(output[0]).touch()
-        shutil.rmtree(f"../output/rnaseq-wf/samples/{wildcards.srx}")
         for srr in params.srrs:
             remove_path(f"../output/fastq-wf/fastqs/{srr}_1.fastq")
             remove_path(f"../output/fastq-wf/fastqs/{srr}_2.fastq")
             remove_path(f"../output/fastq-wf/sra_cache/{srr}.sra")
+            shutil.rmtree(f"../output/rnaseq-wf/samples/{wildcards.srx}/{srr}")
+        
+        for pth in Path(f"../output/rnaseq-wf/samples/{wildcards.srx}").iterdir():
+            if pth.is_dir():
+                continue 
+
+            if pth.suffix in [".bam", ".bai"]:
+                continue
+
+            pth.unlink()
 
