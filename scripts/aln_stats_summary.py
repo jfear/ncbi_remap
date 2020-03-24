@@ -7,8 +7,15 @@ from ncbi_remap.parser import parse_bamtools_stats, parse_samtools_stats
 
 
 def main():
+    if snakemake.wildcards.get("srr"):
+        idx = snakemake.wildcards.srr
+        label="srr"
+    else:
+        idx = snakemake.wildcards.srx
+        label="srx"
+
     df = pd.concat([_samtools(), _bamtools()], axis=1, sort=False)
-    df.index = pd.Index([snakemake.wildcards.srr], name="srr")
+    df.index = pd.Index([idx], name=label)
     df.to_parquet(snakemake.output[0])
 
 

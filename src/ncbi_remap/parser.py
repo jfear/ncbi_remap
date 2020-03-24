@@ -205,7 +205,7 @@ def parse_featureCounts_jcounts(fname, sample_name, label="srx"):
         "Site2_strand",
         "count",
     ]
-    df = pd.read_csv(fname, sep="\t", comment="#").assign({label: sample_name}).set_index(label)
+    df = pd.read_csv(fname, sep="\t", comment="#").assign(**{label: sample_name}).set_index(label)
     cols = df.columns.tolist()
     cols[-1] = "Count"
     df.columns = cols

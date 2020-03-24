@@ -24,7 +24,7 @@ rule hisat2:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
-    script: "../scripts/hisat2.py"
+    script: "../../scripts/hisat2.py"
 
 
 rule hisat2_check:
@@ -67,4 +67,4 @@ rule aln_stats_summary:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
-    script: "../scripts/aln_stats_summary.py"
+    script: "../../scripts/aln_stats_summary.py"

@@ -1,18 +1,10 @@
-__author__ = "Justin Fear"
-__copyright__ = "Copyright 2016, Justin Fear"
-__email__ = "justin.fear@nih.gov"
-__license__ = "MIT"
-
-import sys
 from tempfile import NamedTemporaryFile
+
 from snakemake.shell import shell
-from lcdblib.snakemake import aligners
+import pandas as pd
 
-sys.path.insert(0, '../src')
-from ncbi_remap.snakemake import get_flag
-
-r1 = snakemake.input.r1
-r2 = snakemake.input.r2
+inputs = snakemake.input
+outputs = snakemake.output
 hisat2_extra = snakemake.params.get("hisat2_extra", "")
 samtools_view_extra = snakemake.params.get("samtools_view_extra", "")
 samtools_sort_extra = snakemake.params.get("samtools_sort_extra", "")
@@ -20,31 +12,30 @@ samtools_sort_extra = snakemake.params.get("samtools_sort_extra", "")
 log = snakemake.log_fmt_shell()
 
 # Look up Layout
-layout = get_flag(snakemake.input.layout)
-
+layout = pd.read_parquet(inputs.layout).layout[0]
 if layout == "PE":
-    fastqs = "-1 {0} -2 {1}".format(r1, r2)
+    fastqs = "-1 {0} -2 {1}".format(inputs.R1, inputs.R2)
 elif layout == "keep_R2":
-    fastqs = "-U {0}".format(r2)
+    fastqs = "-U {0}".format(inputs.R2)
 else:
-    fastqs = "-U {0}".format(r1)
+    fastqs = "-U {0}".format(inputs.R1)
 
 # Look up strand
-strand = get_flag(snakemake.input.strand)
+strand_param = ""
+if inputs.get("strand"):
+    strand = pd.read_parquet(inputs.strand).strand[0]
+    if (layout == "PE") & (strand == "first_strand"):
+        strand_param = "--rna-strandness FR"
+    elif (layout == "PE") & (strand == "second_strand"):
+        strand_param = "--rna-strandness RF"
+    elif strand == "first_strand":
+        strand_param = "--rna-strandness F"
+    elif strand == "second_strand":
+        strand_param = "--rna-strandness R"
 
-if (layout == "PE") & (strand == "first_strand"):
-    strand_param = "--rna-strandness FR"
-elif (layout == "PE") & (strand == "second_strand"):
-    strand_param = "--rna-strandness RF"
-elif strand == "first_strand":
-    strand_param = "--rna-strandness F"
-elif strand == "second_strand":
-    strand_param = "--rna-strandness R"
-else:
-    strand_param = ""
 
 # Grab index information
-prefix = aligners.prefix_from_hisat2_index(snakemake.input.index)
+prefix = '.'.join(inputs.index.split('.')[:-2])
 
 # Create temporary files to store intermediates. Will use $TMDPIR if set.
 sam = NamedTemporaryFile(suffix=".sam", delete=False).name
@@ -72,8 +63,13 @@ shell(
     "{samtools_sort_extra} "
     "-O BAM "
     "{bam} "
-    "&& cp {sort_bam} {snakemake.output.bam} "
+    "&& cp {sort_bam} {outputs.bam} "
     "&& rm {bam} "
     "&& rm {sort_bam} "
-    "&& samtools index {snakemake.output.bam} "
+)
+
+# Make index
+shell(
+    "samtools index "
+    "{outputs.bam} "
 )
