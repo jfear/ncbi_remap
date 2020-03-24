@@ -75,13 +75,14 @@ onerror:
     print('Something went wrong, you need to re-run')
     slack('rnaseq-wf: Something went wrong, you need to re-run') 
 
-localrules: atropos_summary_agg, hisat2_summary_agg, srx_complete
+localrules: srx_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    targets="../output/library_strategy-wf/rnaseq.pkl",
+    targets="../output/prealn-wf/done",
+    subset="../output/library_strategy-wf/rnaseq.pkl",
     completed="../output/rnaseq-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
