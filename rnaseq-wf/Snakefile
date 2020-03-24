@@ -109,77 +109,7 @@ include: "rules/align.smk"
 include: "rules/merge.smk"
 include: "rules/featurecounts.smk"
 include: "rules/bedgraph.smk"
-
-
-###############################################################################
-# Make BigWigs
-###############################################################################
-rule bigwig_first:
-    input:
-        bedgraph=rules.bamCoverage_first.output[0],
-        chromSizes=config['references']['dmel']['chromSizes']
-    output: "../output/rnaseq-wf/samples/{srx}/{srx}.first.bw"
-    conda: 'ucsc.yaml'
-    group: "BigWig"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& bedSort {input.bedgraph} $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
-        '&& rm $tmpBg '
-
-
-rule bigwig_second:
-    input:
-        bedgraph=rules.bamCoverage_second.output[0],
-        chromSizes=config['references']['dmel']['chromSizes']
-    output: "../output/rnaseq-wf/samples/{srx}/{srx}.second.bw"
-    conda: 'ucsc.yaml'
-    group: "BigWig"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& bedSort {input.bedgraph} $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
-        '&& rm $tmpBg '
-
-
-rule flybase_bigwig_first:
-    input:
-        bedgraph=rules.convertToFlybase_first.output[0],
-        chromSizes=config['references']['dmel']['fb_chromSizes']
-    output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.first.bw"
-    conda: 'ucsc.yaml'
-    group: "FlyBaseBigWig"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& bedSort {input.bedgraph} $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
-        '&& rm $tmpBg '
-
-
-rule flybase_bigwig_second:
-    input:
-        bedgraph=rules.convertToFlybase_second.output[0],
-        chromSizes=config['references']['dmel']['fb_chromSizes']
-    output: "../output/rnaseq-wf/samples/{srx}/{srx}.flybase.second.bw"
-    conda: 'ucsc.yaml'
-    group: "FlyBaseBigWig"
-    resources:
-      mem_gb=lambda wildcards, attempt: attempt * 12,
-      time_hr=lambda wildcards, attempt: attempt * 4
-    shell:
-        'tmpBg=`mktemp --suffix=.bedgraph` '
-        '&& bedSort {input.bedgraph} $tmpBg '
-        '&& bedGraphToBigWig $tmpBg {input.chromSizes} {output[0]} '
-        '&& rm $tmpBg '
+include: "rules/bigwig.smk"
 
 
 ###############################################################################
