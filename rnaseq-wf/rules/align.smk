@@ -13,7 +13,7 @@ rule hisat2:
         R1=rules.atropos.output.R1,
         R2=rules.atropos.output.R2,
         layout=rules.fastq_check.output.layout,
-        strand="../../output/prealn-wf/strand/{srr}.parquet",
+        strand="../output/prealn-wf/strand/{srr}.parquet",
         _=rules.atropos_check.output[0]
     output:
         bam=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}.fq.bam"),
