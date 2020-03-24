@@ -49,6 +49,7 @@ import os
 import sys
 from pathlib import Path
 import re
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -115,18 +116,22 @@ include: "rules/bigwig.smk"
 ###############################################################################
 # What to keep
 ###############################################################################
+def remove_path(file_name):
+    if Path(file_name).exists():
+        Path(file_name).unlink()
+
+
 rule srx_complete:
     input:
-        rules.atropos_summary_agg.output[0],
-        rules.hisat2_summary_agg.output[0],
-        rules.expMerge.output.bam,
-        rules.feature_counts.output.counts,
-        rules.feature_counts_intergenic.output.counts,
-        rules.feature_counts_segments.output.counts,
-        rules.feature_counts_fusions.output.counts,
-        rules.run_stats.output.samtools_stats,
-        rules.run_stats.output.samtools_idxstats,
-        rules.run_stats.output.bamtools_stats,
+        lambda wildcards: queue.expand(rules.atropos_check.output[0], wildcards.srx),
+        lambda wildcards: queue.expand(rules.hisat2_check.output[0], wildcards.srx),
+        rules.bamMerge.output.bam,
+        rules.aln_stats_summary.output[0],
+        rules.parse_gene_count.output[0],
+        rules.parse_junction_count.output[0],
+        rules.parse_intergenic_count.output[0],
+        rules.parse_segment_count.output[0],
+        rules.parse_fusion_count.output[0],
         rules.bigwig_first.output[0],
         rules.bigwig_second.output[0],
         rules.flybase_bigwig_first.output[0],
@@ -136,12 +141,9 @@ rule srx_complete:
         srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
     run:
         Path(output[0]).touch()
+        shutil.rmtree(f"../output/rnaseq-wf/samples/{wildcards.srx}")
         for srr in params.srrs:
-            if Path(f"../output/fastq-wf/fastqs/{srr}_1.fastq").exists():
-                Path(f"../output/fastq-wf/fastqs/{srr}_1.fastq").unlink()
+            remove_path(f"../output/fastq-wf/fastqs/{srr}_1.fastq")
+            remove_path(f"../output/fastq-wf/fastqs/{srr}_2.fastq")
+            remove_path(f"../output/fastq-wf/sra_cache/{srr}.sra")
 
-            if Path(f"../output/fastq-wf/fastqs/{srr}_2.fastq").exists():
-                Path(f"../output/fastq-wf/fastqs/{srr}_2.fastq").unlink()
-
-            if Path(f"../output/fastq-wf/sra_cache/{srr}.sra").exists():
-                Path(f"../output/fastq-wf/sra_cache/{srr}.sra").unlink()
