@@ -14,6 +14,7 @@ rule bigwig_first:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
+    conda: "../ucsc.yaml"
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
@@ -29,6 +30,7 @@ rule bigwig_second:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
+    conda: "../ucsc.yaml"
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
@@ -44,6 +46,7 @@ rule flybase_bigwig_first:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
+    conda: "../ucsc.yaml"
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
@@ -59,6 +62,7 @@ rule flybase_bigwig_second:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
+    conda: "../ucsc.yaml"
     shell:
         'tmpBg=`mktemp --suffix=.bedgraph` '
         '&& bedSort {input.bedgraph} $tmpBg '
