@@ -6,7 +6,7 @@ RESOURCES = dict(
 )
 
 
-rule expMerge:
+rule bamMerge:
     input: 
         bams=lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srx),
         _=lambda wildcards: queue.expand(rules.hisat2_check.output[0], wildcards.srx),
@@ -27,8 +27,8 @@ rule expMerge:
 
 rule aln_stats:
     input:
-        bam=rules.expMerge.output.bam,
-        bai=rules.expMerge.output.bai,
+        bam=rules.bamMerge.output.bam,
+        bai=rules.bamMerge.output.bai,
     output:
         samtools_stats=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.samtools.stats"),
         bamtools_stats=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.bamtools.stats"),
