@@ -24,7 +24,7 @@ rule hisat2:
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
-    script: "../scripts/hisat2.py"
+    script: "../../scripts/hisat2.py"
 
 
 rule hisat2_check:
