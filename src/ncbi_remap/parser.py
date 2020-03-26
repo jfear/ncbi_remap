@@ -185,21 +185,29 @@ def parse_featureCounts_counts(fname, sample_name, label="srx"):
     header = pd.read_table(fname, comment="#", nrows=1).columns
     idx_name = header[0]
     count_name = header[-1]
-    df = pd.read_table(
-        fname,
-        comment="#",
-        usecols=[idx_name, count_name],
-        index_col=idx_name,
-        dtype={count_name: np.uint32},
-    ).T
-    df.index = pd.Index([sample_name], name=label)
-    df.columns.name = ""
+    df = (
+        pd.read_table(
+            fname, comment="#", usecols=[idx_name, count_name], dtype={count_name: np.uint32}
+        )
+        .rename(columns={idx_name: "FBgn", count_name: "count"})
+        .assign(**{label: sample_name})
+        .set_index([label, "FBgn"])
+    )
     return df
 
 
 def parse_featureCounts_jcounts(fname, sample_name, label="srx"):
     """Parser for subread feature jcounts."""
-    numeric_dtypes = {
+    fillna = {
+        "PrimaryGene": "None",
+        "SecondaryGenes": "None",
+        "Site1_chr": "None",
+        "Site1_location": 0,
+        "Site2_chr": "None",
+        "Site2_location": 0,
+        "count": 0,
+    }
+    dtypes = {
         "Site1_location": np.uint32,
         "Site2_location": np.uint32,
         "count": np.uint32,
@@ -213,7 +221,7 @@ def parse_featureCounts_jcounts(fname, sample_name, label="srx"):
     )
 
     count_col = df.columns[-1]
-    return df.rename(columns={count_col: "count"}).astype(numeric_dtypes)
+    return df.rename(columns={count_col: "count"}).fillna(fillna).astype(dtypes)
 
 
 def parse_featureCounts_summary(fname):
