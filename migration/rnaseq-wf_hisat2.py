@@ -1,15 +1,14 @@
 import sys
+import os
 from collections import namedtuple
 from pathlib import Path
-import shutil
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_hisat2
 
-CLEAN_UP = False
+CLEAN_UP = os.environ.get("CLEAN_UP", False)
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 
 Files = namedtuple("Files", "srr idx log bam bai output")

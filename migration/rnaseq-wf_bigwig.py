@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 import shutil
 
-CLEAN_UP = False
+CLEAN_UP = os.environ.get("CLEAN_UP", False)
 
 def main():
     for srx_pth in Path("../output/rnaseq-wf/samples").iterdir():
@@ -24,12 +25,17 @@ def main():
 def move(first: Path, second: Path, dir_name: str):
     output_path = Path("../output/rnaseq-wf") / dir_name
     output_path.mkdir(exist_ok=True)
-    if CLEAN_UP:
-        shutil.move(first, output_path / first.name)
-        shutil.move(second, output_path / second.name)
+    first_out = output_path / first.name
+    second_out = output_path / second.name
+
+    if first.exists() and second.exists() and CLEAN_UP:
+        shutil.move(first, first_out)
+        shutil.move(second, second_out)
+    elif first.exists() and second.exists():
+        print(first, "-->", first_out)
+        print(second, "-->", second_out)
     else:
-        print(first, "-->", output_path / first.name)
-        print(second, "-->", output_path / second.name)
+        print("Missing:", first, second, sep="\t")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import pandas as pd
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_featureCounts_counts
 
-CLEAN_UP = False
+CLEAN_UP = os.environ.get("CLEAN_UP", False)
 THREADS = int(os.environ.get("SLURM_CPUS_PER_TASK", "2"))
 Files = namedtuple("Files", "srx file_name output")
 

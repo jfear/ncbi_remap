@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from collections import namedtuple
 
@@ -8,7 +9,7 @@ sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_bamtools_stats, parse_samtools_stats
 
 
-CLEAN_UP = False
+CLEAN_UP = os.environ.get("CLEAN_UP", False)
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 
 Files = namedtuple("Files", "srx idx idxstats samtools bamtools output")

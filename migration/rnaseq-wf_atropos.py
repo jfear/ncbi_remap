@@ -1,3 +1,4 @@
+import os
 import re
 from collections import namedtuple
 from pathlib import Path
@@ -5,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-CLEAN_UP = False
+CLEAN_UP = os.environ.get("CLEAN_UP", False)
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 DTYPES = {
     "total_processed": np.int64,
