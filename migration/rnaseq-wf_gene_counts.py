@@ -33,8 +33,13 @@ def main():
 
 
 def parse_table(data, srx):
-    df = pd.read_table(data, index_col=0, squeeze=True).astype(np.uint32).to_frame().T
-    df.index = pd.Index([srx], name="srx")
+    header = pd.read_table(data, nrows=1).columns
+    df = (
+        pd.read_table(data, dtype={header[1]: np.uint32})
+        .rename(columns={header[0]: "FBgn", header[1]: "count"})
+        .assign(srx=srx)
+        .set_index(["srx", "FBgn"])
+    )
     return df
 
 
