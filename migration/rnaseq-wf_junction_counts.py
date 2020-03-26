@@ -1,32 +1,37 @@
 import sys
 from pathlib import Path
-
-import numpy as np
-import pandas as pd
+from collections import namedtuple
+from multiprocessing import Pool
 
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_featureCounts_jcounts
 
+Files = namedtuple("Files", "srx file_name output")
 
 def main():
+    workers = Pool(24)
+    work = []
     for srx_pth in Path("../output/rnaseq-wf/samples").iterdir():
+        srx = srx_pth.name
         if not srx_pth.is_dir():
             continue
 
-        srx = srx_pth.name
-        file_name = srx_pth / f"{srx}.bam.counts.jcounts"
-        output = f"../output/rnaseq-wf/junction_counts/{srx}.parquet"
+        files = Files(
+            srx,
+            srx_pth / f"{srx}.bam.counts.jcounts",
+            f"../output/rnaseq-wf/junction_counts/{srx}.parquet"
+        )
 
-        if not file_name.exists():
-            continue
+        if files.file_name.exists():
+            work.append(files)
 
-        try:
-            df = parse_featureCounts_jcounts(file_name, srx)
-            df.to_parquet(output)
-            file_name.unlink()
-        except Exception as e:
-            print(file_name)
-            raise e
+    workers.map(parse_srx, work)
+
+
+def parse_srx(files):
+    df = parse_featureCounts_jcounts(files.file_name, files.srx)
+    df.to_parquet(files.output)
+    files.file_name.unlink()
 
 
 if __name__ == "__main__":
