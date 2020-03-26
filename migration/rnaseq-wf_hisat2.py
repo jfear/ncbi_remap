@@ -1,5 +1,4 @@
 import sys
-import os
 from collections import namedtuple
 from pathlib import Path
 
@@ -8,7 +7,6 @@ import pandas as pd
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_hisat2
 
-CLEAN_UP = os.environ.get("CLEAN_UP", False)
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 
 Files = namedtuple("Files", "srr idx log bam bai output")
@@ -35,10 +33,6 @@ def main():
         )
         if files.log.exists():
             convert_log(files)
-            if CLEAN_UP:
-                Path(files.log).unlink()
-
-    remove_alignment_bad()
 
 
 def convert_log(files):
@@ -68,21 +62,6 @@ def convert_log(files):
         alignment_bad_path = Path("../output/rnaseq-wf/alignment_bad")
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, files.srr).touch()
-
-        if Path(files.bam).exists() and CLEAN_UP:
-            Path(files.bam).unlink()
-
-        if Path(files.bai).exists() and CLEAN_UP:
-            Path(files.bai).unlink()
-
-
-def remove_alignment_bad():
-    srrs = set([pth.name for pth in Path("../output/rnaseq-wf/alignment_bad").iterdir()])
-    for pth in Path("../output/rnaseq-wf/samples/").glob("**/SRR*"):
-        if pth.name in srrs:
-            for file_pth in pth.iterdir():
-                if not "fastq_screen" in file_pth.name and CLEAN_UP:
-                    file_pth.unlink()
 
 
 if __name__ == "__main__":

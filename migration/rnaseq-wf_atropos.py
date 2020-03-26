@@ -1,4 +1,3 @@
-import os
 import re
 from collections import namedtuple
 from pathlib import Path
@@ -6,7 +5,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-CLEAN_UP = os.environ.get("CLEAN_UP", False)
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 DTYPES = {
     "total_processed": np.int64,
@@ -38,17 +36,12 @@ def main():
             convert_tsv(files)
         elif files.log.exists():
             convert_log(files)
- 
-    rnaseq_dir_cleanup()
 
 
 def convert_tsv(files):
     df = pd.read_table(files.table)[DTYPES.keys()].fillna(0).astype(DTYPES)
     df.index = files.idx
     df.to_parquet(files.output)
-    if CLEAN_UP:
-        files.table.unlink()
-        files.log.unlink()
 
 
 def convert_log(files):
@@ -67,9 +60,6 @@ def convert_log(files):
         atropos_bad_path.mkdir(exist_ok=True)
         (atropos_bad_path / files.srr).touch()
 
-    if CLEAN_UP:
-        files.log.unlink()
-
 
 def parse_atropos(file_name):
     with open(file_name) as fh:
@@ -87,15 +77,6 @@ def parse_atropos(file_name):
         return tot_processed, tot_written, too_short
     except IndexError:
         raise AtroposException("Problem with Atropos: %s", file_name)
-
-
-def rnaseq_dir_cleanup():
-    srrs = set([pth.name for pth in Path("../output/rnaseq-wf/atropos_bad").iterdir()])
-    for pth in Path("../output/rnaseq-wf/samples/").glob("**/SRR*"):
-        if pth.name in srrs:
-            for file_pth in pth.iterdir():
-                if not "fastq_screen" in file_pth.name and CLEAN_UP:
-                    file_pth.unlink()
 
 
 if __name__ == "__main__":
