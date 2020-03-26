@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from collections import namedtuple
@@ -9,11 +10,12 @@ import pandas as pd
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_featureCounts_counts
 
+THREADS = int(os.environ.get("SLURM_CPUS_PER_TASK", "2"))
 Files = namedtuple("Files", "srx file_name output")
 
 
 def main():
-    workers = Pool(24)
+    workers = Pool(THREADS)
     work = []
     for srx_pth in Path("../output/rnaseq-wf/samples").iterdir():
         srx = srx_pth.name
