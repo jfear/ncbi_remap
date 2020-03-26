@@ -7,6 +7,7 @@ from multiprocessing import Pool
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_featureCounts_jcounts
 
+CLEAN_UP = False
 THREADS = int(os.environ.get("SLURM_CPUS_PER_TASK", "2"))
 Files = namedtuple("Files", "srx file_name output")
 
@@ -33,7 +34,8 @@ def main():
 def parse_srx(files):
     df = parse_featureCounts_jcounts(files.file_name, files.srx)
     df.to_parquet(files.output)
-    files.file_name.unlink()
+    if CLEAN_UP:
+        files.file_name.unlink()
 
 
 if __name__ == "__main__":

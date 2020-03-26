@@ -1,11 +1,11 @@
 import re
-import shutil
 from collections import namedtuple
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+CLEAN_UP = False
 RNASEQ_PATH = Path("../output/rnaseq-wf/samples")
 DTYPES = {
     "total_processed": np.int64,
@@ -45,8 +45,9 @@ def convert_tsv(files):
     df = pd.read_table(files.table)[DTYPES.keys()].fillna(0).astype(DTYPES)
     df.index = files.idx
     df.to_parquet(files.output)
-    files.table.unlink()
-    files.log.unlink()
+    if CLEAN_UP:
+        files.table.unlink()
+        files.log.unlink()
 
 
 def convert_log(files):
@@ -65,7 +66,8 @@ def convert_log(files):
         atropos_bad_path.mkdir(exist_ok=True)
         (atropos_bad_path / files.srr).touch()
 
-    files.log.unlink()
+    if CLEAN_UP:
+        files.log.unlink()
 
 
 def parse_atropos(file_name):
@@ -91,7 +93,7 @@ def rnaseq_dir_cleanup():
     for pth in Path("../output/rnaseq-wf/samples/").glob("**/SRR*"):
         if pth.name in srrs:
             for file_pth in pth.iterdir():
-                if not "fastq_screen" in file_pth.name:
+                if not "fastq_screen" in file_pth.name and CLEAN_UP:
                     file_pth.unlink()
 
 

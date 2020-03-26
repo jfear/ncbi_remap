@@ -10,6 +10,7 @@ import pandas as pd
 sys.path.insert(0, "../src")
 from ncbi_remap.parser import parse_featureCounts_counts
 
+CLEAN_UP = False
 THREADS = int(os.environ.get("SLURM_CPUS_PER_TASK", "2"))
 Files = namedtuple("Files", "srx file_name output")
 
@@ -56,7 +57,8 @@ def parse_srx(files):
         df = parse_table(files.file_name, files.srx)
 
     df.to_parquet(files.output)
-    files.file_name.unlink()
+    if CLEAN_UP:
+        files.file_name.unlink()
 
 
 if __name__ == "__main__":
