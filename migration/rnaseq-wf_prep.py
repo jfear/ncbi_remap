@@ -22,10 +22,9 @@ import shutil
 def main():
     remove_non_rnaseq()
 
-    clear_folder("../output/rnaseq-wf/alignment_bad")
-    clear_folder("../output/rnaseq-wf/atropos_bad")
-    clear_folder("../output/rnaseq-wf/done")
-
+    create_folder("../output/rnaseq-wf/alignment_bad")
+    create_folder("../output/rnaseq-wf/atropos_bad")
+    create_folder("../output/rnaseq-wf/done")
     create_folder("../output/rnaseq-wf/atropos")
     create_folder("../output/rnaseq-wf/hisat2")
     create_folder("../output/rnaseq-wf/aln_stats")
@@ -36,6 +35,10 @@ def main():
     create_folder("../output/rnaseq-wf/fusion_counts")
     create_folder("../output/rnaseq-wf/flybase_bigwigs")
     create_folder("../output/rnaseq-wf/ucsc_bigwigs")
+
+    clear_folder("../output/rnaseq-wf/alignment_bad")
+    clear_folder("../output/rnaseq-wf/atropos_bad")
+    clear_folder("../output/rnaseq-wf/done")
 
     cleanup_special_cases()
 
