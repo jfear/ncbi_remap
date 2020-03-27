@@ -55,7 +55,7 @@ def check_log(file_name):
 
 def get_counts(file_name):
     col_name = pd.read_table(file_name, comment="#", nrows=1).columns[-1]
-    return pd.read_table(file_name, comment="#", usecols=[col_name], dtype=np.int64).values
+    return pd.read_table(file_name, comment="#", usecols=[col_name], dtype=np.uint32).values
 
 
 def parse_table(files):
