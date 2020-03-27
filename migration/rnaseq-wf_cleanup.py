@@ -3,8 +3,22 @@ import re
 import shutil
 from pathlib import Path
 
-SRR_PATTERN = re.compile(r"^[SED]RR\d+$")
 CLEAN_UP = os.environ.get("CLEAN_UP", False)
+SRR_PATTERN = re.compile(r"^[SED]RR\d+$")
+TARGETS = [
+    "../output/rnaseq-wf/aln_stats/{srx}.parquet",
+    "../output/rnaseq-wf/gene_counts/{srx}.parquet",
+    "../output/rnaseq-wf/junction_counts/{srx}.parquet",
+    "../output/rnaseq-wf/intergenic_counts/{srx}.parquet",
+    "../output/rnaseq-wf/segment_counts/{srx}.parquet",
+    "../output/rnaseq-wf/fusion_counts/{srx}.parquet",
+    "../output/rnaseq-wf/flybase_bigwigs/{srx}.flybase.first.bw",
+    "../output/rnaseq-wf/flybase_bigwigs/{srx}.flybase.second.bw",
+    "../output/rnaseq-wf/ucsc_bigwigs/{srx}.first.bw",
+    "../output/rnaseq-wf/ucsc_bigwigs/{srx}.second.bw",
+    "../output/rnaseq-wf/samples/{srx}/{srx}.bam",
+    "../output/rnaseq-wf/samples/{srx}/{srx}.bam.bai",
+]
 
 
 def main():
@@ -19,20 +33,7 @@ def main():
             remove_srx_folder(srx)
             continue
 
-        if (
-            Path(f"../output/rnaseq-wf/aln_stats/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/gene_counts/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/junction_counts/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/intergenic_counts/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/segment_counts/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/fusion_counts/{srx}.parquet").exists()
-            & Path(f"../output/rnaseq-wf/flybase_bigwigs/{srx}.flybase.first.bw").exists()
-            & Path(f"../output/rnaseq-wf/flybase_bigwigs/{srx}.flybase.second.bw").exists()
-            & Path(f"../output/rnaseq-wf/ucsc_bigwigs/{srx}.first.bw").exists()
-            & Path(f"../output/rnaseq-wf/ucsc_bigwigs/{srx}.second.bw").exists()
-            & Path(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam").exists()
-            & Path(f"../output/rnaseq-wf/samples/{srx}/{srx}.bai").exists()
-        ):
+        if all(check_target(target.format(srx=srx)) for target in TARGETS):
             Path(f"../output/rnaseq-wf/done/{srx}").touch()
             remove_srr_folders(srx)
             remove_processed_files(srx)
@@ -50,6 +51,12 @@ def remove_srx_folder(srx: str):
         shutil.rmtree(pth)
     elif pth.exists():
         print("Removing SRX Folder:", pth, sep="\t")
+
+
+def check_target(file_name: str):
+    if Path(file_name).exists():
+        return True
+    print("Missing Target:", file_name, sep="\t")
 
 
 def remove_srr_folders(srx: str):
@@ -70,9 +77,9 @@ def remove_file(file_name: str):
 
 
 def remove_processed_files(srx: str):
-
     remove_file(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam.samtools.stats")
     remove_file(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam.bamtools.stats")
+
     remove_file(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam.counts")
     remove_file(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam.counts.jcounts")
     remove_file(f"../output/rnaseq-wf/samples/{srx}/{srx}.bam.intergenic.counts")
