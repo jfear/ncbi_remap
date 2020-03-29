@@ -78,6 +78,7 @@ class Queue:
         self._load_completed(completed)
         self._load_problems(problems)
         self._load_subset(subset)
+        self._translate_srxs()
         self.update_filter_set()
 
     @property
@@ -153,43 +154,39 @@ class Queue:
 
     def _load_targets(self, targets):
         if targets is None:
-            self._srxs |= set(self.srx2srr.srx.values)
             self._srrs |= set(self.srx2srr.srr.values)
             return
-
-        values = self._get_values(targets)
-        srxs, srrs = self._translate_sample(values)
-        self._srxs |= srxs
-        self._srrs |= srrs
+        self._srrs |= self._get_srrs(targets)
 
     def _load_completed(self, completed):
         if completed is None:
             return
-
-        values = self._get_values(completed)
-        srxs, srrs = self._translate_sample(values)
-        self._srxs -= srxs
-        self._srrs -= srrs
+        self._srrs -= self._get_srrs(completed)
 
     def _load_problems(self, problems):
         if problems is None:
             return
-
-        values = self._get_values(problems)
-        srxs, srrs = self._translate_sample(values)
-        self._srxs -= srxs
-        self._srrs -= srrs
+        self._srrs -= self._get_srrs(problems)
 
     def _load_subset(self, subset):
         if subset is None:
             return
+        self._srrs &= self._get_srrs(subset)
 
-        values = self._get_values(subset)
-        srxs, srrs = self._translate_sample(values)
-        self._srxs &= srxs
-        self._srrs &= srrs
+    def _get_srrs(self, items) -> Set[str]:
+        values = self._get_values(items)
+        return self._translate_to_srr(values)
 
     def _get_values(self, name) -> Set[str]:
+        """Figure out how to parse name.
+        
+        `name` is string:
+            if SRX or SRR use it as is
+            if *.pkl, *.txt then read in the file
+            if directory use directory listing
+        `name` is sequence:
+            Then iterate over using recursion.
+        """
         if isinstance(name, str):
             if re.match(self._srx_pattern, name) or re.match(self._srr_pattern, name):
                 return set([name])
@@ -208,18 +205,25 @@ class Queue:
         if isinstance(name, Sequence):
             return set().union(*(self._get_values(value) for value in name))
 
-    def _translate_sample(self, values: Set[str]) -> Tuple[Set[str], Set[str]]:
+    def _translate_to_srr(self, values: Set[str]) -> Set[str]:
+        """Create a set of SRRs based on values.
+
+        `values` can be a mixture of SRXs and SRRs. Iterate over and create a
+        set of SRRs.
+        """
         if len(values) > 0:
-            value = next(iter(values))
-            if re.match(self._srx_pattern, value):
-                # values are SRXs
-                return values, set(self.srx2srr.query(f"srx == {list(values)}").srr.values)
+            srrs = set()
+            for value in values:
+                if re.match(self._srx_pattern, value):
+                    srrs |= set(self.srx2srr.query(f"srx == '{value}'").srr.values)
+                elif re.match(self._srr_pattern, value):
+                    srrs.add(value)
+            return srrs
+        return set()
 
-            if re.match(self._srr_pattern, value):
-                # values are SRRs
-                return set(self.srx2srr.query(f"srr == {list(values)}").srx.values), values
-
-        return set(), set()
+    def _translate_srxs(self):
+        """Use SRRs to create a set of SRXs"""
+        self._srxs = set(self.srx2srr.query(f"srr == {list(self._srrs)}").srx.unique())
 
     def __str__(self):
         return dedent(
