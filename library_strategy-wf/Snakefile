@@ -58,6 +58,7 @@ rule build_prealn_feature_set:
         markduplicates="../output/prealn-wf/markduplicates",
         count_summary="../output/prealn-wf/count_summary",
         done="../output/prealn-wf/done"
+    threads: 8
     output: "../output/library_strategy-wf/prealn_feature_set.parquet"
     script: "scripts/build_prealn_feature_set.py"
 
