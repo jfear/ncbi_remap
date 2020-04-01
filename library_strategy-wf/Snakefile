@@ -14,37 +14,23 @@ driven machine learning approach. I will use various features from the
 `prealn-wf` with a cross validation approach to confidently identify samples
 that behave as expected.
 
-Rules
------
-targets
-    create a list of desired output files
-free_text_library_strategy
-    Parse free text for additional library strategy information
-munge_library_strategy_from_mongo
-    Pulls out the author supplied metadata field for library strategy and
-    selection
-build_feature_set
-    Pulls together different features from the pre-alignment workflow
-random_forest
-    Random Forest to learn library startegy and selection
-select_library_strategy
-    Takes library strategy annotations from SRA, metadata, random forest and
-    selects the best category.
-
 """
 singularity: "../singularity/drosSRA_workflow.sif"
 
 rule targets:
     input:
-        "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
-        "../output/library_strategy-wf/rnaseq.pkl",
+        "../output/library_strategy-wf/outlier_umap.svg",
+        "../output/library_strategy-wf/features.svg",
+        # "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
+        # "../output/library_strategy-wf/rnaseq.pkl",
+        # "../output/library_strategy-wf/library_strategy_outlier_shap_metrics.parquet",
         # Figures
-        "../output/library_strategy-wf/library_strategy.svg",
-        "../output/library_strategy-wf/library_selection.svg",
-        "../output/library_strategy-wf/library_strategy_outliers.svg",
-        "../output/library_strategy-wf/library_selection_outliers.svg",
+        # "../output/library_strategy-wf/library_strategy.svg",
+        # "../output/library_strategy-wf/library_strategy_outliers.svg",
 
-
+################################################################################
+# Prep Features
+################################################################################
 rule build_prealn_feature_set:
     input: "../output/srx2srr.csv"
     params:
@@ -86,68 +72,44 @@ rule umap_prealn_feature_set:
     script: "scripts/umap_prealn_feature_set.py"
 
 
-rule munge_strategy_and_selection_from_mongo:
+rule pull_sra_strategy_and_selection_from_mongo:
     output:
         data="../output/library_strategy-wf/sra_strategy_selection.parquet",
         summary="../output/library_strategy-wf/sra_strategy_selection_summary_table.tsv",
-    script: "scripts/munge_strategy_and_selection_from_mongo.py"
+    script: "scripts/pull_sra_strategy_and_selection_from_mongo.py"
 
 
-rule panel_plots:
-    input: 
-        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
-        umap=rules.umap_prealn_feature_set.output.embeddings
-    output: 
-        strategy="../output/library_strategy-wf/library_strategy.svg",
-        selection="../output/library_strategy-wf/library_selection.svg"
-    script: "scripts/panel_plots.py"
-
-
+################################################################################
+# Find RNA-Seq Outliers
+################################################################################
 rule outlier_detection:
+    # TODO: Add Shapley values as output
     input:
         features=rules.scale_feature_set.output[0],
-        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
-    output: "../output/library_strategy-wf/prealn_outliers.parquet"
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
+        umap=rules.umap_prealn_feature_set.output.embeddings
+    output: 
+        fig1="../output/library_strategy-wf/umap.svg",
+        fig2="../output/library_strategy-wf/outlier_umap.svg",
+        fig3="../output/library_strategy-wf/features.svg",
+        # flag_outlier="../output/library_strategy-wf/prealn_outliers.parquet",
+        # rnaseq_samples="../output/library_strategy-wf/rnaseq.pkl",
+        # shap_metrics="../output/library_strategy-wf/library_strategy_outlier_shap_metrics.parquet",
     script: "scripts/outlier_detection.py"
 
 
-rule outlier_panel_plots:
-    input: 
-        outliers=rules.outlier_detection.output[0],
-        umap=rules.umap_prealn_feature_set.output.embeddings
-    output: 
-        strategy="../output/library_strategy-wf/library_strategy_outliers.svg",
-        selection="../output/library_strategy-wf/library_selection_outliers.svg"
-    script: "scripts/outlier_panel_plots.py"
-
-
-rule random_forest:
-    input:
-        labels=rules.munge_strategy_and_selection_from_mongo.output.data,
-        features=rules.build_prealn_feature_set.output[0],
-    threads: 10
-    output:
-        metrics="../output/library_strategy-wf/random_forest_metrics.tsv",
-        feature_importance="../output/library_strategy-wf/random_forest_feature_importance.tsv",
-        predicted_labels="../output/library_strategy-wf/random_forest_predicted_labels.parquet"
-    script: "scripts/random_forest.py"
-
-
+################################################################################
+# Refine Library Strategy and Selection Metadata
+################################################################################
 rule free_text_library_strategy:
     output: "../output/library_strategy-wf/free_text_library_strategy.parquet"
     script: "scripts/free_text_library_strategy.py"
 
-
+# TODO: Re-think aggregation because I removed RF.
 rule metadata_integration:
     input:
-        sra=rules.munge_strategy_and_selection_from_mongo.output.data,
+        sra=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
         free_text=rules.free_text_library_strategy.output[0],
-        forest=rules.random_forest.output["predicted_labels"],
+        # forest=rules.random_forest.output["predicted_labels"],
     output: "../output/library_strategy-wf/summarized_metadata.parquet"
     script: "scripts/metadata_integration.py"
-
-
-rule possible_rnaseq_samples:
-    input: rules.metadata_integration.output[0]
-    output: "../output/library_strategy-wf/rnaseq.pkl"
-    script: "scripts/filter_possible_rnaseq.py"
