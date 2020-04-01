@@ -19,10 +19,9 @@ singularity: "../singularity/drosSRA_workflow.sif"
 
 rule targets:
     input:
-        "../output/library_strategy-wf/outlier_umap.svg",
-        "../output/library_strategy-wf/features.svg",
+        "../output/library_strategy-wf/rnaseq_outliers.parquet",
+        "../output/library_strategy-wf/rnaseq.pkl",
         # "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
-        # "../output/library_strategy-wf/rnaseq.pkl",
         # "../output/library_strategy-wf/library_strategy_outlier_shap_metrics.parquet",
         # Figures
         # "../output/library_strategy-wf/library_strategy.svg",
@@ -83,18 +82,15 @@ rule pull_sra_strategy_and_selection_from_mongo:
 # Find RNA-Seq Outliers
 ################################################################################
 rule outlier_detection:
-    # TODO: Add Shapley values as output
     input:
         features=rules.scale_feature_set.output[0],
-        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
-        umap=rules.umap_prealn_feature_set.output.embeddings
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
     output: 
-        fig1="../output/library_strategy-wf/umap.svg",
-        fig2="../output/library_strategy-wf/outlier_umap.svg",
-        fig3="../output/library_strategy-wf/features.svg",
-        # flag_outlier="../output/library_strategy-wf/prealn_outliers.parquet",
-        # rnaseq_samples="../output/library_strategy-wf/rnaseq.pkl",
-        # shap_metrics="../output/library_strategy-wf/library_strategy_outlier_shap_metrics.parquet",
+        outliers="../output/library_strategy-wf/rnaseq_outliers.parquet",
+        rnaseq_samples="../output/library_strategy-wf/rnaseq.pkl",
+        shap_model="../output/library_strategy-wf/shap_model.joblib.pkl",
+        shap_values="../output/library_strategy-wf/shap_values.joblib.pkl",
+        mixin="../output/library_strategy-wf/contamination_mixin.parquet",
     script: "scripts/outlier_detection.py"
 
 
