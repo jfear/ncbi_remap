@@ -9,7 +9,8 @@ sys.path.insert(0, "../src")
 from ncbi_remap.plotting import style_use
 
 CATEGORIES = ["RNA-Seq", "EST", "WGS", "ChIP-Seq", "Other"]
-COLORS = ["C0", "C1", "C2", "C3", "lightgray"]
+COLORS = ["C0", "C1", "C2", "C4", "lightgray"]
+ZORDER = [4, 3, 2, 1, 0]
 SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2,)
 
 
@@ -31,9 +32,8 @@ def wrangle_data():
 
 
 def plot(embeddings):
-    for i, (cat, color) in enumerate(zip(CATEGORIES, COLORS)):
+    for cat, color, zorder in zip(CATEGORIES, COLORS, ZORDER):
         df = embeddings.query(f"library_strategy == '{cat}'")
-        zorder = 10 - i
         plt.scatter(df.UMAP1, df.UMAP2, c=color, label=cat, zorder=zorder, **SCATTER_STYLE)
 
     ax = plt.gca()
