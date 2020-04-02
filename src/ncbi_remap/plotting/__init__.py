@@ -14,6 +14,8 @@ plt.style.core.USER_LIBRARY_PATHS.append(Path(FILE_PATH, "../../stylelib").as_po
 plt.style.core.update_user_library(plt.style.library)
 plt.style.reload_library()
 
+def style_use(style):
+    plt.style.use(style)
 
 def update_kwargs(defaults: Union[None, dict], user: Union[None, dict]) -> dict:
     """Updates a default dictionary with user values."""

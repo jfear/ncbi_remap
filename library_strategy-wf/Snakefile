@@ -95,7 +95,14 @@ rule outlier_detection:
 
 
 ################################################################################
-# Refine Library Strategy and Selection Metadata
+# Plots
+################################################################################
+rule library_strategy_umap:
+    input: 
+        umap=rules.umap_prealn_feature_set.output.embeddings,
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
+    output: "../output/library_strategy-wf/library_strategy_umap.svg"
+    script: "scripts/library_strategy_umap.py"
 ################################################################################
 rule free_text_library_strategy:
     output: "../output/library_strategy-wf/free_text_library_strategy.parquet"
