@@ -103,6 +103,16 @@ rule library_strategy_umap:
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
     output: "../output/library_strategy-wf/library_strategy_umap.svg"
     script: "scripts/library_strategy_umap.py"
+
+
+rule rnaseq_outlier_umap:
+    input: 
+        umap=rules.umap_prealn_feature_set.output.embeddings,
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
+        outliers=rules.outlier_detection.output.outliers,
+    output: "../output/library_strategy-wf/rnaseq_outlier_umap.svg"
+    script: "scripts/rnaseq_outlier_umap.py"
+
 ################################################################################
 rule free_text_library_strategy:
     output: "../output/library_strategy-wf/free_text_library_strategy.parquet"
