@@ -45,6 +45,7 @@ def estimate_feature_importance(model, rnaseq_features):
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(rnaseq_features)
     joblib.dump(explainer, snakemake.output.shap_model)
+    joblib.dump(rnaseq_features, snakemake.output.shap_features)
     joblib.dump(shap_values, snakemake.output.shap_values)
 
 

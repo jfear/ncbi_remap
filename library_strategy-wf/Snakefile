@@ -89,6 +89,7 @@ rule outlier_detection:
         outliers="../output/library_strategy-wf/rnaseq_outliers.parquet",
         rnaseq_samples="../output/library_strategy-wf/rnaseq.pkl",
         shap_model="../output/library_strategy-wf/shap_model.joblib.pkl",
+        shap_features="../output/library_strategy-wf/shap_features.joblib.pkl",
         shap_values="../output/library_strategy-wf/shap_values.joblib.pkl",
         mixin="../output/library_strategy-wf/contamination_mixin.parquet",
     script: "scripts/outlier_detection.py"
