@@ -26,6 +26,8 @@ from pathlib import Path
 from multiprocessing import Pool
 
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # NOTE: features commented out are being dropped because they are repetitive or not important.
 FEATURE_AGG = {
@@ -64,10 +66,10 @@ FEATURE_AGG = {
     # "outward_oriented_pairs": "sum",
     # "pairs_with_other_orientation": "sum",
     # "pairs_on_different_chromosomes": "sum",
-    "Percent Forward": "mean",
+    # "Percent Forward": "mean",  # Perfectly anti-correlated with Percent Reverse
     "Percent Reverse": "mean",
-    "percent_coding_bases": "mean",
-    "percent_utr_bases": "mean",
+    # "percent_coding_bases": "mean",  # Exclusive of percent_utr and correlated with percent_mrna
+    # "percent_utr_bases": "mean",  # Exclusive of percent_coding and correlated with percent_mrna
     "percent_intronic_bases": "mean",
     "percent_intergenic_bases": "mean",
     "percent_mrna_bases": "mean",
@@ -102,13 +104,16 @@ def main():
         sort=False,
     ).reindex(done)
 
-    (
+    features = (
         df.join(srx2srr)
         .pipe(aggregate_gene_body_coverage)
         .groupby("srx")
         .agg(FEATURE_AGG)
-        .to_parquet(snakemake.output[0])
     )
+
+    features.to_parquet(snakemake.output.features)
+    sns.pairplot(features.sample(n=1_000))
+    plt.savefig(snakemake.output.pairplot)
 
 
 def aggregate_gene_body_coverage(df):
