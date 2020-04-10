@@ -112,17 +112,15 @@ def main():
         sort=False,
     ).reindex(done)
 
-    features = (
+    (
         df.join(srx2srr)
         .pipe(aggregate_gene_body_coverage)
-        .rename(columns=FEATURE_RENAME)
         .groupby("srx")
         .agg(FEATURE_AGG)
+        .rename(columns=FEATURE_RENAME)
+        .to_parquet(snakemake.output[0])
     )
 
-    features.to_parquet(snakemake.output.features)
-    sns.pairplot(features.sample(n=1_000))
-    plt.savefig(snakemake.output.pairplot)
 
 
 def aggregate_gene_body_coverage(df):
