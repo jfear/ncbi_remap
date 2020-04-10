@@ -19,13 +19,9 @@ singularity: "../singularity/drosSRA_workflow.sif"
 
 rule targets:
     input:
-        "../output/library_strategy-wf/rnaseq_outliers.parquet",
-        "../output/library_strategy-wf/rnaseq.pkl",
-        # "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
-        # "../output/library_strategy-wf/library_strategy_outlier_shap_metrics.parquet",
-        # Figures
-        # "../output/library_strategy-wf/library_strategy.svg",
-        # "../output/library_strategy-wf/library_strategy_outliers.svg",
+        "../output/library_strategy-wf/sra_strategy_selection.parquet",
+        "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
+        "../output/library_strategy-wf/umap_prealn_features.parquet",
 
 
 rule pull_sra_strategy_and_selection_from_mongo:
@@ -63,7 +59,7 @@ rule scale_prealn_features:
 
 
 rule pca_prealn_features:
-    input: rules.scale_features.output[0]
+    input: rules.scale_prealn_features.output[0]
     output: 
         embeddings="../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
         loadings="../output/library_strategy-wf/pca_prealn_features_loadings.parquet",
@@ -72,7 +68,7 @@ rule pca_prealn_features:
 
 
 rule umap_prealn_features:
-    input: rules.scale_features.output[0]
+    input: rules.scale_prealn_features.output[0]
     output: "../output/library_strategy-wf/umap_prealn_features.parquet",
     script: "scripts/umap_prealn_features.py"
 
@@ -82,7 +78,7 @@ rule umap_prealn_features:
 ################################################################################
 rule rnaseq_features:
     input:
-        features=rules.build_prealn_features.output.features,
+        features=rules.build_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
     output: "../output/library_strategy-wf/rnaseq_features.parquet"
     script: "scripts/rnaseq_features.py"
@@ -107,7 +103,7 @@ rule outlier_detection:
 ################################################################################
 rule library_strategy_umap:
     input: 
-        umap=rules.umap_prealn_feature_set.output.embeddings,
+        umap=rules.umap_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
     output: "../output/library_strategy-wf/library_strategy_umap.svg"
     script: "scripts/library_strategy_umap.py"
@@ -115,7 +111,7 @@ rule library_strategy_umap:
 
 rule rnaseq_outlier_umap:
     input: 
-        umap=rules.umap_prealn_feature_set.output.embeddings,
+        umap=rules.umap_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
         outliers=rules.outlier_detection.output.outliers,
     output: "../output/library_strategy-wf/rnaseq_outlier_umap.svg"
