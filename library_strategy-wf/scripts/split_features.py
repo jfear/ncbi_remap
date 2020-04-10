@@ -1,19 +1,21 @@
 """Pull out RNA-Seq samples from feature set"""
 import pandas as pd
 
+MAPPER = {"rnaseq": "RNA-Seq", "est": "EST", "wgs": "WGS", "chip": "ChIP-Seq"}
+
 
 def main():
-    rnaseq_srxs = (
-        pd.read_parquet(snakemake.input.labels).query("library_strategy == 'RNA-Seq'").index
-    )
+    labels = pd.read_parquet(snakemake.input.labels).library_strategy.squeeze()
+    features = pd.read_parquet(snakemake.input.features)
 
-    (
-        pd.read_parquet(snakemake.input.features)
-        .reindex(rnaseq_srxs)
-        .dropna(how="all")
-        .sort_index()
-        .to_parquet(snakemake.output[0])
-    )
+    for short_name, long_name in MAPPER.items():
+        srxs = labels[labels == long_name].index
+        (
+            features.reindex(srxs)
+            .dropna(how="all")
+            .sort_index()
+            .to_parquet(snakemake.output[short_name])
+        )
 
 
 if __name__ == "__main__":
