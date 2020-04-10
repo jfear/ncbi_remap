@@ -27,10 +27,18 @@ rule targets:
         # "../output/library_strategy-wf/library_strategy.svg",
         # "../output/library_strategy-wf/library_strategy_outliers.svg",
 
+
+rule pull_sra_strategy_and_selection_from_mongo:
+    output:
+        data="../output/library_strategy-wf/sra_strategy_selection.parquet",
+        summary="../output/library_strategy-wf/sra_strategy_selection_summary_table.tsv",
+    script: "scripts/pull_sra_strategy_and_selection_from_mongo.py"
+
+
 ################################################################################
 # Prep Features
 ################################################################################
-rule build_prealn_feature_set:
+rule build_prealn_features:
     input: "../output/srx2srr.csv"
     params:
         libsize="../output/fastq-wf/libsize",
@@ -44,48 +52,47 @@ rule build_prealn_feature_set:
         count_summary="../output/prealn-wf/count_summary",
         done="../output/prealn-wf/done"
     threads: 8
-    output: 
-        features="../output/library_strategy-wf/prealn_feature_set.parquet",
-        pairplot="../output/library_strategy-wf/prealn_feature_set.svg"
-    script: "scripts/build_prealn_feature_set.py"
+    output: "../output/library_strategy-wf/prealn_features.parquet",
+    script: "scripts/build_prealn_features.py"
 
 
-rule scale_feature_set:
-    input: rules.build_prealn_feature_set.output.features
-    output: "../output/library_strategy-wf/scaled_prealn_feature_set.parquet"
+rule scale_prealn_features:
+    input: rules.build_prealn_features.output[0]
+    output: "../output/library_strategy-wf/scaled_prealn_features.parquet"
     script: "scripts/scale_prealn_features.py"
 
 
-rule pca_prealn_feature_set:
-    input: rules.scale_feature_set.output[0]
+rule pca_prealn_features:
+    input: rules.scale_features.output[0]
     output: 
         embeddings="../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
         loadings="../output/library_strategy-wf/pca_prealn_features_loadings.parquet",
         variance="../output/library_strategy-wf/pca_prealn_features_explained_variance.parquet",
-    script: "scripts/pca_prealn_feature_set.py"
+    script: "scripts/pca_prealn_features.py"
 
 
-rule umap_prealn_feature_set:
-    input: rules.scale_feature_set.output[0]
+rule umap_prealn_features:
+    input: rules.scale_features.output[0]
     output: 
         embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
         model="../output/library_strategy-wf/umap_prealn_features_model.joblib.pkl"
-    script: "scripts/umap_prealn_feature_set.py"
-
-
-rule pull_sra_strategy_and_selection_from_mongo:
-    output:
-        data="../output/library_strategy-wf/sra_strategy_selection.parquet",
-        summary="../output/library_strategy-wf/sra_strategy_selection_summary_table.tsv",
-    script: "scripts/pull_sra_strategy_and_selection_from_mongo.py"
+    script: "scripts/umap_prealn_features.py"
 
 
 ################################################################################
 # Find RNA-Seq Outliers
 ################################################################################
+rule rnaseq_features:
+    input:
+        features=rules.build_prealn_features.output.features,
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
+    output: "../output/library_strategy-wf/rnaseq_features.parquet"
+    script: "scripts/rnaseq_features.py"
+
+
 rule outlier_detection:
     input:
-        features=rules.build_prealn_feature_set.output.features,
+        features=rules.rnaseq_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
     output: 
         outliers="../output/library_strategy-wf/rnaseq_outliers.parquet",
