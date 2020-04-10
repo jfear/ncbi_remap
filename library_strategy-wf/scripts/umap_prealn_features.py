@@ -1,23 +1,24 @@
 import os
 
-import joblib
 import numpy as np
 import pandas as pd
 import umap
 
-np.random.seed(42)
+RANDOM_STATE = np.random.RandomState(42)
+
 
 def main():
     scaled_features = pd.read_parquet(snakemake.input[0])
     X = scaled_features.values
 
-    reducer = umap.UMAP()
+    reducer = umap.UMAP(random_state=RANDOM_STATE)
     embeddings = reducer.fit_transform(X)
-    df = pd.DataFrame(embeddings, columns=["UMAP1", "UMAP2"], index=scaled_features.index)
 
-    # save
-    joblib.dump(reducer, snakemake.output.model)
-    df.to_parquet(snakemake.output.embeddings)
+    (
+        pd.DataFrame(
+            embeddings, columns=["UMAP1", "UMAP2"], index=scaled_features.index
+        ).to_parquet(snakemake.output.embeddings)
+    )
 
 
 if __name__ == "__main__":

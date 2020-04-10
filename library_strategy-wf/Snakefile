@@ -73,9 +73,7 @@ rule pca_prealn_features:
 
 rule umap_prealn_features:
     input: rules.scale_features.output[0]
-    output: 
-        embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
-        model="../output/library_strategy-wf/umap_prealn_features_model.joblib.pkl"
+    output: "../output/library_strategy-wf/umap_prealn_features.parquet",
     script: "scripts/umap_prealn_features.py"
 
 
