@@ -25,6 +25,9 @@ rule targets:
         "../output/library_strategy-wf/rnaseq_inliers.pkl",
         "../output/library_strategy-wf/umap_library_strategy.svg",
         "../output/library_strategy-wf/umap_rnaseq_outliers.svg",
+        "../output/library_strategy-wf/umap_est_outliers.svg",
+        "../output/library_strategy-wf/umap_wgs_outliers.svg",
+        "../output/library_strategy-wf/umap_chip_outliers.svg",
         "../output/library_strategy-wf/mixin_outliers.svg",
 
 
@@ -134,6 +137,18 @@ rule plot_umap_rnaseq_outliers:
     output: "../output/library_strategy-wf/umap_rnaseq_outliers.svg"
     script: "scripts/plot_umap_rnaseq_outliers.py"
 
+rule plot_umap_other_outliers:
+    input:
+        umap=rules.umap_prealn_features.output[0],
+        iso=rules.outlier_detection.output.iso,
+        est=rules.split_features.output.est,
+        wgs=rules.split_features.output.wgs,
+        chip=rules.split_features.output.chip,
+    output:
+        est="../output/library_strategy-wf/umap_est_outliers.svg",
+        wgs="../output/library_strategy-wf/umap_wgs_outliers.svg",
+        chip="../output/library_strategy-wf/umap_chip_outliers.svg",
+    script: "scripts/plot_umap_other_outliers.py"
 
 rule plot_mixin_outliers:
     input: rules.outlier_detection.output.mixin
