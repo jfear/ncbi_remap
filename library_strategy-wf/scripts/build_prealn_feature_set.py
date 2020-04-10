@@ -47,7 +47,7 @@ FEATURE_AGG = {
     # "total_processed": "sum",
     # "total_written": "sum",
     "too_short": "sum",
-    # "num_reads": "sum",
+    "num_reads": "sum",
     # "num_reads_paired": "sum",
     # "num_reads_unpaired": "sum",
     # "num_concordant_reads_unaligned": "sum",
@@ -69,7 +69,7 @@ FEATURE_AGG = {
     # "Percent Forward": "mean",  # Perfectly anti-correlated with Percent Reverse
     "Percent Reverse": "mean",
     # "percent_coding_bases": "mean",  # Exclusive of percent_utr and correlated with percent_mrna
-    # "percent_utr_bases": "mean",  # Exclusive of percent_coding and correlated with percent_mrna
+    "percent_utr_bases": "mean",  # Exclusive of percent_coding and correlated with percent_mrna
     "percent_intronic_bases": "mean",
     "percent_intergenic_bases": "mean",
     "percent_mrna_bases": "mean",
@@ -92,6 +92,14 @@ FEATURE_AGG = {
     "gene_body_three_prime": "mean",
 }
 
+FEATURE_RENAME = {
+    "rRNA_pct_reads_mapped": "percent_rrna_reads",
+    "too_short": "number_reads_too_short",
+    "num_reads": "number_reads",
+    "num_multimappers": "number_multimapping_reads",
+    "per_alignment": "percent_alignment",
+    "Percent Reverse": "percent_reverse",
+}
 
 def main():
     pool = Pool(snakemake.threads)
@@ -107,6 +115,7 @@ def main():
     features = (
         df.join(srx2srr)
         .pipe(aggregate_gene_body_coverage)
+        .rename(columns=FEATURE_RENAME)
         .groupby("srx")
         .agg(FEATURE_AGG)
     )
