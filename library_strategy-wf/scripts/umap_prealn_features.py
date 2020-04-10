@@ -17,7 +17,7 @@ def main():
     (
         pd.DataFrame(
             embeddings, columns=["UMAP1", "UMAP2"], index=scaled_features.index
-        ).to_parquet(snakemake.output.embeddings)
+        ).to_parquet(snakemake.output[0])
     )
 
 
