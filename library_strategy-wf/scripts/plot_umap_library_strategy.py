@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
         snakemake = MockSnake(
             input=dict(
-                umap="../../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
+                umap="../../output/library_strategy-wf/umap_prealn_features.parquet",
                 labels="../../output/library_strategy-wf/sra_strategy_selection.parquet",
             ),
             output="",
