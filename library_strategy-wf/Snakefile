@@ -23,6 +23,9 @@ rule targets:
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
         "../output/library_strategy-wf/umap_prealn_features.parquet",
         "../output/library_strategy-wf/rnaseq_inliers.pkl",
+        "../output/library_strategy-wf/umap_library_strategy.svg",
+        "../output/library_strategy-wf/umap_rnaseq_outliers.svg",
+        "../output/library_strategy-wf/mixin_outliers.svg",
 
 
 rule pull_sra_strategy_and_selection_from_mongo:
@@ -115,27 +118,27 @@ rule explain_outliers:
 ################################################################################
 # Plots
 ################################################################################
-rule library_strategy_umap:
+rule plot_umap_library_strategy:
     input: 
         umap=rules.umap_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
-    output: "../output/library_strategy-wf/library_strategy_umap.svg"
-    script: "scripts/library_strategy_umap.py"
+    output: "../output/library_strategy-wf/umap_library_strategy.svg"
+    script: "scripts/plot_umap_library_strategy.py"
 
 
-rule rnaseq_outlier_umap:
+rule plot_umap_rnaseq_outliers:
     input: 
         umap=rules.umap_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
         outliers=rules.outlier_detection.output.outliers,
-    output: "../output/library_strategy-wf/rnaseq_outlier_umap.svg"
-    script: "scripts/rnaseq_outlier_umap.py"
+    output: "../output/library_strategy-wf/umap_rnaseq_outliers.svg"
+    script: "scripts/plot_umap_rnaseq_outliers.py"
 
 
-rule outlier_detection_contamination:
+rule plot_mixin_outliers:
     input: rules.outlier_detection.output.mixin
-    output: "../output/library_strategy-wf/outlier_detection_contamination.svg"
-    script: "scripts/outlier_detection_contamination.py"
+    output: "../output/library_strategy-wf/mixin_outliers.svg"
+    script: "scripts/plot_mixin_outliers.py"
 
 
 rule outlier_detection_feature_importance:
