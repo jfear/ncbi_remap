@@ -22,6 +22,7 @@ rule targets:
         "../output/library_strategy-wf/sra_strategy_selection.parquet",
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
         "../output/library_strategy-wf/umap_prealn_features.parquet",
+        "../output/library_strategy-wf/rnaseq_inliers.pkl",
 
 
 rule pull_sra_strategy_and_selection_from_mongo:
@@ -76,26 +77,39 @@ rule umap_prealn_features:
 ################################################################################
 # Find RNA-Seq Outliers
 ################################################################################
-rule rnaseq_features:
+rule split_features:
     input:
         features=rules.build_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
-    output: "../output/library_strategy-wf/rnaseq_features.parquet"
-    script: "scripts/rnaseq_features.py"
+    output: 
+        rnaseq="../output/library_strategy-wf/rnaseq_features.parquet",
+        est="../output/library_strategy-wf/est_features.parquet",
+        wgs="../output/library_strategy-wf/wgs_features.parquet",
+        chip="../output/library_strategy-wf/chip_features.parquet",
+    script: "scripts/split_features.py"
 
 
 rule outlier_detection:
-    input:
-        features=rules.rnaseq_features.output[0],
-        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
+    input: **rules.split_features.output
     output: 
+        iso="../output/library_strategy-wf/isolation_forest_model.pkl",
+        train="../output/library_strategy-wf/isolation_forest_training_data.pkl",
+        test="../output/library_strategy-wf/isolation_forest_testing_data.pkl",
         outliers="../output/library_strategy-wf/rnaseq_outliers.parquet",
-        rnaseq_samples="../output/library_strategy-wf/rnaseq.pkl",
-        shap_model="../output/library_strategy-wf/shap_model.joblib.pkl",
-        shap_features="../output/library_strategy-wf/shap_features.joblib.pkl",
-        shap_values="../output/library_strategy-wf/shap_values.joblib.pkl",
+        rnaseq_inliers="../output/library_strategy-wf/rnaseq_inliers.pkl",
         mixin="../output/library_strategy-wf/contamination_mixin.parquet",
     script: "scripts/outlier_detection.py"
+
+
+rule explain_outliers:
+    input: 
+        iso=rules.outlier_detection.output.iso,
+        features=rules.outlier_detection.output.test,
+        outliers=rules.outlier_detection.output.outliers,
+    output:
+        shap_model="../output/library_strategy-wf/shap_model.pkl",
+        shap_values="../output/library_strategy-wf/shap_values.pkl",
+    script: "scripts/explain_outliers.py"
 
 
 ################################################################################
@@ -118,20 +132,19 @@ rule rnaseq_outlier_umap:
     script: "scripts/rnaseq_outlier_umap.py"
 
 
-rule outlier_detection_feature_importance:
-    input: 
-        shap_model=rules.outlier_detection.output.shap_model,
-        shap_features=rules.outlier_detection.output.shap_features,
-        shap_values=rules.outlier_detection.output.shap_values,
-    output: "../output/library_strategy-wf/outlier_detection_feature_importance.svg"
-    script: "scripts/outlier_detection_feature_importance.py"
-
-
 rule outlier_detection_contamination:
     input: rules.outlier_detection.output.mixin
     output: "../output/library_strategy-wf/outlier_detection_contamination.svg"
     script: "scripts/outlier_detection_contamination.py"
 
+
+rule outlier_detection_feature_importance:
+    input: 
+        features=rules.outlier_detection.output.test,
+        shap_model=rules.explain_outliers.output.shap_model,
+        shap_values=rules.explain_outliers.output.shap_values,
+    output: "../output/library_strategy-wf/outlier_detection_feature_importance.svg"
+    script: "scripts/outlier_detection_feature_importance.py"
 
 ################################################################################
 # Refine library strategy and selection metadata using free text
