@@ -36,10 +36,8 @@ def main():
     style_use(snakemake.params.get("style", "sra"))
 
     iso = joblib.load(snakemake.input[0])  # type: SraIsolationForest
-    mean_shap = np.mean(np.abs(iso.shap_values), axis=0)
-    order_importance = np.argsort(mean_shap)[::-1]
-    mean_shap_ordered = mean_shap[order_importance]
-    cols = [NAME_MAPPER[x] for x in iso.columns[order_importance]]
+    mean_shap, columns = iso.mean_shap_values()
+    cols = [NAME_MAPPER[x] for x in columns]
 
     fig, ax = plt.subplots(figsize=plt.figaspect(1.2))
     sns.barplot(mean_shap_ordered, cols, color="C0", ax=ax)

@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 import pandas as pd
 import shap
@@ -7,7 +8,12 @@ from sklearn.model_selection import train_test_split
 
 class SraIsolationForest:
     def __init__(
-        self, features: pd.DataFrame, random_state=None, iso_kwargs=None, explain_kwargs=None, shap_values_kwargs=None
+        self,
+        features: pd.DataFrame,
+        random_state=None,
+        iso_kwargs=None,
+        explain_kwargs=None,
+        shap_values_kwargs=None,
     ):
         """Instantiate, fit, and explain an isolation forest.
 
@@ -237,3 +243,16 @@ class SraIsolationForest:
     def shap_values_outliers(self):
         """Return shap values for outliers for X_test data"""
         return self.shap_values_[self.isoutlier_test]
+
+    def mean_shap_values(self) -> Tuple[np.ndarray, pd.Index]:
+        """Calculate the mean(abs(shap_values)).
+
+        Returns
+        -------
+        Tuple[np.ndarray, pd.Index]
+            Mean absolute shapely values and feature names ordered by
+            importance.
+        """
+        mean_shap = np.mean(np.abs(self.shap_values), axis=0)
+        idx_order = np.argsort(mean_shap)
+        return mean_shap[idx_order], self.columns[idx_order]
