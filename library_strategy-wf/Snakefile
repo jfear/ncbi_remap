@@ -30,6 +30,7 @@ rule targets:
         "../output/library_strategy-wf/umap_wgs_outliers.svg",
         "../output/library_strategy-wf/umap_chip_outliers.svg",
         "../output/library_strategy-wf/mixin_outliers.svg",
+        "../output/library_strategy-wf/feature_importance.svg"
 
 
 rule pull_sra_strategy_and_selection_from_mongo:
@@ -99,32 +100,16 @@ rule split_features:
 rule outlier_detection:
     input: **rules.split_features.output
     output: 
-        iso="../output/library_strategy-wf/isolation_forest_model.pkl",
-        train="../output/library_strategy-wf/isolation_forest_training_data.pkl",
-        test="../output/library_strategy-wf/isolation_forest_testing_data.pkl",
-        outliers="../output/library_strategy-wf/rnaseq_outliers.parquet",
+        iso="../output/library_strategy-wf/isolation_forest.pkl",
         rnaseq_inliers="../output/library_strategy-wf/rnaseq_inliers.pkl",
         mixin="../output/library_strategy-wf/contamination_mixin.parquet",
     script: "scripts/outlier_detection.py"
-
-
-rule explain_outliers:
-    input: 
-        iso=rules.outlier_detection.output.iso,
-        features=rules.outlier_detection.output.test,
-    output:
-        shap_model="../output/library_strategy-wf/shap_model.pkl",
-        shap_values="../output/library_strategy-wf/shap_values.pkl",
-    script: "scripts/explain_outliers.py"
-
 
 ################################################################################
 # Plots
 ################################################################################
 rule plot_pairplot_rnaseq_features:
-    input: 
-        features=rules.split_features.output.rnaseq,
-        outliers=rules.outlier_detection.output.outliers
+    input: rules.outlier_detection.output.iso
     output: "../output/library_strategy-wf/pairlot_rnaseq_features.tgz",
     script: "scripts/plot_pairplot_rnaseq_features.py"
 
@@ -141,7 +126,7 @@ rule plot_umap_rnaseq_outliers:
     input: 
         umap=rules.umap_prealn_features.output[0],
         labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data,
-        outliers=rules.outlier_detection.output.outliers,
+        iso=rules.outlier_detection.output.iso
     output: "../output/library_strategy-wf/umap_rnaseq_outliers.svg"
     script: "scripts/plot_umap_rnaseq_outliers.py"
 
@@ -164,13 +149,10 @@ rule plot_mixin_outliers:
     script: "scripts/plot_mixin_outliers.py"
 
 
-rule outlier_detection_feature_importance:
-    input: 
-        features=rules.outlier_detection.output.test,
-        shap_model=rules.explain_outliers.output.shap_model,
-        shap_values=rules.explain_outliers.output.shap_values,
-    output: "../output/library_strategy-wf/outlier_detection_feature_importance.svg"
-    script: "scripts/outlier_detection_feature_importance.py"
+rule plot_feature_importance:
+    input: rules.outlier_detection.output.iso
+    output: "../output/library_strategy-wf/feature_importance.svg"
+    script: "scripts/plot_feature_importance.py"
 
 ################################################################################
 # Refine library strategy and selection metadata using free text

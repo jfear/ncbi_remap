@@ -3,6 +3,7 @@ from pathlib import Path
 import tarfile
 from itertools import combinations
 
+import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,12 +18,9 @@ SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2, rasterized=True)
 def main():
     style_use(snakemake.params.get("style", "sra"))
 
-    outliers = pd.read_parquet(snakemake.input.outliers).squeeze()
-    features = (
-        pd.read_parquet(snakemake.input.features)
-        .join(outliers, how="inner")
-        .sample(n=1_000)
-    )
+    iso = joblib.load(snakemake.input[0]) # type : ncbi_remap.iforest.SraIsolationForest
+    features = iso.features.copy()
+    features["rnaseq_outliers"] = iso.isoutlier_all
 
     # Save each plot seperately
     folder = prep_folder()
@@ -48,10 +46,10 @@ def joint_plot(x, y, features):
 
     g = sns.JointGrid(x, y, data=features)
     sns.scatterplot(x, y, data=features, ax=g.ax_joint, **sns_params)
-    kdeplot(inliers[x], c="C0", shade=True, ax=g.ax_marg_x)
-    kdeplot(outliers[x], c="C3", shade=True, ax=g.ax_marg_x)
-    kdeplot(inliers[y], c="C0", shade=True, vertical=True, ax=g.ax_marg_y)
-    kdeplot(outliers[y], c="C3", shade=True, vertical=True, ax=g.ax_marg_y)
+    kdeplot(inliers[x], color="C0", shade=True, ax=g.ax_marg_x)
+    kdeplot(outliers[x], color="C3", shade=True, ax=g.ax_marg_x)
+    kdeplot(inliers[y], color="C0", shade=True, vertical=True, ax=g.ax_marg_y)
+    kdeplot(outliers[y], color="C3", shade=True, vertical=True, ax=g.ax_marg_y)
 
     return g
 
@@ -62,8 +60,6 @@ def kdeplot(*args, **kwargs):
         kwargs["ax"].legend_.remove()
     except RuntimeError:
         kwargs["kde"] = False
-        kwargs["color"] = kwargs["c"]
-        del kwargs["c"]
         del kwargs["shade"]
         sns.distplot(*args, **kwargs)
         kwargs["ax"].set(xlabel="", ylabel="")
@@ -80,10 +76,7 @@ if __name__ == "__main__":
         from ncbi_remap.mock import MockSnake
 
         snakemake = MockSnake(
-            input=dict(
-                features="../../output/library_strategy-wf/prealn_features.parquet",
-                outliers="../../output/library_strategy-wf/rnaseq_outliers.parquet",
-            ),
+            input="../../output/library_strategy-wf/isolation_forest.pkl",
             output="../../output/library_strategy-wf/pairlot_features.tgz",
         )
 

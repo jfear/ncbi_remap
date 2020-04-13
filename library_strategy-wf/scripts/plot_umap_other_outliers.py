@@ -22,6 +22,7 @@ COLORS = {"est": "C1", "wgs": "C2", "chip": "C4", "outlier": "C3", "other": "lig
 
 SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2,)
 
+
 def main():
     style_use(snakemake.params.get("style", "sra"))
 
@@ -46,8 +47,7 @@ def main():
 
 def inliner_outlier_split(model, strategy):
     features = pd.read_parquet(snakemake.input[strategy])
-    outliers = np.where(model.predict(features) == -1, True, False)
-    return features.index[~outliers], features.index[outliers]
+    return model.inliers(features).index, model.outliers(features).index
 
 
 def label_outliers(umap: pd.DataFrame, inliers: pd.Index, outliers: pd.Index, strategy: str):

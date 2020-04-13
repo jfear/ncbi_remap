@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
 
 sys.path.insert(0, "../src")
 from ncbi_remap.plotting import style_use
@@ -28,8 +29,8 @@ def wrangle_data():
         .map(lambda x: x if x in CATEGORIES else "Other")
     )
 
-    outliers = pd.read_parquet(snakemake.input.outliers).squeeze().pipe(lambda x: x[x]).index
-    labels[outliers] = "Outlier"
+    iso = joblib.load(snakemake.input.iso) # type: ncbi_remap.iforest.SraIsolationForest
+    labels[labels.index.isin(iso.outliers_all.index)] = "Outlier"
 
     return pd.read_parquet(snakemake.input.umap).join(labels)
 
@@ -54,7 +55,7 @@ if __name__ == "__main__":
             input=dict(
                 umap="../../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
                 labels="../../output/library_strategy-wf/sra_strategy_selection.parquet",
-                outliers="../../output/library_strategy-wf/rnaseq_outliers.parquet",
+                iso="../../output/library_strategy-wf/isolation_forest.pkl"
             ),
             output="",
         )
