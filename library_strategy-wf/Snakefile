@@ -30,7 +30,8 @@ rule targets:
         "../output/library_strategy-wf/umap_wgs_outliers.svg",
         "../output/library_strategy-wf/umap_chip_outliers.svg",
         "../output/library_strategy-wf/mixin_outliers.svg",
-        "../output/library_strategy-wf/feature_importance.svg"
+        "../output/library_strategy-wf/feature_importance.svg",
+        "../output/library_strategy-wf/shap_interactions.tgz",
 
 
 rule pull_sra_strategy_and_selection_from_mongo:
@@ -153,6 +154,11 @@ rule plot_feature_importance:
     input: rules.outlier_detection.output.iso
     output: "../output/library_strategy-wf/feature_importance.svg"
     script: "scripts/plot_feature_importance.py"
+
+rule plot_shap_interactions:
+    input: rules.outlier_detection.output.iso
+    output: "../output/library_strategy-wf/shap_interactions.tgz",
+    script: "scripts/plot_shap_interactions.py"
 
 ################################################################################
 # Refine library strategy and selection metadata using free text
