@@ -30,7 +30,7 @@ rule featurecounts_summary:
     input:
         counts=lambda wildcards: queue.expand(rules.feature_counts.output.counts, wildcards.srr),
         jcounts=lambda wildcards: queue.expand(rules.feature_counts.output.jcounts, wildcards.srr)
-    output: "../output/prealn-wf/count_summary/{srr}.parqeut",
+    output: "../output/prealn-wf/count_summary/{srr}.parquet",
     group: GROUP
     threads: THREADS
     resources: **RESOURCES
