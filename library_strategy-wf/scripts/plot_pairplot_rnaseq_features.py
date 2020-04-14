@@ -1,4 +1,5 @@
 """Plot all features pairwise."""
+import sys
 from pathlib import Path
 import tarfile
 from itertools import combinations

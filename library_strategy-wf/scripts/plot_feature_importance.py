@@ -1,4 +1,5 @@
 """Feature Importance"""
+import sys
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,7 +41,7 @@ def main():
     cols = [NAME_MAPPER[x] for x in columns]
 
     fig, ax = plt.subplots(figsize=plt.figaspect(1.2))
-    sns.barplot(mean_shap_ordered, cols, color="C0", ax=ax)
+    sns.barplot(mean_shap, cols, color="C0", ax=ax)
     ax.set(xlabel="mean(|SHAP Value|)", ylabel="")
 
     plt.savefig(snakemake.output[0])
