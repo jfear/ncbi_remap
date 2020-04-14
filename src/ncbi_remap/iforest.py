@@ -254,5 +254,5 @@ class SraIsolationForest:
             importance.
         """
         mean_shap = np.mean(np.abs(self.shap_values), axis=0)
-        idx_order = np.argsort(mean_shap)
+        idx_order = np.argsort(mean_shap)[::-1]
         return mean_shap[idx_order], self.columns[idx_order]
