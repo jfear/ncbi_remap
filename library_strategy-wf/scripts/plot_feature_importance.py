@@ -37,7 +37,7 @@ def main():
     style_use(snakemake.params.get("style", "sra"))
 
     iso = joblib.load(snakemake.input[0])  # type: SraIsolationForest
-    mean_shap, columns = iso.mean_shap_values()
+    mean_shap, columns = iso.mean_shap_values_outliers
     cols = [NAME_MAPPER[x] for x in columns]
 
     fig, ax = plt.subplots(figsize=plt.figaspect(1.2))

@@ -12,7 +12,7 @@ from ncbi_remap.plotting import style_use
 CATEGORIES = ["RNA-Seq", "Outlier", "Other"]
 COLORS = ["C0", "C3", "lightgray"]
 ZORDER = [1, 2, 0]
-SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2,)
+SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2, rasterized=True)
 
 
 def main():
@@ -43,7 +43,7 @@ def plot(embeddings):
     ax = plt.gca()
     ax.set(xlabel="UMAP 1", ylabel="UMAP 2")
     sns.despine(ax=ax, left=True, bottom=True)
-    plt.legend()
+    plt.legend(loc="upper left")
     return ax
 
 

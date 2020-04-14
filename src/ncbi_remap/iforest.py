@@ -244,7 +244,7 @@ class SraIsolationForest:
         """Return shap values for outliers for X_test data"""
         return self.shap_values_[self.isoutlier_test]
 
-    def mean_shap_values(self) -> Tuple[np.ndarray, pd.Index]:
+    def mean_shap_values(self, shap_values) -> Tuple[np.ndarray, pd.Index]:
         """Calculate the mean(abs(shap_values)).
 
         Returns
@@ -253,6 +253,30 @@ class SraIsolationForest:
             Mean absolute shapely values and feature names ordered by
             importance.
         """
-        mean_shap = np.mean(np.abs(self.shap_values), axis=0)
+        mean_shap = np.mean(np.abs(shap_values), axis=0)
         idx_order = np.argsort(mean_shap)[::-1]
         return mean_shap[idx_order], self.columns[idx_order]
+
+    @property
+    def mean_shap_values_inliers(self) -> Tuple[np.ndarray, pd.Index]:
+        """Calculate the mean(abs(shap_values)).
+
+        Returns
+        -------
+        Tuple[np.ndarray, pd.Index]
+            Mean absolute shapely values and feature names ordered by
+            importance.
+        """
+        return self.mean_shap_values(self.shap_values[self.isinlier_test])
+
+    @property
+    def mean_shap_values_outliers(self) -> Tuple[np.ndarray, pd.Index]:
+        """Calculate the mean(abs(shap_values)).
+
+        Returns
+        -------
+        Tuple[np.ndarray, pd.Index]
+            Mean absolute shapely values and feature names ordered by
+            importance.
+        """
+        return self.mean_shap_values(self.shap_values[self.isoutlier_test])

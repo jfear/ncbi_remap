@@ -1,7 +1,7 @@
-import os
-
+import sys
 import svgutils.compose as svg
 
+sys.path.insert(0, "../src")
 from ncbi_remap.plotting.size_conversion import FigSize
 
 
@@ -17,54 +17,52 @@ def main():
     svg.Figure(
         figsize.width_cm,
         figsize.height_cm,
-        # UMAP of Strategy (RNA-Seq and ChIP-Seq)
+        
+        # Schematic
         svg.Panel(
-            svg.SVG(snakemake.input.umap_library_strategy_panel).move(10, 0),
             svg.Text("A", 0, 10, **panel_labels_kwargs),
+            # svg.SVG(snakemake.input.drawing).move(10, 0),
         ),
-        # Outlier detection score of library strategy and selection
+
+        # UMAPs
         svg.Panel(
-            svg.SVG(snakemake.input.isolation_score_panel).move(10, 0),
             svg.Text("B", 0, 10, **panel_labels_kwargs),
-            svg.Text("C", 170, 10, **panel_labels_kwargs),
-        ).move(175, 0),
-        # Schematic of the library strategy random forest
+
+            # UMAP RNA-Seq Outliers
+            svg.SVG(snakemake.input.umap_rnaseq_outliers).scale(.6).move(10, 0),
+
+            # UMAP of Strategy (RNA-Seq, EST, WGS, and ChIP-Seq)
+            svg.Panel(
+                svg.SVG(snakemake.input.umap_library_strategy),
+                svg.Line([(20, 10), (20, 330)], width=1),   # Left Line
+                svg.Line([(450, 10), (450, 330)], width=1),  # Right Line
+                svg.Line([(20, 10), (450, 10)], width=1),  # Top Line
+                svg.Line([(20, 330), (450, 330)], width=1),  # bottom Line
+            ).scale(.2).move(28, 125),
+        ).move(320, 0),
+
+        # Feature Importance
         svg.Panel(
-            svg.SVG(snakemake.input.drawing).scale(3.78).move(10, 15),
+            svg.Text("C", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.feature_importance).scale(.6).move(10, 0),
+        ).move(0, 210),
+
+        # SHAP Feature Effects
+        svg.Panel(
             svg.Text("D", 0, 10, **panel_labels_kwargs),
-        ).move(0, 130),
-        # Feature importances from the random forest
-        svg.Panel(
-            svg.SVG(snakemake.input.importance).move(10, 0),
-            svg.Text("E", 100, 10, **panel_labels_kwargs),
-            svg.Text("F", 180, 10, **panel_labels_kwargs),
-        ).move(300, 130),
-        # Panel of features
-        svg.Panel(
-            svg.SVG(snakemake.input.top_features).move(10, 0),
-            svg.Text("G", 0, 10, **panel_labels_kwargs),
-        ).move(0, 310),
-        # UMAP of RNA-Seq with library selection
-        svg.Panel(
-            svg.SVG("../data/drawings/small_4_3.svg").scale(3.78 * .65).move(10, 0),
-            svg.Text("H", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.shap_interaction_panel).scale(.5).move(10, 0),
+        ).move(185, 210),
 
-        ).move(330, 310),
-        # Outlier detection score of updated library strategy and selection
+        # Feature Interaction Panels
         svg.Panel(
-            svg.SVG("../data/drawings/small_16_9.svg").scale(3.78 * .8).move(10, 0),
-            svg.Text("I", 0, 10, **panel_labels_kwargs),
-        ).move(330, 390),
+            svg.Text("E", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.feature_interaction_panel).scale(.65).move(10, 0),
+        ).move(375, 210),
+
+        # svg.Grid(10, 10, 2)
+
     ).save(snakemake.output[0])
+
+
 if __name__ == "__main__":
-    if os.getenv("SNAKE_DEBUG"):
-        from ncbi_remap.debug import snakemake_debug
-
-        snakemake = snakemake_debug(
-            input=dict(
-                drawing="../../data/drawings/overview_schematic.svg",
-                distribution="../../output/paper-wf/figure_panels/sample_submission.svg",
-            )
-        )
-
     main()
