@@ -109,39 +109,21 @@ rule fig1:
 ################################################################################
 # Figure 2. Technical metadata refinement.
 ################################################################################
-rule plot_shap_interaction_panel:
-    input: 
-        "../output/library_strategy-wf/shap_interactions/percent_rrna_reads.svg",
-        "../output/library_strategy-wf/shap_interactions/percent_mrna_bases.svg",
-        "../output/library_strategy-wf/shap_interactions/percent_alignment.svg",
-        "../output/library_strategy-wf/shap_interactions/gene_body_middle.svg",
-        "../output/library_strategy-wf/shap_interactions/number_junction_reads.svg",
-        "../output/library_strategy-wf/shap_interactions/percent_intergenic_bases.svg"
-    output: "../output/paper-wf/shap_interaction_panel.svg"
-    params: 
-        figsize=[3.59, 5.0],
-    script: "scripts/plot_shap_interaction_panel.py"
-
-
-rule plot_feature_interaction_panel:
+rule plot_umap_library_strategy:
     input:
-        "../output/library_strategy-wf/pairlot_rnaseq_features/percent_rrna_reads_vs_percent_mrna_bases.svg",
-        "../output/library_strategy-wf/pairlot_rnaseq_features/percent_alignment_vs_gene_body_middle.svg",
-        "../output/library_strategy-wf/pairlot_rnaseq_features/number_junction_reads_vs_number_multimapping_reads.svg",
-        "../output/library_strategy-wf/pairlot_rnaseq_features/percent_intergenic_bases_vs_percent_duplication.svg",
-    output: "../output/paper-wf/feature_interaction_panel.svg"
-    params: 
-        figsize=[3.59, 5.0],
-    script: "scripts/plot_feature_interaction_panel.py"
+        umap="../output/library_strategy-wf/umap_prealn_features.parquet",
+        iso="../output/library_strategy-wf/isolation_forest.pkl",
+        labels="../output/library_strategy-wf/sra_strategy_selection.parquet",
+    output: "../output/paper-wf/umap_library_strategy.svg"
+    script: "scripts/plot_umap_library_strategy.py"
 
 
 rule fig2:
     input:
-        umap_library_strategy="../output/library_strategy-wf/umap_library_strategy.svg",
-        umap_rnaseq_outliers="../output/library_strategy-wf/umap_rnaseq_outliers.svg",
+        umap=rules.plot_umap_library_strategy.output[0],
         feature_importance="../output/library_strategy-wf/feature_importance.svg",
-        feature_interaction_panel=rules.plot_feature_interaction_panel.output[0],
-        shap_interaction_panel=rules.plot_shap_interaction_panel.output[0]
+        # feature_interaction_panel=rules.plot_feature_interaction_panel.output[0],
+        # shap_interaction_panel=rules.plot_shap_interaction_panel.output[0]
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[6.9, 7],

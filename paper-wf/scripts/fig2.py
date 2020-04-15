@@ -24,42 +24,31 @@ def main():
             # svg.SVG(snakemake.input.drawing).move(10, 0),
         ),
 
-        # UMAPs
+        # UMAP
         svg.Panel(
             svg.Text("B", 0, 10, **panel_labels_kwargs),
-
-            # UMAP RNA-Seq Outliers
-            svg.SVG(snakemake.input.umap_rnaseq_outliers).scale(.6).move(10, 0),
-
-            # UMAP of Strategy (RNA-Seq, EST, WGS, and ChIP-Seq)
-            svg.Panel(
-                svg.SVG(snakemake.input.umap_library_strategy),
-                svg.Line([(20, 10), (20, 330)], width=1),   # Left Line
-                svg.Line([(450, 10), (450, 330)], width=1),  # Right Line
-                svg.Line([(20, 10), (450, 10)], width=1),  # Top Line
-                svg.Line([(20, 330), (450, 330)], width=1),  # bottom Line
-            ).scale(.2).move(28, 125),
-        ).move(320, 0),
+            svg.SVG(snakemake.input.umap).scale(.6).move(10, 0),
+        ).move(315, 0),
 
         # Feature Importance
         svg.Panel(
             svg.Text("C", 0, 10, **panel_labels_kwargs),
             svg.SVG(snakemake.input.feature_importance).scale(.6).move(10, 0),
-        ).move(0, 210),
+        ).move(0, 345),
 
         # SHAP Feature Effects
         svg.Panel(
             svg.Text("D", 0, 10, **panel_labels_kwargs),
-            svg.SVG(snakemake.input.shap_interaction_panel).scale(.5).move(10, 0),
-        ).move(185, 210),
+            # svg.SVG(snakemake.input.shap_interaction_panel).scale(.5).move(10, 0),
+        ).move(185, 345),
 
         # Feature Interaction Panels
         svg.Panel(
             svg.Text("E", 0, 10, **panel_labels_kwargs),
-            svg.SVG(snakemake.input.feature_interaction_panel).scale(.65).move(10, 0),
-        ).move(375, 210),
+            # svg.SVG(snakemake.input.feature_interaction_panel).scale(.65).move(10, 0),
+        ).move(375, 345),
 
-        # svg.Grid(10, 10, 2)
+        # svg.Grid(20, 20, 4)
 
     ).save(snakemake.output[0])
 
