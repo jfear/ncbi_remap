@@ -30,23 +30,29 @@ def main():
             svg.SVG(snakemake.input.umap).scale(.6).move(10, 0),
         ).move(315, 0),
 
-        # Feature Importance
+        # Mixin
         svg.Panel(
             svg.Text("C", 0, 10, **panel_labels_kwargs),
-            svg.SVG(snakemake.input.feature_importance).scale(.6).move(10, 0),
-        ).move(0, 345),
+            svg.SVG(snakemake.input.mixin).scale(.4).move(10, 0),
+        ).move(0, 350),
+
+        # Feature Importance
+        svg.Panel(
+            svg.Text("D", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.feature_importance).scale(.5).move(10, 0),
+        ).move(0, 500),
 
         # SHAP Feature Effects
         svg.Panel(
-            svg.Text("D", 0, 10, **panel_labels_kwargs),
-            # svg.SVG(snakemake.input.shap_interaction_panel).scale(.5).move(10, 0),
-        ).move(185, 345),
+            svg.Text("E", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.shap).scale(.55).move(10, 0),
+        ).move(160, 350),
 
         # Feature Interaction Panels
         svg.Panel(
-            svg.Text("E", 0, 10, **panel_labels_kwargs),
-            # svg.SVG(snakemake.input.feature_interaction_panel).scale(.65).move(10, 0),
-        ).move(375, 345),
+            svg.Text("F", 0, 10, **panel_labels_kwargs),
+            svg.SVG(snakemake.input.interactions).scale(.55).move(10, 0),
+        ).move(415, 350),
 
         # svg.Grid(20, 20, 4)
 

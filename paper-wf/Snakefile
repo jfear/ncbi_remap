@@ -114,16 +114,29 @@ rule plot_umap_library_strategy:
         umap="../output/library_strategy-wf/umap_prealn_features.parquet",
         iso="../output/library_strategy-wf/isolation_forest.pkl",
         labels="../output/library_strategy-wf/sra_strategy_selection.parquet",
-    output: "../output/paper-wf/umap_library_strategy.svg"
+    output: "../output/paper-wf/panels/umap_library_strategy.svg"
     script: "scripts/plot_umap_library_strategy.py"
+
+
+rule plot_shap_panel:
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: "../output/paper-wf/panels/shap_panel.svg"
+    script: "scripts/plot_shap_panel.py"
+
+
+rule plot_feature_interaction_panel:
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: "../output/paper-wf/panels/feature_interaction_panel.svg"
+    script: "scripts/plot_feature_interaction_panel.py"
 
 
 rule fig2:
     input:
         umap=rules.plot_umap_library_strategy.output[0],
         feature_importance="../output/library_strategy-wf/feature_importance.svg",
-        # feature_interaction_panel=rules.plot_feature_interaction_panel.output[0],
-        # shap_interaction_panel=rules.plot_shap_interaction_panel.output[0]
+        mixin="../output/library_strategy-wf/mixin_outliers.svg",
+        shap=rules.plot_shap_panel.output[0],
+        interactions=rules.plot_feature_interaction_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[6.9, 7],
