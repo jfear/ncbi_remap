@@ -36,7 +36,7 @@ NAME_MAPPER = {
     "number_reads_too_short": "Reads Too Short (#)",
 }
 
-SCATTER_DEFAULTS = dict(s=10, edgecolors="w", linewidths=0.2, cmap="plasma", rasterized=True)
+SCATTER_DEFAULTS = dict(cmap="plasma", rasterized=True)
 
 
 def main():

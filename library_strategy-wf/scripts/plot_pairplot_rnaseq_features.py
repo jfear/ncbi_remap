@@ -37,8 +37,6 @@ NAME_MAPPER = {
     "number_reads_too_short": "Reads Too Short (#)",
 }
 
-SCATTER_STYLE = dict(s=10, edgecolors="w", linewidths=0.2, rasterized=True)
-
 
 def main():
     style_use(snakemake.params.get("style", "sra"))
@@ -66,7 +64,7 @@ def prep_folder():
 
 def joint_plot(x, y, features):
     sns_params = dict(
-        hue="rnaseq_outliers", hue_order=[False, True], palette=["C0", "C3"], **SCATTER_STYLE
+        hue="rnaseq_outliers", hue_order=[False, True], palette=["C0", "C3"], rasterized=True
     )
 
     inliers = features[~features.rnaseq_outliers]
