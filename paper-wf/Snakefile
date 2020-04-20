@@ -82,29 +82,9 @@ rule aln_genic_counts:
 ################################################################################
 # Figure 1. Overview of SRA and data processing.
 ################################################################################
-rule sample_submission_panel:
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/sample_submission.svg"
-    params:
-        style=("sra"),
-        figsize = [3.4, 1.7],
-        bar_plot_kwargs=dict(color="C0"),
-        reg_plot_kwargs=dict(lowess=True, color="C1"),
-    script: "scripts/plot_sample_submission.py"
-
-
-rule fig1:
-    input:
-        drawing="../data/drawings/overview_schematic.svg",
-        distribution=rules.sample_submission_panel.output[0]
-    output: "../output/paper-wf/fig1.svg"
-    params: 
-        figsize=[3.4, 4.55],
-        label_font=LABEL_FONT,
-        label_size=LABEL_SIZE,
-        label_weight=LABEL_WEIGHT,
-    script: "scripts/fig1.py"
-
+rule plot_time_vs_number_samples_submitted:
+    output: "../output/paper-wf/time_vs_number_samples_submitted.svg"
+    script: "scripts/plot_time_vs_number_samples_submitted.py"
 
 ################################################################################
 # Figure 2. Technical metadata refinement.
