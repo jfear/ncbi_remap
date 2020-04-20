@@ -18,6 +18,7 @@ data
 output
 references
 lcdb-references
+figures/*.png
 cachedir
 scratch
 website/content
