@@ -109,58 +109,34 @@ rule fig1:
 ################################################################################
 # Figure 2. Technical metadata refinement.
 ################################################################################
-rule umap_library_strategy_panel:
-    input: 
-        embeddings="../output/library_strategy-wf/umap_prealn_features_embeddings.parquet",
-        outliers="../output/library_strategy-wf/prealn_outliers.parquet"
-    output: "../output/paper-wf/figure_panels/umap_library_strategy.svg"
-    params:
-        style=("sra", "large_4-3"),
-        plot_kwargs=dict(linewidth=.25, s=4)
+rule plot_umap_library_strategy:
+    input:
+        umap="../output/library_strategy-wf/umap_prealn_features.parquet",
+        iso="../output/library_strategy-wf/isolation_forest.pkl",
+        labels="../output/library_strategy-wf/sra_strategy_selection.parquet",
+    output: "../output/paper-wf/panels/umap_library_strategy.svg"
     script: "scripts/plot_umap_library_strategy.py"
 
 
-rule isolation_score_panel:
-    input: "../output/library_strategy-wf/prealn_outliers.parquet"
-    output: "../output/paper-wf/figure_panels/isolation_score.svg"
-    params: 
-        style=("sra", "large_16-9"),
-        plot_kwargs=dict(linewidth=.05, s=4)
-    script: "scripts/plot_isolation_score.py"
+rule plot_shap_panel:
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: "../output/paper-wf/panels/shap_panel.svg"
+    script: "scripts/plot_shap_panel.py"
 
 
-rule feature_importance_panel:
-    input: "../output/library_strategy-wf/random_forest_feature_importance.tsv"
-    output: "../output/paper-wf/figure_panels/feature_importance.svg"
-    params: style=PLOT_STYLE,
-    script: "scripts/plot_feature_importance.py"
-
-
-rule top_features_grid_panel:
-    input: 
-        features="../output/library_strategy-wf/scaled_prealn_feature_set.parquet",
-        importance="../output/library_strategy-wf/random_forest_feature_importance.tsv",
-        labels="../output/library_strategy-wf/summarized_metadata.parquet"
-    output: "../output/paper-wf/figure_panels/top_features.svg"
-    params: 
-        style=("sra", "small_4-3"),
-        # figsize = [1.68, 1.26],
-    script: "scripts/plot_top_features_grid_panel.py"
-
-
-rule umap_rnaseq_selection_panel:
-    input: ""
-    output: ""
-    script: ""
+rule plot_feature_interaction_panel:
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: "../output/paper-wf/panels/feature_interaction_panel.svg"
+    script: "scripts/plot_feature_interaction_panel.py"
 
 
 rule fig2:
     input:
-        umap_library_strategy_panel=rules.umap_library_strategy_panel.output[0],
-        isolation_score_panel=rules.isolation_score_panel.output[0],
-        drawing="../data/drawings/library_strategy.svg",
-        importance=rules.feature_importance_panel.output[0],
-        top_features=rules.top_features_grid_panel.output[0],
+        umap=rules.plot_umap_library_strategy.output[0],
+        feature_importance="../output/library_strategy-wf/feature_importance.svg",
+        mixin="../output/library_strategy-wf/mixin_outliers.svg",
+        shap=rules.plot_shap_panel.output[0],
+        interactions=rules.plot_feature_interaction_panel.output[0],
     output: "../output/paper-wf/fig2.svg"
     params: 
         figsize=[6.9, 7],

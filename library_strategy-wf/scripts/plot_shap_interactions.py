@@ -1,6 +1,6 @@
 """Plot Shap Interactions"""
 import sys
-from itertools import combinations
+from itertools import permutations
 from pathlib import Path
 import tarfile
 
@@ -36,7 +36,7 @@ NAME_MAPPER = {
     "number_reads_too_short": "Reads Too Short (#)",
 }
 
-SCATTER_DEFAULTS = dict(s=10, cmap="plasma")
+SCATTER_DEFAULTS = dict(cmap="plasma", rasterized=True)
 
 
 def main():
@@ -45,9 +45,14 @@ def main():
     iso = joblib.load(snakemake.input[0])
     folder = prep_folder()
 
-    for f1, f2 in combinations(iso.columns, 2):
+    for f1, f2 in permutations(iso.columns, 2):
         plot(f1, f2, iso)
         plt.savefig(folder / f"{f1}_vs_{f2}.svg")
+        plt.close()
+
+    for feature in iso.columns:
+        plot_no_color(feature, iso)
+        plt.savefig(folder / f"{feature}.svg")
         plt.close()
 
     tar_folder(folder)
@@ -89,13 +94,32 @@ def plot(feature1, feature2, iso):
     )
 
     # Add colorbar and tweak plots
-    xlim = min(x), max(x)
-    ylim = min(y), max(y)
+    xlim = get_limits(x)
+    ylim = get_limits(y)
     params = dict(xlim=xlim, ylim=ylim, xlabel=NAME_MAPPER[feature1])
 
     plt.colorbar(sm, label=NAME_MAPPER[feature2], cax=ax3)
     ax1.set(ylabel="SHAP Value", title="Inliers", **params)
     ax2.set(ylabel="", yticklabels=[], title="Outliers", **params)
+
+
+def plot_no_color(feature1, iso):
+    # Get data
+    idx1 = iso.columns.get_loc(feature1)
+    x = iso.X_test.iloc[:, idx1]
+    y = iso.shap_values[:, idx1]
+
+    # Plot
+    _, ax = plt.subplots()
+    ax.scatter(
+        x[iso.isinlier_test], y[iso.isinlier_test], c="C0", **SCATTER_DEFAULTS,
+    )
+
+    ax.scatter(
+        x[iso.isoutlier_test], y[iso.isoutlier_test], c="C3", **SCATTER_DEFAULTS,
+    )
+
+    ax.set(xlabel=NAME_MAPPER[feature1], ylabel="SHAP Value")
 
 
 def color_scale(color):
@@ -114,6 +138,11 @@ def tar_folder(folder):
     with tarfile.open(snakemake.output[0], mode="w:gz") as tar:
         for file_name in folder.iterdir():
             tar.add(file_name)
+
+
+def get_limits(x):
+    pad = 0.05 * (max(x) - min(x))
+    return min(x) - pad, max(x) + pad
 
 
 if __name__ == "__main__":
