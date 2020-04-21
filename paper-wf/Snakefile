@@ -12,8 +12,8 @@ LABEL_WEIGHT = "bold"
 rule all:
     input:
         # Data Wrangling
-        "../output/paper-wf/gene_metadata.tsv",
-        "../output/paper-wf/srx_metadata.tsv",
+        # "../output/paper-wf/gene_metadata.tsv",
+        # "../output/paper-wf/srx_metadata.tsv",
         # "../output/paper-wf/srx_prealn.tsv",
         # "../output/paper-wf/srx_aln.tsv",
         # "../output/paper-wf/aln_genic_counts.tsv",
