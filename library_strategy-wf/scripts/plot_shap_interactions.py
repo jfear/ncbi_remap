@@ -7,6 +7,7 @@ import tarfile
 import joblib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 
 sys.path.insert(0, "../src")
@@ -40,7 +41,8 @@ SCATTER_DEFAULTS = dict(cmap="plasma", rasterized=True)
 
 
 def main():
-    style_use(snakemake.params.get("style", "sra"))
+    # style_use()
+    plt.rcParams["figure.dpi"] = 100
 
     iso = joblib.load(snakemake.input[0])
     folder = prep_folder()
@@ -110,16 +112,17 @@ def plot_no_color(feature1, iso):
     y = iso.shap_values[:, idx1]
 
     # Plot
-    _, ax = plt.subplots()
+    _, ax = plt.subplots() # type: plt.Figure, plt.Axes
     ax.scatter(
-        x[iso.isinlier_test], y[iso.isinlier_test], c="C0", **SCATTER_DEFAULTS,
+        x[iso.isinlier_test], y[iso.isinlier_test], c="C0", edgecolors="w", **SCATTER_DEFAULTS,
     )
 
     ax.scatter(
-        x[iso.isoutlier_test], y[iso.isoutlier_test], c="C3", **SCATTER_DEFAULTS,
+        x[iso.isoutlier_test], y[iso.isoutlier_test], c="C3", edgecolors="w", **SCATTER_DEFAULTS,
     )
 
     ax.set(xlabel=NAME_MAPPER[feature1], ylabel="SHAP Value")
+    sns.despine(ax=ax)
 
 
 def color_scale(color):

@@ -4,11 +4,6 @@ configfile: "../config/common.yaml"
 ASSEMBLY = config["assembly"]
 TAG = config["tag"]
 
-PLOT_STYLE = "sra"
-LABEL_SIZE = 12
-LABEL_FONT = "Helvetica"
-LABEL_WEIGHT = "bold"
-
 rule all:
     input:
         # Data Wrangling
@@ -24,6 +19,8 @@ rule all:
         "../output/paper-wf/mixin_outliers.svg",
         "../output/paper-wf/feature_importance.svg",
         "../output/paper-wf/shap.svg",
+        ## Supplement
+        "../output/paper-wf/shap_panel.svg"
 
 
 ################################################################################
@@ -131,13 +128,18 @@ rule plot_shap:
     script: "scripts/plot_shap.py"
 
 
+# Supplement
+rule plot_pairwise_feature_panels:
+    """Plot pairwise feature plots for all 21 features"""
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: expand("../output/paper-wf/pairwise_feature_panels/{i}.svg", i=range(1, 22))
+    script: "scripts/plot_pairwise_feature_panels.py"
+
+
 rule plot_shap_panel:
     input: "../output/library_strategy-wf/isolation_forest.pkl"
     output: "../output/paper-wf/shap_panel.svg"
-    params:
-        scatter_params=dict(s=7, edgecolors="w", linewidths=.2)
     script: "scripts/plot_shap_panel.py"
-
 
 ################################################################################
 # Figure 3. Biological metadata refinement.
@@ -167,72 +169,4 @@ rule plot_shap_panel:
 ################################################################################
 # Figure 8. Data access.
 ################################################################################
-
-
-################################################################################
-# Supplemental Pre-alignment plots
-################################################################################
-rule layout:
-    """Bar graph with the number of SRXs that are SE, PE, or PE->SE."""
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/layout.svg"
-    params:
-        style=PLOT_STYLE,
-        title="Library Layout",
-        plot_kwargs=dict(color="lightgray", edgecolor="k"),
-        ax_kwargs=dict(ylabel="Samples")
-    script: "scripts/plot_layout.py"
-
-rule read_length:
-    """Boxplot showing the distribution of read lengths by year."""
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/read_length.svg"
-    params:
-        style=PLOT_STYLE,
-        title="Read Length",
-        plot_kwargs=dict(
-            showfliers=False,
-            color="lightgray",
-            boxprops=dict(edgecolor="k"),
-            medianprops=dict(color="k"),
-            whiskerprops=dict(color="k"),
-            capprops=dict(color="k"),
-        ),
-        ax_kwargs=dict(ylabel="Avg. Read Length (bp)", xlabel="Year"),
-    script: "scripts/plot_read_length.py"
-
-
-rule library_size:
-    """Joint plot of library size and duplication rate."""
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/library_size.svg"
-    params:
-        style=PLOT_STYLE,
-        title="Libary Size",
-        plot_kwargs=dict(),
-        joint_ax_kwargs=dict(),
-        libsize_ax_kwargs=dict(),
-        duplication_ax_kwargs=dict(),
-    script: "scripts/plot_libsize.py"
-
-
-################################################################################
-# Supplemental Alignment plots
-################################################################################
-rule strandedness:
-    """KDE of percent reads mapping to first strand."""
-    input: rules.srx_prealn.output[0]
-    output: "../output/paper-wf/figure_panels/strandedness.svg"
-    params:
-        style=PLOT_STYLE,
-    script: "scripts/plot_strandedness.py"
-
-
-rule mapping:
-    """Point plot showing percent mapping by year."""
-    input: rules.srx_aln.output[0]
-    output: "../output/paper-wf/figure_panels/mapping.svg"
-    params:
-        style=PLOT_STYLE,
-    script: "scripts/plot_mapping.py"
 
