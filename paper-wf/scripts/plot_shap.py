@@ -1,15 +1,21 @@
-"""Plot all SHAP scores."""
+"""Plot Shap dependencies as a panel"""
 import sys
 
 import joblib
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 sys.path.insert(0, "../src")
-from ncbi_remap.iforest import SraIsolationForest
+from ncbi_remap.plotting import style_use
 
-
+COLORS = "C0", "C3"  # Inliers, Outliers
+SELCTED_FEATURES = [
+    "percent_rrna_reads",
+    "percent_mrna_bases",
+    "percent_alignment",
+    "gene_body_middle",
+    # "number_junction_reads",
+    # "percent_intergenic_bases",
+]
 NAME_MAPPER = {
     "percent_alignment": r"Reads Aligned (%)",
     "percent_duplication": f"Duplicated Reads (%)",
@@ -37,45 +43,39 @@ NAME_MAPPER = {
 
 def main():
     iso = joblib.load(snakemake.input[0])  # type: SraIsolationForest
-    df = get_features_w_shap(iso)
-    df_w_flags = add_outliers(df, iso)
 
-    g = sns.FacetGrid(
-        df_w_flags,
-        col="feature",
-        col_wrap=4,
-        hue="RNA-Seq Outlier",
-        hue_order=[False, True],
-        palette=["C0", "C3"],
-        sharex=False,
-        sharey=False,
+    style_use("sra")
+    plt.rcParams["figure.figsize"] = 3.335, 3.335
+
+    _, axes = plt.subplots(2, 2)  # type: plt.Figure, plt.Axes
+    for feature, ax in zip(SELCTED_FEATURES, axes.flat):
+        plot_panel(iso, feature, ax)
+
+    plt.savefig(snakemake.output[0])
+
+
+def plot_panel(iso, feature: str, ax: plt.Axes):
+    idx = iso.columns.get_loc(feature)
+    ax.scatter(
+        iso.inliers_test[feature],
+        iso.shap_values[iso.isinlier_test, idx],
+        c=COLORS[0],
+        zorder=0,
+        rasterized=True,
+        **snakemake.params[0]
     )
-    g.map(sns.scatterplot, "feature_score", "shap_value", s=20, rasterized=True)
-    g.set_titles("{col_name}")
-
-    g.savefig(snakemake.output[0])
-
-
-def get_features_w_shap(iso):
-    features = iso.X_test
-    shap_values = pd.DataFrame(iso.shap_values, index=features.index, columns=features.columns)
-
-    # melt for seaborn compatability
-    features_melt = features.reset_index().melt(
-        id_vars="srx", var_name="feature", value_name="feature_score"
+    ax.scatter(
+        iso.outliers_test[feature],
+        iso.shap_values[iso.isoutlier_test, idx],
+        c=COLORS[1],
+        zorder=1,
+        rasterized=True,
+        **snakemake.params[0]
     )
-    shap_values_melt = shap_values.reset_index().melt(
-        id_vars="srx", var_name="feature", value_name="shap_value"
-    )
-
-    return features_melt.merge(shap_values_melt, on=["srx", "feature"]).replace(NAME_MAPPER)
-
-
-def add_outliers(df, iso):
-    outlier_srx = iso.outliers_test.index
-    df["RNA-Seq Outlier"] = False
-    df.loc[df.srx.isin(outlier_srx), "RNA-Seq Outlier"] = True
-    return df
+    ax.set_title(NAME_MAPPER[feature], fontsize=8, va="top")
+    ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(3))
+    return ax
 
 
 if __name__ == "__main__":

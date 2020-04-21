@@ -23,7 +23,7 @@ rule all:
         "../output/paper-wf/umap_library_strategy.svg",
         "../output/paper-wf/mixin_outliers.svg",
         "../output/paper-wf/feature_importance.svg",
-        "../output/paper-wf/shap_panel.svg",
+        "../output/paper-wf/shap.svg",
 
 
 ################################################################################
@@ -121,6 +121,14 @@ rule plot_feature_importance:
     input: "../output/library_strategy-wf/isolation_forest.pkl"
     output: "../output/paper-wf/feature_importance.svg"
     script: "scripts/plot_feature_importance.py"
+
+
+rule plot_shap:
+    input: "../output/library_strategy-wf/isolation_forest.pkl"
+    output: "../output/paper-wf/shap.svg"
+    params:
+        scatter_params=dict(s=7, edgecolors="w", linewidths=.2)
+    script: "scripts/plot_shap.py"
 
 
 rule plot_shap_panel:
