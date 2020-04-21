@@ -11,99 +11,53 @@ import seaborn as sns
 sys.path.insert(0, "../src")
 from ncbi_remap.plotting import style_use
 
-
-SELECTED_STRATEGY = ["RNA-Seq", "EST", "WGS", "ChIP-Seq", "Other"]
-LIBRARY_STRATEGY_COLORS = ["C0", "C1", "C2", "C4", "lightgray"]
-RNASEQ_OUTLIER_COLORS = ["lightgray", "C0", "C3"]
+CATEGORIES = ["RNA-Seq", "RNA-Seq Outlier", "EST", "WGS", "ChIP-Seq", "Other"]
+COLORS = ["C0", "C3", "C1", "C2", "C4", "lightgray"]
+ZORDERS = [4, 5, 3, 2, 1, 0]
+MARKERS = ["o", "^", "o", "o", "o"]
 
 
 def main():
-    umap = pd.read_parquet(snakemake.input.umap)
+    labels = get_labels()
+    umap = pd.read_parquet(snakemake.input.umap).join(labels)
 
-    style_use(snakemake.params.get("style", "sra"))
-    plt.rcParams["figure.figsize"] = (8, 8)
+    style_use("sra")
+    plt.rcParams["figure.figsize"] = (3.335, 2.509)
 
-    _, ax1 = plt.subplots()
-    ax2 = inset_axes(ax1, 3, 3, bbox_to_anchor=[0, 0, 0.4, 0.4], bbox_transform=ax1.transAxes)
-
-    umap_rnaseq_outliers(umap, ax1)
-    umap_library_strategy(umap, ax2)
-    add_legend(ax1)
+    _, ax = plt.subplots() # type: plt.Figure, plt.Axes
+    grps = umap.groupby("library_strategy")
+    for strategy, color, marker, zorder in zip(CATEGORIES, COLORS, MARKERS, ZORDERS):
+        _df = grps.get_group(strategy)
+        ax.scatter(
+            _df.UMAP1,
+            _df.UMAP2,
+            color=color,
+            marker=marker,
+            label=strategy,
+            zorder=zorder,
+            rasterized=True,
+            **snakemake.params[0]
+        )
+    ax.set(xlabel="UMAP 1", ylabel="UMAP 2", yticks=[-10, 0], xticks=[-10, 0, 10])
+    sns.despine(ax=ax, left=True, bottom=True)
+    plt.legend(loc="upper left", bbox_to_anchor=(-.1, 1))
+    # ax.xaxis.set_major_locator(plt.MaxNLocator(4))
+    # ax.yaxis.set_major_locator(plt.MaxNLocator(4))
 
     plt.savefig(snakemake.output[0])
 
 
-def umap_rnaseq_outliers(umap: pd.DataFrame, ax: plt.Axes):
-    iso = joblib.load(snakemake.input.iso)  # type: SraIsolationForest
-
-    umap_other = umap[~umap.index.isin(iso.index)]
-    ax.scatter(
-        umap_other.UMAP1, umap_other.UMAP2, zorder=0, c=RNASEQ_OUTLIER_COLORS[0], rasterized=True
-    )
-
-    umap_rnaseq = umap[umap.index.isin(iso.inliers_all.index)]
-    ax.scatter(
-        umap_rnaseq.UMAP1, umap_rnaseq.UMAP2, zorder=1, c=RNASEQ_OUTLIER_COLORS[1], rasterized=True
-    )
-
-    umap_outlier = umap[umap.index.isin(iso.outliers_all.index)]
-    ax.scatter(
-        umap_outlier.UMAP1,
-        umap_outlier.UMAP2,
-        zorder=2,
-        c=RNASEQ_OUTLIER_COLORS[2],
-        rasterized=True,
-    )
-    sns.despine(ax=ax, left=True, bottom=True)
-
-    return clean_umap_axis(ax)
-
-
-def umap_library_strategy(umap: pd.DataFrame, ax: plt.Axes):
+def get_labels():
     labels = pd.read_parquet(snakemake.input.labels).library_strategy.squeeze()
-    labels[~labels.isin(SELECTED_STRATEGY)] = "Other"  # Focus on selected strategies
 
-    umap_ = umap.join(labels)
-    grps = umap_.groupby("library_strategy")
+    # Focus on a subset of library strategies.
+    labels[~labels.isin(CATEGORIES)] = "Other"
 
-    for strategy, color in list(zip(SELECTED_STRATEGY, LIBRARY_STRATEGY_COLORS))[::-1]:
-        df = grps.get_group(strategy)
-        ax.scatter(df.UMAP1, df.UMAP2, c=color, label=strategy, rasterized=True)
+    # Flag outliers
+    iso = joblib.load(snakemake.input.iso)  # type: SraIsolationForest
+    labels[labels.index.isin(iso.outliers_all.index)] = "RNA-Seq Outlier"
 
-    # Add boarder around inset
-    for loc in ["left", "top", "right", "bottom"]:
-        ax.spines[loc].set_visible(True)
-
-    return clean_umap_axis(ax, labels=False)
-
-
-def clean_umap_axis(ax: plt.Axes, labels=True):
-    ax.set(xticks=[], yticks=[])
-    if labels:
-        ax.set(xlabel="UMAP 1", ylabel="UMAP 2")
-    return ax
-
-
-def add_legend(ax: plt.Axes):
-    strategies = SELECTED_STRATEGY.copy()
-    strategies.insert(1, "RNA-Seq Outliers")
-
-    colors = LIBRARY_STRATEGY_COLORS.copy()
-    colors.insert(1, RNASEQ_OUTLIER_COLORS[2])
-
-    legend_elements = [
-        Line2D(
-            [0], [0], marker="o", color=color, label=strategy, markerfacecolor=color, linestyle=""
-        )
-        for strategy, color in zip(strategies, colors)
-    ]
-
-    ax.legend(
-        handles=legend_elements,
-        loc="upper left",
-        bbox_to_anchor=(0, 0.8, 0.1, 0.1),
-        bbox_transform=ax.transAxes,
-    )
+    return labels
 
 
 if __name__ == "__main__":

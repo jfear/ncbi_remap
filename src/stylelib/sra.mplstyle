@@ -547,6 +547,7 @@ legend.borderaxespad : 0  ## the border between the axes and legend edge
 #figure.titleweight : normal    ## weight of the figure title
 #figure.figsize     : 6.4, 4.8  ## figure size in inches
 #figure.dpi         : 100       ## figure dots per inch
+figure.dpi         : 300       ## figure dots per inch
 #figure.facecolor   : white     ## figure facecolor
 #figure.edgecolor   : white     ## figure edgecolor
 #figure.frameon     : True      ## enable figure frame
