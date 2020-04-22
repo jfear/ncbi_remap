@@ -14,7 +14,7 @@ from ncbi_remap.plotting import style_use
 CATEGORIES = ["RNA-Seq", "RNA-Seq Outlier", "EST", "WGS", "ChIP-Seq", "Other"]
 COLORS = ["C0", "C3", "C1", "C2", "C4", "lightgray"]
 ZORDERS = [4, 5, 3, 2, 1, 0]
-MARKERS = ["o", "^", "o", "o", "o"]
+MARKERS = ["o", "^", "o", "o", "o", "o"]
 
 
 def main():
