@@ -19,6 +19,8 @@ rule all:
         "../output/paper-wf/mixin_outliers.svg",
         "../output/paper-wf/feature_importance.svg",
         "../output/paper-wf/shap.svg",
+        # Table 1
+        "../output/paper-wf/table1_library_strategy.csv",
         ## Supplement
         "../output/paper-wf/shap_panel.svg"
 
@@ -93,6 +95,25 @@ rule aln_genic_counts:
 rule plot_time_vs_number_samples_submitted:
     output: "../output/paper-wf/time_vs_number_samples_submitted.svg"
     script: "scripts/plot_time_vs_number_samples_submitted.py"
+
+
+################################################################################
+# Table 1. Library strategy summary table
+################################################################################
+rule library_strategy_table:
+    input: "../output/library_strategy-wf/sra_strategy_selection.parquet"
+    output: "../output/paper-wf/table1_library_strategy.csv"
+    run:
+        import pandas as pd
+        (
+            pd.read_parquet(input[0])
+            .library_strategy.value_counts()
+            .rename("Number of Samples")
+            .rename_axis("Library Strategy")
+            .map(lambda x: f"{x:,}")
+            .to_frame()
+            .to_csv(output[0])
+        )
 
 ################################################################################
 # Figure 2. Technical metadata refinement.
