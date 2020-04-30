@@ -23,6 +23,7 @@ rule targets:
         "../output/library_strategy-wf/pca_prealn_features_embeddings.parquet",
         "../output/library_strategy-wf/umap_prealn_features.parquet",
         "../output/library_strategy-wf/rnaseq_inliers.pkl",
+        "../output/library_strategy-wf/outlier_and_library_selection_enrichment.pkl",
         "../output/library_strategy-wf/pairlot_rnaseq_features.tgz",
         "../output/library_strategy-wf/umap_library_strategy.svg",
         "../output/library_strategy-wf/umap_rnaseq_outliers.svg",
@@ -105,6 +106,13 @@ rule outlier_detection:
         rnaseq_inliers="../output/library_strategy-wf/rnaseq_inliers.pkl",
         mixin="../output/library_strategy-wf/contamination_mixin.parquet",
     script: "scripts/outlier_detection.py"
+
+rule outlier_and_library_selection_enrichment:
+    input:
+        iso=rules.outlier_detection.output.iso,
+        labels=rules.pull_sra_strategy_and_selection_from_mongo.output.data
+    output: "../output/library_strategy-wf/outlier_and_library_selection_enrichment.pkl"
+    script: "scripts/outlier_and_library_selection_enrichment.py"
 
 ################################################################################
 # Plots
