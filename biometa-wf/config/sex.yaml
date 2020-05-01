@@ -1,0 +1,62 @@
+Sex:
+  F: female
+  Female: female
+  M: male
+  Male: male
+  Mixture of Male and Female: mixed
+  NA: None
+  Unknown: None
+  female: female
+  female and male: mixed
+  male: male
+  male and female: mixed
+  mixed: mixed
+  mixed_sex: mixed
+  pooled male and female: mixed
+gender:
+  Female: female
+  N/A: None
+  female: female
+  male: male
+  mixed: mixed
+  mixed, male, and female: mixed
+  n/a: None
+  pooled male and female: mixed
+gender/age:
+  adult male: male
+mating status:
+  Mated: None
+  Virgin: None
+  males: male
+  mated: None
+  mated females: female
+  virgin: None
+  virgin females: female
+sex:
+  F and M: mixed
+  Female: female
+  M+F: mixed
+  Male: male
+  Mixed (Males + Females): mixed
+  Mixed (Males+Females): mixed
+  N/A: None
+  NA: None
+  Not Applicable: None
+  Unknown: None
+  female: female
+  females: female
+  intersex: intersex
+  male: male
+  male and female: mixed
+  missing: None
+  mix: mixed
+  mixed: mixed
+  mixed sex: mixed
+  neuter: None
+  not applicable: None
+  not collected: None
+  not determined: None
+  pooled male and female: mixed
+  pooled males and females: mixed
+sex/age:
+  female, 3-5 days old: female

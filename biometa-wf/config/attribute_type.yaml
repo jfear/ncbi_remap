@@ -29,7 +29,6 @@ developmental_stage:
   - "time"
   - "time-point"
   - "timepoint"
-  - "timepoint/developmental stage"
 
 tissue:
   - "tissue"
@@ -339,6 +338,7 @@ ignore:
   - "time of treatment"
   - "time post-treatment"
   - "time_point"
+  - "timepoint/developmental stage"
   - "tissue-specific knockdown"
   - "Title"
   - "training"

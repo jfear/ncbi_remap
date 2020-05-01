@@ -1,0 +1,666 @@
+OrganismPart:
+  embryo: 
+  head: 
+  head (fat body): 
+  head (glia): 
+  head (neurons): 
+  salivary gland: 
+  salivary_glands: 
+  testes: 
+  tubule: 
+  whole fly: 
+body_site:
+  intestine: 
+  ovary: 
+  whole embryo: 
+cell/tissue type:
+  head of fly: 
+midgut region:
+  M1: 
+  M10-11: 
+  M12-13: 
+  M2: 
+  M3-4-5: 
+  M6: 
+  M7-8: 
+  M9: 
+muscle type:
+  fibrillar: 
+  myoblast: 
+  tubular: 
+  tubular converted: 
+organism part:
+  4C_Growth_Protocol: 
+  Mesodermal cells: 
+  arthropod fat body: 
+  brain: 
+  embryo: 
+  embryonic cardiac cells: 
+  eye disc: 
+  eye-antennal disc: 
+  gut: 
+  head: 
+  head (glia): 
+  head (neurons): 
+  hematopoietic system: 
+  intestine: 
+  late embryo: 
+  mesoderm: 
+  midgut: 
+  myogenic mesoderm: 
+  neurons: 
+  ovary: 
+  retina: 
+  stages 5-14 egg chambers: 
+  testis: 
+  thorax: 
+  whole embryo: 
+  whole organism: 
+  wing disc: 
+tissue:
+  0-16h embryos: 
+  0-2h embryos: 
+  0-4h embryos: 
+  0.5-2.5hr embryo: 
+  1 CNS: 
+  1 VNC: 
+  1-3 hr embryo: 
+  1/3 of sample 4 and 1/3 of sample 5 or 13.33 embryo halves equivalents: 
+  10 brain 3rd instar: 
+  10 brains: 
+  10 pooled whole bodies: 
+  10 whole embryos: 
+  10-14H embryo: 
+  12 hours larva: 
+  2 CNS: 
+  2-6H embryo: 
+  20 embryo halves: 
+  24hr embryo: 
+  3 VNC: 
+  3rd instar larvae: 
+  3rd instar larvae wing discs: 
+  3rd instar larval larvae: 
+  3rdinstarlegdisc: 
+  4 CNS: 
+  4 CNS 3rd instar: 
+  4 VNC: 
+  5 CNS: 
+  6 VNC: 
+  6 brains: 
+  60 heads: 
+  8 brains: 
+  96 H: 
+  96 H paired: 
+  96 H unpaired: 
+  96 H-2: 
+  Accessory Gland: 
+  Adult: 
+  Adult abdominal fatbody with associated abdominal cuticle, oenocytes and cuticular muscles: 
+  Adult female ovary: 
+  Adult female ovary, no treatment, no GAL4 activation: 
+  Adult heads: 
+  Adult midgut: 
+  Adult ovaries: 
+  AdultFemale: 
+  AdultMale: 
+  Astrocyte like cells: 
+  BG3-c2 cells: 
+  BRAINS: 
+  Blood: 
+  Body: 
+  Body (head removed): 
+  Body without head: 
+  Brain: 
+  Brains and imaginal discs: 
+  CNS: 
+  CNS and imaginal discs: 
+  CNS and imaginal disks: 
+  CNS-derived cell-line: 
+  CNS/discs: 
+  Carcass: 
+  Carcass Fat Body: 
+  Carcass Female: 
+  Carcass Male: 
+  Cell Culture: 
+  Central Nervous System: 
+  Central Nervous Sytem: 
+  Central nervous system: 
+  Developmental Stage Embryo 12-24h: 
+  Developmental Stage Imaginal Disc haltere and third leg disc: 
+  Developmental Stage Imaginal Disc wing disc: 
+  Digestive System: 
+  Dissected Ventral Nerve Cord: 
+  Dissected brain: 
+  Dorsal Organ Ganglia: 
+  Drosophila 0-2 h embryos: 
+  Drosophila ovaries: 
+  Drosophila whole head: 
+  Early glial cells: 
+  Embryo: 
+  Embryo 0-45: 
+  Embryo 12-18h: 
+  Embryo 18-24h: 
+  Embryo 20-24h: 
+  Embryo 45-90: 
+  Embryo 6-12h: 
+  Embryo 90-6h: 
+  Embryo-derived cell-line: 
+  Embryos: 
+  Embryos, Stage 9-16: 
+  Entire fly: 
+  Entire individual except for head: 
+  Eye: 
+  Eye Disc: 
+  Eye antenna imaginal disc: 
+  Eye-Antennal disc: 
+  Eye/antennal imaginal discs: 
+  FACS Sorted midgut cells: 
+  FACS sorted GFP+ cells from CNS: 
+  Fat: 
+  Fat body: 
+  Female Head: 
+  Female germline: 
+  Female heads: 
+  Female thorax: 
+  Final abdominal tip: 
+  Flight muscle: 
+  Fly Heads: 
+  Full heads: 
+  Gut: 
+  Head: 
+  Head and Thorax: 
+  Heads: 
+  Imaginal Disc: 
+  Imaginal discs: 
+  Imaginal discs and salivary glands: 
+  Imaginal wing disc: 
+  Intestinal enterocytes: 
+  Intestine: 
+  Isolated intestinal progenitor cells: 
+  Isolated αβ neurons: 
+  Isolated γ neurons: 
+  Isolated γ neurons expressing E75 RNAi: 
+  Isolated γ neurons expressing EcR-DN: 
+  Isolated γ neurons expressing Sox14 RNAi: 
+  JW8 Cell Line: 
+  Kc167 cells: 
+  Kenyon_Cells: 
+  L1: 
+  L2: 
+  L3: 
+  L3 Wing imaginal disc-3rd instar: 
+  L3 larval brain: 
+  Labellum: 
+  Larval carcass: 
+  Late glial cells: 
+  Male body: 
+  Male reproductive tract (accessory glands, testes, ejaculatory duct): 
+  Malpighian tubules: 
+  Mef2+ nuclei: 
+  Midgut: 
+  Muscle: 
+  Mushroom body: 
+  N/A: None
+  NA: None
+  Neural Stem Cells: 
+  Neural Stem Cells (Type II): 
+  Neural stem cells: 
+  Non-MB neurons: 
+  Not Applicable: None
+  Notum (wing disc was cut): 
+  OSS cells: 
+  Ovarian Somatic Cells (OSC): 
+  Ovarian somatic cell: 
+  Ovarian somatic sheath cell line: 
+  Ovarian somatic sheet cell: 
+  Ovaries: 
+  Ovary: 
+  Ovary Germarium to stage 7: 
+  Ovary stage 11 + Egg chambers: 
+  Ovary stage 9 to 10: 
+  Ovary, stage 10: 
+  Ovary, stage 12: 
+  Ovary, stages 1-8: 
+  Periphery (entire body except head): 
+  Pupae: 
+  Ring gland: 
+  S2 Cells: 
+  S2 cell: 
+  S2 cells: 
+  S2 cells (late embryo cell line): 
+  S2-cells: 
+  S2R+ FLAG-HA-AGO2 cell lysate: 
+  S2cells: 
+  SL2 cell line: 
+  SL2 cells: 
+  Salivary Gland: 
+  Salivary glands: 
+  Schneiders Drosophila Line 2 (SL2) cells: 
+  Skeletal muscles: 
+  Spermatozoa: 
+  Stage 14 egg chamber: 
+  T3 leg disc: 
+  T3 pharate leg: 
+  Terminal Organ Ganglia: 
+  Testes: 
+  Testis: 
+  Testis (FBbt:00004928): 
+  Third instar larvae: 
+  Thorax: 
+  Thorax Skeletal muscle: 
+  Total DNA: 
+  Total brains from adult flys (2-4 days post-eclosion): 
+  VNC containing tumorigenic neuroblasts: 
+  VNC containing tumorigenic neuroblasts over-expressing Chinmo: 
+  VNC containing tumorigenic neuroblasts with decreased Chinmo: 
+  WD: 
+  Whole: 
+  Whole Body: 
+  Whole Body DNA Extraction: 
+  Whole Individual: 
+  Whole Larvae: 
+  Whole Organism: 
+  Whole Organisms: 
+  Whole animal: 
+  Whole animal lysate: 
+  Whole bodies: 
+  Whole body: 
+  Whole body Male 2-5d: 
+  Whole body female 2-5d: 
+  Whole embryo: 
+  Whole flies: 
+  Whole fly: 
+  Whole fly head: 
+  Whole head homogenate: 
+  Whole heads: 
+  Whole larvae: 
+  Whole organism: 
+  WholeAnimal: 
+  WholeBody: 
+  Wing: 
+  Wing Disc: 
+  Wing discs: 
+  Wing imaginal disc: 
+  Wing imaginal discs: 
+  Wolbachia-infected Drosophila cell line: 
+  abdomen: 
+  abdomen tissue: 
+  abdomen without digestive or reproductive system: 
+  accessory glands: 
+  accessory glands and testes: 
+  activated eggs: 
+  adult: 
+  adult fly ovaries: 
+  adult head: 
+  adult intestine: 
+  adult midgut: 
+  adult ovaries: 
+  adult retina: 
+  adult testes: 
+  adults: 
+  all: 
+  antenna: 
+  antenna disc-derived cell-line: 
+  antennae: 
+  antennal a3 segments and aristae: 
+  antennal disc: 
+  antennal imaginal disc: 
+  anterior midgut: 
+  anterior ovariole: 
+  body: 
+  body wall muscle: 
+  body without wings or legs: 
+  bodywall: 
+  bone marrow: 
+  brain: 
+  brain (ventral ganglion w/optic lobes): 
+  brain (w/antennal lobes): 
+  brain without ventral nerve cord: 
+  brain_Gl: 
+  brains: 
+  carcases: 
+  carcass: 
+  carcasses: 
+  carcess without ovary: 
+  cell: 
+  cell culture: 
+  cell line: 
+  cell_line-1: 
+  cellline: 
+  cells from dissected midgut: 
+  central brains: 
+  central nervous system: 
+  chromatin assembled with Drosophila preblastoderm extract: 
+  circulatory system: 
+  digestive plus excretory system: 
+  dissected 3rd instar larval brain: 
+  dissected 3rd instar larval salivary gland: 
+  dissected midgut (30x): 
+  dissected opticlobe after lamina removal: 
+  dissected testis: 
+  dissected whole gut: 
+  dissociated embryo: 
+  dorsal ectoderm: 
+  dorsal mesothoracic disc: 
+  dorsal organ: 
+  early embyro: 
+  early spermatocytes: 
+  egg: 
+  egg chamber: 
+  eggs: 
+  elav+ nuclei: 
+  embryo: 
+  embryo anterior half: 
+  embryo cell line: 
+  embryo cell lines: 
+  embryo posterior half: 
+  embryo, macrophage-like: 
+  embryo-derived cell line: 
+  embryo-derived cell-line: 
+  embryonic: 
+  embryonic/larval hemocyte: 
+  embryos: 
+  entire body of adults: 
+  eviscerated abdomen: 
+  eye: 
+  eye antennal discs: 
+  eye disc: 
+  eye imaginal disc: 
+  eye imaginal discs: 
+  eye-antanna imaginal discs: 
+  eye-antennal disc: 
+  eye-antennal discs: 
+  eye-antennal imaginal disc: 
+  eye-antennal imaginal discs: 
+  eye/antennal imaginal discs: 
+  fat bodies: 
+  fat body: 
+  fat body tissue of adult male flies: 
+  fat cell (FBbt:00046052): 
+  fatbody: 
+  feces: 
+  female body: 
+  female heads: 
+  female organism: 
+  female whole body: 
+  flight muscles: 
+  fly: 
+  fly Heads: 
+  fly carcass except ovaries: 
+  fly gut: 
+  fly head: 
+  fly heads: 
+  fly ovaries: 
+  follicle: 
+  foregut: 
+  full body: 
+  genitalia: 
+  gonad: 
+  gut: 
+  gut microbes 16S rDNA V1V2 region: 
+  haltere disc: 
+  haltere imaginal disc: 
+  haltere imaginal discs (T3 discs): 
+  haploid embryo: 
+  head: 
+  head & thorax: 
+  head and thorax: 
+  head tissues: 
+  head&body: 
+  head+thorax tissue: 
+  head-thorax: 
+  head/brain: 
+  head/thorax: 
+  heads: 
+  heart: 
+  hemocytes: 
+  hindgut: 
+  imaginal disc: 
+  imaginal disc/brain: 
+  imaginal wing disc: 
+  imaginal wing discs: 
+  indirect flight muscle: 
+  indirect flight muscles: 
+  intact embryo: 
+  intestine: 
+  intestines: 
+  lamina dissected from optic lobe: 
+  larva: 
+  larvae: 
+  larval brain: 
+  larval fatbody: 
+  larval fatbody + ovaries: 
+  larval tail: 
+  larval ventral lateral neuron (LNv): 
+  late embryo-derived cell line: 
+  late embryos (20h-24h AEL): 
+  late pupae heads: 
+  late spermatocytes: 
+  left salivary gland: 
+  leg imaginal disc: 
+  leg imaginal discs: 
+  macrophage like lineage: 
+  male body: 
+  male organism: 
+  male whole body: 
+  mature oocyte: 
+  mesodermal: 
+  midgut: 
+  midgut (30-40 midguts/sample): 
+  missing: None
+  mix: 
+  mixed: 
+  mixed adult whole flies: 
+  mixed imaginal discs: 
+  mixed-stage embryos: 
+  multi-dendritic sensory neurons: 
+  muscle: 
+  mushroom bodies: 
+  mussle: 
+  neuron: 
+  neurons: 
+  non tumorigenic adult ph505 clone: 
+  not applicable: None
+  not collected: None
+  oavry: 
+  oocyte: 
+  oocytes: 
+  optical lobe: 
+  ovarian follicle: 
+  ovarian somatic cells (OSC): 
+  ovarian tissues: 
+  ovaries: 
+  ovaries dissected from 3 day-old females: 
+  ovary: 
+  ovary (FBbt:00004865): 
+  ovary (FBbt:00004865) + fat cell (FBbt:00046052): 
+  ovary + lateral oviduct: 
+  ovary follicle cells: 
+  ovary stem cells: 
+  ovary_ectomised_carcass: 
+  ph505 eye-antennal tissue: 
+  ph505 tumor 14 weeks old: 
+  ph505 tumor 4 weeks old: 
+  ph505 tumor 8 weeks old: 
+  pharate haltere: 
+  pharate wing: 
+  polytene: 
+  pooled eye imaginal discs: 
+  posterior midgut: 
+  prothoracic leg disc: 
+  pupae: 
+  pupal brain: 
+  pupal terminalia: 
+  reproductive system without gonad and genitalia: 
+  reproductive system without gonad and genitalia; reproductive system without gonad: 
+  retina: 
+  right salivary gland: 
+  ring gland: 
+  salivary gland: 
+  salivary glands: 
+  second (T2) pupal legs: 
+  seminal vesicles: 
+  single stage 2 embryo: 
+  skeletal muscle: 
+  somatic ovaries: 
+  sorted midline cells: 
+  sorted wing disc myoblast: 
+  spermatids: 
+  stage 14 oocyte: 
+  stage 15-16 embryos: 
+  tergal depressor of the trochanter muscle: 
+  testes: 
+  testis: 
+  testis (FBbt:00004928): 
+  testis (FBbt:00004928) + fat cell (FBbt:00046052): 
+  testis + seminal vesicle: 
+  testis apical region: 
+  testis basal region: 
+  testis middle region: 
+  testis specifically expressing E(z) shmiR RNAi in germ cells: 
+  third early instar larval brain: 
+  third instar larval brain and wing/haltere/third leg imaginal discs: 
+  third instar larval imaginal discs and brains: 
+  third instar larval wing imaginal discs: 
+  third instar ring gland: 
+  third instar salivary gland: 
+  thoracic muscle: 
+  thorax: 
+  thorax plus abdomen: 
+  thorax without digestive system: 
+  total embryo: 
+  total tissue: 
+  unfertilized egg: 
+  ventral nerve cord: 
+  ventral nerve cords: 
+  ventral prothoracic disc: 
+  virgin female carcass: 
+  virgin female ovary: 
+  virgin male carcass: 
+  virgin testes: 
+  whole: 
+  whole 0-2 hour embryo: 
+  whole Toll10b embryos: 
+  whole adult: 
+  whole adult flie: 
+  whole adult fly: 
+  whole adult head: 
+  whole animal: 
+  whole body: 
+  whole body without testis: 
+  whole brain: 
+  whole brains: 
+  whole brown pre-pupae (n ≈ 30): 
+  whole cell: 
+  whole central nervous systems: 
+  whole dechorionated embryos: 
+  whole embryo: 
+  whole embryo lysate: 
+  whole embryos: 
+  whole first-instar larvae: 
+  whole flies: 
+  whole fly: 
+  whole gd7 embryos: 
+  whole head: 
+  whole heads: 
+  whole larva: 
+  whole larvae: 
+  whole larvae (n ≈ 30): 
+  whole leg: 
+  whole organism: 
+  whole ovary: 
+  whole testes: 
+  whole tissue: 
+  whole-animal: 
+  whole-embryo: 
+  whole_animal: 
+  wild type eye discs late 3rd instar: 
+  wing: 
+  wing disc: 
+  wing disc hinge region: 
+  wing disc myoblasts: 
+  wing discs: 
+  wing imaginal disc: 
+  wing imaginal disc hinge: 
+  wing imaginal discs: 
+  wing imaginal discs (T2 discs): 
+  wing imaginal discs from 3rd instar larvae: 
+  wing imaginal disk: 
+  wings imaginal disk: 
+  wings imaginal disks: 
+  xS2R+ FLAG-HA-AGO2 cell lysate: 
+tissue source:
+  embryo: 
+  larval brain: 
+tissue type:
+  Adult fly heads: 
+  Body: 
+  Body tissue: 
+  Head: 
+  Immortalized cells: 
+  Larval brain: 
+  Wing imaginal disc: 
+  brain: 
+  brian: 
+  embryo: 
+  eye disc: 
+tissue/cell type:
+  Embryonic glia: 
+  Embryonic neuroblasts: 
+  Embryonic neurons: 
+  Intermediate column: 
+  Ovarian Somatic Cells (OSC): 
+  Ventral column: 
+  oocytes: 
+  ovarian somatic cells (OSC): 
+  ovaries: 
+  ovary: 
+tissue_type:
+  Accessory Gland: 
+  Accessory Glands: 
+  Anal Pad: 
+  Brain: 
+  Carcass: 
+  Central Nervous System: 
+  Crop: 
+  Embryo: 
+  Eye: 
+  Fat Body: 
+  Head: 
+  Head-less body: 
+  Heads: 
+  Hindgut: 
+  Malpighian Tubules: 
+  Midgut: 
+  Ovaries: 
+  Ovary: 
+  Salivary Gland: 
+  Spermatheca: 
+  Testis: 
+  Thoracicoabdominal Ganglion: 
+  Trachea: 
+  Whole Flies: 
+  Whole body: 
+  Whole flies: 
+  Whole organism: 
+  body: 
+  crop: 
+  embryo: 
+  fat body: 
+  female: 
+  gut: 
+  head: 
+  intestine: 
+  larval carcass: 
+  larval midgut: 
+  muscle: 
+  ovaries: 
+  ovary: 
+  testes: 
+  testis: 
+  whole: 
+  whole bodies: 
+  whole body: 
+  whole embryo: 
+  whole flies: 
+  whole fly: 
