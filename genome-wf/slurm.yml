@@ -1,9 +1,0 @@
-#sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
-__default__:
-    time: "11:00:00"
-    gres: "lscratch:80"
-    partition: 'norm,niddk'
-
-hisat2:
-    time: "24:00:00"
-    gres: "lscratch:250"
