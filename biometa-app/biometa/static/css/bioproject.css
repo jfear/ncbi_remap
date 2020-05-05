@@ -1,0 +1,23 @@
+p {
+    text-align: left;
+    font-size: 12pt;
+}
+
+input {
+    margin: 4px;
+    color: black;
+    font-weight: bold;
+}
+
+.biosample {
+    margin-bottom: 20px;
+}
+
+.actions {
+    text-align: right;
+}
+
+.attributes {
+    text-align: left;
+    font-size: 12pt;
+}
