@@ -3,9 +3,18 @@
     <div metal:fill-slot="content">
         <div class="content">
             <div>
-                <a href="/" class="btn btn-success">Home</a>
-                <a href="/prev/${bioproject.get('_id')}" class="btn btn-default">Previous</a>
-                <a href="/next/${bioproject.get('_id')}" class="btn btn-default">Next</a>
+                <div class="container">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <a href="/" class="btn btn-success">Home</a>
+                        </div>
+                        <div class="col-md-8"></div>
+                        <div class="col-md-2">
+                            <a href="/prev/${bioproject.get('_id')}" class="btn btn-default">Previous</a>
+                            <a href="/next/${bioproject.get('_id')}" class="btn btn-default">Next</a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <h1>BioProject: <a href="https://www.ncbi.nlm.nih.gov/bioproject/?term=${ bioproject.get('_id') }">${
@@ -18,21 +27,14 @@
                 <div class="container">
                     <div class="row biosample" tal:repeat="s bioproject.get('samples')">
 
-                        <div class="col-md-6">
+                        <div class="col-md-6 sample-desc">
                             <h3><a href="https://www.ncbi.nlm.nih.gov/biosample/?term=${ s.get('biosample') }">${
                                     s.get("biosample") }</a> (${ s.get("accn") })</h3>
+                            <span class="attr-name">Title:</span><span class="attr-value">${ s.get('title') }</span>
                             <div class="attributes" tal:repeat="attr s.get('attributes')">
-                                <span style="font-weight: bold; padding-right: 4px">${attr.name}: </span>
-                                <span>${attr.value}</span>
+                                <span class="attr-name">${attr.name}: </span>
+                                <span class="attr-value">${attr.value}</span>
                             </div>
-
-                            <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
-                                class="form-control" type="checkbox" tal:condition="s.get('complete') == 1"
-                                tal:attributes="checked True">
-                            <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
-                                class="form-control" type="checkbox" tal:condition="not s.get('complete') == 1"
-                                tal:attributes="checked False">
-                            <label for="${s.get('biosample')}_complete">Complete</label>
 
                         </div>
 
@@ -46,13 +48,25 @@
                             <input name="${s.get('biosample')}_cell" class="form-control cell" type="text"
                                 placeholder="cell type" value="${s.get('cell_type')}">
 
-                            <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
-                                class="form-control" type="checkbox" tal:condition="s.get('perturbed') == 1"
-                                tal:attributes="checked True">
-                            <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
-                                class="form-control" type="checkbox" tal:condition="not s.get('perturbed') == 1"
-                                tal:attributes="checked False">
-                            <label for="${s.get('biosample')}_perturb">Perturbed</label>
+                            <label class="checkbox-label" for="${s.get('biosample')}_perturb">
+                                <span class="checkbox-text">Perturbed</span>
+                                <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="s.get('perturbed') == 1" tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('perturbed') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_complete">
+                                <span class="checkbox-text">Complete</span>
+                                <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('complete') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('complete') == 1" tal:attributes="checked False">
+                            </label>
 
                         </div>
 
@@ -72,10 +86,17 @@
 
             </form>
 
-            <div>
-                <a href="/" class="btn btn-success">Home</a>
-                <a href="/prev/${bioproject.get('_id')}" class="btn btn-default">Previous</a>
-                <a href="/next/${bioproject.get('_id')}" class="btn btn-default">Next</a>
+            <div class="container">
+                <div class="row">
+                    <div class="col-md-2">
+                        <a href="/" class="btn btn-success">Home</a>
+                    </div>
+                    <div class="col-md-8"></div>
+                    <div class="col-md-2">
+                        <a href="/prev/${bioproject.get('_id')}" class="btn btn-default">Previous</a>
+                        <a href="/next/${bioproject.get('_id')}" class="btn btn-default">Next</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -95,19 +116,27 @@
                 var cellVals = ${ structure: cell_values };
 
                 $(".sex").autocomplete({
-                    source: sexVals
+                    source: sexVals,
+                    delay: 500,
+                    minLength: 3
                 });
 
                 $(".tissue").autocomplete({
-                    source: tissueVals
+                    source: tissueVals,
+                    delay: 500,
+                    minLength: 3
                 });
 
                 $(".dev").autocomplete({
-                    source: devVals
+                    source: devVals,
+                    delay: 500,
+                    minLength: 3
                 });
 
                 $(".cell").autocomplete({
-                    source: cellVals
+                    source: cellVals,
+                    delay: 500,
+                    minLength: 3
                 });
 
             });
