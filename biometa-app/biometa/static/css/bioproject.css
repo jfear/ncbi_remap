@@ -1,0 +1,44 @@
+.content {
+    max-width: 1200px;
+}
+
+p {
+    text-align: left;
+    font-size: 12pt;
+}
+
+input {
+    margin: 4px;
+    color: black;
+    font-weight: bold;
+}
+
+.biosample {
+    margin-bottom: 20px;
+}
+
+.actions {
+    text-align: right;
+}
+
+.sample-desc h3 {
+    margin-top: 0px;
+    font-weight: 400;
+}
+
+.attr-name {
+    text-align: left;
+    font-size: 14pt;
+    font-weight: bold;
+    padding-right: 14px;
+}
+
+.attr-value {
+    text-align: left;
+    font-size: 14pt;
+    font-weight: 300;
+}
+
+.checkbox-label{
+    display: inline-block;
+}

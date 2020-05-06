@@ -1,0 +1,23 @@
+<div metal:use-macro="load: _layout.pt">
+    <div metal:fill-slot="content">
+        <div class="content">
+            <h1>BioProjects</h1>
+            <a href="/${prev}" class="btn btn-default">Previous</a>
+            <a href="/${next}" class="btn btn-default">Next</a>
+            <table class="table">
+                <thead>
+                    <th scope="col">BioProject</th>
+                    <th scope="col">Title</th>
+                </thead>
+                <tbody>
+                    <tr class="bioprojects" tal:repeat="p bioprojects">
+                        <th><a href="/project/${ p._id }">${ p._id }</a></th>
+                        <td>${ p.title }</td>
+                    </tr>
+                </tbody>
+            </table>
+            <a href="/${prev}" class="btn btn-default">Previous</a>
+            <a href="/${next}" class="btn btn-default">Next</a>
+        </div>
+    </div>
+</div>
