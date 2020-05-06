@@ -93,10 +93,16 @@ def get_bioprojects(limit=100_000, skip=0) -> List[dict]:
 
 
 def get_bioproject(bioproject: str) -> dict:
+    rnaseq_srxs = get_rnaseq_srxs()
+
     with mongo() as db:
         cursor = db.aggregate(
             [
-                {"$match": {"BioProject.accn": bioproject}},
+                {"$match": {
+                        "BioProject.accn": bioproject,
+                        "srx": {"$in": rnaseq_srxs},
+                    }
+                },
                 {
                     "$group": {
                         "_id": "$BioProject.accn",
