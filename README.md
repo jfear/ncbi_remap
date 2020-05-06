@@ -11,7 +11,7 @@
 
 ## Outline
 
-<img src="overview.png" style="width: 400px;">
+<img src="overview.png" style="width: 200px;">
 
 1. Use `SraMongo` to download associated metadata for all *Drosophila melanogaster* samples
 2. The Pre-Alignment workflow pre-processes all samples to automatically discover/validate technical metadata associated with each sample.
