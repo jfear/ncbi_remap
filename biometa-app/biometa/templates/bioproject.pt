@@ -3,10 +3,10 @@
     <div metal:fill-slot="content">
         <div class="content">
             <div>
-                <div class="container">
+                <div class="container" name="home_prev_next">
                     <div class="row">
                         <div class="col-md-2">
-                            <a href="/" class="btn btn-success">Home</a>
+                            <a href="/" class="btn btn-success" name="homeBtn">Home</a>
                         </div>
                         <div class="col-md-8"></div>
                         <div class="col-md-2">
@@ -46,7 +46,7 @@
                             <input name="${s.get('biosample')}_tissue" class="form-control tissue" type="text"
                                 placeholder="tissue" value="${s.get('tissue')}">
                             <input name="${s.get('biosample')}_cell" class="form-control cell" type="text"
-                                placeholder="cell type" value="${s.get('cell_type')}">
+                                placeholder="cell line" value="${s.get('cell_type')}">
 
                             <label class="checkbox-label" for="${s.get('biosample')}_perturb">
                                 <span class="checkbox-text">Perturbed</span>
@@ -86,10 +86,35 @@
 
             </form>
 
-            <div class="container">
+            <div class="container" name="propagation">
+                <div class="row">
+                    <div class="col-md2">
+                        <h3>Propagate these values to all samples.</h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <input type="text" name="sex_propagate" placeholder="sex to propagate" class="form-control sex">
+                        <input type="text" name="dev_propagate" placeholder="developmental stage to propagate"
+                            class="form-control dev">
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="tissue_propagate" placeholder="tissue to propagate"
+                            class="form-control tissue">
+                        <input type="text" name="cell_propagate" placeholder="cell line to propagate"
+                            class="form-control cell">
+                    </div>
+                </div>
+                <div class="row">
+                    <input type="button" value="propagateValues" id="propButton" class="btn btn-danger"
+                        class="form-control">
+                </div>
+            </div>
+
+            <div class="container" name="home_prev_next">
                 <div class="row">
                     <div class="col-md-2">
-                        <a href="/" class="btn btn-success">Home</a>
+                        <a href="/" class="btn btn-success" name="homeBtn">Home</a>
                     </div>
                     <div class="col-md-8"></div>
                     <div class="col-md-2">
@@ -98,6 +123,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -107,6 +133,7 @@
     </div>
     <div metal:fill-slot="additional-js">
         <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+        <script src="${request.static_url('biometa:static/js/bioproject.js')}"></script>
         <script>
             $(function () {
 
@@ -140,6 +167,7 @@
                 });
 
             });
+
         </script>
     </div>
 

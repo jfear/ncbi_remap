@@ -42,3 +42,7 @@ input {
 .checkbox-label{
     display: inline-block;
 }
+
+.container {
+    padding: 10px;
+}
