@@ -111,19 +111,6 @@
                 </div>
             </div>
 
-            <div class="container" name="home_prev_next">
-                <div class="row">
-                    <div class="col-md-2">
-                        <a href="/" class="btn btn-success" name="homeBtn">Home</a>
-                    </div>
-                    <div class="col-md-8"></div>
-                    <div class="col-md-2">
-                        <a href="/prev/${bioproject.get('_id')}" class="btn btn-default">Previous</a>
-                        <a href="/next/${bioproject.get('_id')}" class="btn btn-default">Next</a>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
