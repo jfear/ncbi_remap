@@ -1,10 +1,12 @@
 .content {
-    max-width: 1200px;
+    max-width: 1350px;
 }
 
 p {
     text-align: left;
-    font-size: 12pt;
+    font-size: 15pt;
+    font-weight: 300;
+    padding-bottom: 20px;
 }
 
 input {
