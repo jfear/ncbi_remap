@@ -108,6 +108,10 @@
                 <div class="row">
                     <input type="button" value="propagateValues" id="propButton" class="btn btn-danger"
                         class="form-control">
+                    <input type="button" value="togglePerturb" id="togglePerturbButton" class="btn btn-danger"
+                        class="form-control">
+                    <input type="button" value="toggleComplete" id="toggleCompleteButton" class="btn btn-danger"
+                        class="form-control">
                 </div>
             </div>
 
@@ -123,7 +127,6 @@
         <script src="${request.static_url('biometa:static/js/bioproject.js')}"></script>
         <script>
             $(function () {
-
                 var sexVals = ${ structure: sex_values };
                 var tissueVals = ${ structure: tissue_values };
                 var devVals = ${ structure: dev_values };
@@ -150,11 +153,9 @@
                 $(".cell").autocomplete({
                     source: cellVals,
                     delay: 500,
-                    minLength: 3
+                    minLength: 1
                 });
-
             });
-
         </script>
     </div>
 

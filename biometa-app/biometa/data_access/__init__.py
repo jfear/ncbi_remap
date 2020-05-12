@@ -12,6 +12,7 @@ PROJECT_DIR = Path(__file__).absolute().parents[3]
 RNASEQ_SRXS_PATH = PROJECT_DIR / "output/library_strategy-wf/rnaseq_inliers.pkl"
 ANATOMY_OBO = PROJECT_DIR / "data/fly_anatomy.obo"
 DEVELOPMENT_OBO = PROJECT_DIR / "data/fly_development.obo"
+CELL_TSV = PROJECT_DIR / "data/fly_cell_lines.tsv"
 
 
 def get_rnaseq_srxs() -> List[str]:
@@ -34,7 +35,9 @@ def get_fly_development() -> List[str]:
 
 
 def get_fly_cell_line() -> List[str]:
-    return [term for term in _parse_obo(ANATOMY_OBO) if "cell-line" in term]
+    with open(CELL_TSV) as fh:
+        next(fh)
+        return [row.strip().split("\t")[1] for row in fh]
 
 
 def sql_query_complete_biosamples() -> List[str]:
@@ -77,11 +80,7 @@ def get_bioprojects(limit=100_000, skip=0) -> List[dict]:
     with mongo() as db:
         cursor = db.aggregate(
             [
-                {
-                    "$match": {
-                        "srx": {"$in": rnaseq_srxs},
-                    }
-                },
+                {"$match": {"srx": {"$in": rnaseq_srxs},}},
                 {"$group": {"_id": "$BioProject.accn", "title": {"$first": "$BioProject.title"},}},
                 {"$sort": {"_id": 1}},
                 {"$skip": skip},
@@ -98,11 +97,7 @@ def get_bioproject(bioproject: str) -> dict:
     with mongo() as db:
         cursor = db.aggregate(
             [
-                {"$match": {
-                        "BioProject.accn": bioproject,
-                        "srx": {"$in": rnaseq_srxs},
-                    }
-                },
+                {"$match": {"BioProject.accn": bioproject, "srx": {"$in": rnaseq_srxs},}},
                 {
                     "$group": {
                         "_id": "$BioProject.accn",
@@ -130,3 +125,60 @@ def get_bioproject(bioproject: str) -> dict:
     bioproject["samples"] = samples
 
     return bioproject
+
+def query_term(col: str, term: str) -> dict:
+    """Get a list of all samples with a given term"""
+    rnaseq_srxs = get_rnaseq_srxs()
+
+    # This allows me to query in different columns. I could not pass a column name without making
+    # the app vulnerable to SQL injection.
+    query_table = {
+        "cell_type": "SELECT biosample FROM biometa WHERE cell_type LIKE ( '%' || ? || '%')",
+        "tissue": "SELECT biosample FROM biometa WHERE tissue LIKE ( '%' || ? || '%')",
+        "dev_stage": "SELECT biosample FROM biometa WHERE dev_stage LIKE ( '%' || ? || '%')",
+        "sex": "SELECT biosample FROM biometa WHERE sex LIKE ( '%' || ? || '%')",
+    }
+
+    # Get all biosamples that match term
+    with sqlite() as db:
+        cur = db.cursor()  # type: sqlite3.Cursor
+        cur.execute(query_table[col], (term, ))
+        biosamples = list(flatten(cur.fetchall()))
+
+    # Get their SRA attributes and build a fake bioproject
+    with mongo() as db:
+        cursor = db.aggregate(
+            [
+                {"$match": {"BioSample.accn": {"$in": biosamples}, "srx": {"$in": rnaseq_srxs},}},
+                {
+                    "$group": {
+                        "_id": "$BioSample.accn",
+                        "info": {"$first": "$sample"},
+                    }
+                },
+            ]
+        )
+
+        # This helps me hijack the bioproject template system.
+        mock_project = {
+            "_id": f"{col} == {term}",
+            "title": "",
+            "description": "",
+            "samples": [sample["info"] for sample in cursor]
+        }
+
+    # Add on updated annotations from SQL database
+    samples = []
+    for sample in mock_project["samples"]:
+        values = sql_query_biosample(sample["biosample"])
+        if values:
+            sample["sex"] = values[1]
+            sample["dev_stage"] = values[2]
+            sample["tissue"] = values[3]
+            sample["cell_type"] = values[4]
+            sample["perturbed"] = values[5]
+            sample["complete"] = values[6]
+        samples.append(sample)
+    mock_project["samples"] = samples
+
+    return mock_project

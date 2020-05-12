@@ -4,4 +4,5 @@ def includeme(config):
     config.add_route("next_project", "/next/{accn}")
     config.add_route("previous_project", "/prev/{accn}")
     config.add_route("bioproject", "/project/{accn}")
+    config.add_route("query", "/search/{col}/{term}")
     config.add_route("bioprojects", "/{start}")

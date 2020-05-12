@@ -8,6 +8,7 @@ import pyramid.httpexceptions
 from biometa.data_access import (
     get_bioprojects,
     get_bioproject,
+    query_term,
     sql_update_biosample,
     get_fly_anatomy,
     get_fly_cell_line,
@@ -117,3 +118,56 @@ def previous_project(request: Request):
 
     prev_accn = BIOPROJECTS[prev_idx]
     return pyramid.httpexceptions.HTTPFound(location=f"/project/{prev_accn}")
+
+# /search/{col}/{term}
+@view_config(
+    route_name="query", renderer="../templates/bioproject.pt", request_method="GET",
+)
+def query_page(request: Request):
+    col = request.matchdict.get("col")
+    term = request.matchdict.get("term")
+
+    bioproject = query_term(col, term)
+
+    if bioproject:
+        return {
+            "bioproject": bioproject,
+            "sex_values": SEX,
+            "dev_values": DEV_STAGE,
+            "tissue_values": TISSUE,
+            "cell_values": CELL_TYPE,
+        }
+
+    raise pyramid.httpexceptions.HTTPNotFound()
+
+
+@view_config(
+    route_name="query", renderer="../templates/bioproject.pt", request_method="POST",
+)
+def query_post(request: Request):
+    # Process from
+    result_dict = defaultdict(dict)
+    for k, v in request.POST.items():
+        biosample, metadata_type = k.strip().split("_")
+        result_dict[biosample][metadata_type] = v
+
+    # Prep for SQL UPSERT
+    results = [
+        (
+            biosample,
+            metadata["sex"],
+            metadata["dev"],
+            metadata["tissue"],
+            metadata["cell"],
+            str(int(metadata.get("perturb") == "on")),
+            str(int(metadata.get("complete") == "on")),
+        )
+        for biosample, metadata in result_dict.items()
+    ]
+
+    sql_update_biosample(results)
+
+    # Reload bioproject
+    curr_col = request.matchdict.get("col")
+    curr_term = request.matchdict.get("term")
+    return pyramid.httpexceptions.HTTPFound(location=f"/search/{curr_col}/{curr_term}")
