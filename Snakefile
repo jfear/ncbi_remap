@@ -6,6 +6,7 @@ rule targets:
     input:
         # Database Info
         "output/srx2srr.csv",
+        "output/rnaseq_srxs.txt",
         # Additional References
         "output/known_splice_sites_r6-11.txt",
         "output/dmel_r6-11.intergenic.gtf",
@@ -26,6 +27,13 @@ rule srx2srr:
     input: rules.sra2mongo.output[0]
     output: "output/srx2srr.csv",
     script: "scripts/srx2srr.py"
+
+
+rule rnaseq_srxs:
+    """Pull out a list of SRXs annotated as RNA-Seq in SRA."""
+    input: rules.sra2mongo.output[0]
+    output: "output/rnaseq_srxs.txt"
+    script: "scripts/rnaseq_srxs.py"
 
 
 ###############################################################################
