@@ -82,7 +82,7 @@ localrules: srx_complete
 ###############################################################################
 queue = Queue(
     targets="../output/prealn-wf/done",
-    subset="../output/library_strategy-wf/rnaseq.pkl",
+    subset="../output/rnaseq_srxs.txt",
     completed="../output/rnaseq-wf/done",
     problems=[
         "../output/fastq-wf/download_bad",
