@@ -1,16 +1,4 @@
 #sra_file: /data/Oliverlab/project/remap/data/sra_info_dmel_13050.txt
 __default__:
-  gres: "lscratch:80"
+  gres: "lscratch:250"
   partition: 'norm'
-
-fastq_dump:
-  gres: "lscratch:250"
-
-fastq_screen:
-  gres: "lscratch:250"
-
-atropos:
-  gres: "lscratch:250"
-
-hisat2:
-    gres: "lscratch:250"
