@@ -40,7 +40,6 @@ export SLACK_SNAKEMAKE_BOT_TOKEN=<secret>
 export ENTREZ_API_KEY=<secret>
 
 export PROJECT_PATH=<absolute path to where folder is cloned>
-export SRC_PATH=$PROJECT_PATH/src
 export SINGULARITY_IMG=$PROJECT_PATH/singularity/drosSRA_workflow.sif
 export SINGULARITY_BINDPATH=<list of paths that need mounted in the singularity container>
 export SLURM_JOBID=<optional, used to make temp directories on /lscratch>
