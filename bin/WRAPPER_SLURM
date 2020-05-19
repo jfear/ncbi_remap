@@ -7,6 +7,10 @@
 # Make required folders
 if [[ ! -e slurm_logs ]]; then mkdir -p slurm_logs; fi
 
+# Setup environment
+conda activate drosSRA_workflow
+if [[ -f ../.env ]]; then source ../.env; fi
+
 # run pipeline
 (time snakemake \
     --profile ../config/slurm \
