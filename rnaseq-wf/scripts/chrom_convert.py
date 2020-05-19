@@ -1,6 +1,10 @@
 import pandas as pd
 import pybedtools
+import ssl
 
+# I was getting an SSL error.
+# From: https://stackoverflow.com/a/56230607/4605992
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def main():
     conversion_table = import_conversion()
