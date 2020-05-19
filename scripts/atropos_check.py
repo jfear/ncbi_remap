@@ -41,14 +41,14 @@ def main():
 
     except AtroposException:
         # Add to bad list
-        atropos_bad_path = Path(Path(snakemake.output[0]).parents[3], "atropos_bad")
+        atropos_bad_path = Path(Path(snakemake.output[0]).parents[1], "atropos_bad")
         atropos_bad_path.mkdir(exist_ok=True)
         Path(atropos_bad_path, snakemake.wildcards.srr).touch()
 
         # Delete atropos data if problems
-        Path(snakemake.input.R1).unlink()
-        Path(snakemake.input.R2).unlink()
-        Path(snakemake.input.log).unlink()
+        unlink(snakemake.input.R1)
+        unlink(snakemake.input.R2)
+        unlink(snakemake.input.log)
 
 
 def parse_atropos(file_name):
@@ -69,6 +69,11 @@ def parse_atropos(file_name):
         raise AtroposException
 
 
+def unlink(file_name):
+    if Path(file_name).exists():
+        Path(file_name).unlink()
+
+
 if __name__ == "__main__":
     if os.getenv("SNAKE_DEBUG", False):
         from ncbi_remap.mock import MockSnake
@@ -84,4 +89,3 @@ if __name__ == "__main__":
         )
 
     main()
-

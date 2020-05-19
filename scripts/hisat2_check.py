@@ -53,14 +53,19 @@ def main():
             raise Hisat2Exception
 
     except Hisat2Exception:
-        alignment_bad_path = Path(Path(snakemake.input.log).parents[3], "alignment_bad")
+        alignment_bad_path = Path(Path(snakemake.input.log).parents[1], "alignment_bad")
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, snakemake.wildcards.srr).touch()
 
         # Remove hisat2 output if problems
-        Path(snakemake.input.bam).unlink()
-        Path(snakemake.input.bai).unlink()
-        Path(snakemake.input.log).unlink()
+        unlink(snakemake.input.bam)
+        unlink(snakemake.input.bai)
+        unlink(snakemake.input.log)
+
+
+def unlink(file_name):
+    if Path(file_name).exists():
+        Path(file_name).unlink()
 
 
 if __name__ == "__main__":
@@ -78,4 +83,3 @@ if __name__ == "__main__":
         )
 
     main()
-
