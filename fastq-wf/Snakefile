@@ -13,13 +13,13 @@ singularity: "../singularity/drosSRA_workflow.sif"
 
 rule se_example:
     input: 
-        layout="../output/fastq-wf/fastq_info/SRR031744/LAYOUT",
-        summary="../output/fastq-wf/fastq_info/SRR031744/summary.tsv"
+        layout="../output/fastq-wf/layout/SRR031744.parquet",
+        summary="../output/fastq-wf/libsize/SRR031744.parquet"
 
 
 rule pe_example:
     input: 
-        layout="../output/fastq-wf/fastq_info/SRR031714/LAYOUT",
-        summary="../output/fastq-wf/fastq_info/SRR031714/summary.tsv"
+        layout="../output/fastq-wf/layout/SRR031714.parquet",
+        summary="../output/fastq-wf/libsize/SRR031714.parquet"
 
 include: "rules/download_fastq.smk"

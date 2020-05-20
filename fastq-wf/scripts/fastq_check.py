@@ -124,8 +124,8 @@ if __name__ == "__main__":
                 abi_solid="../../output/fastq-wf/abi_solid",
             ),
             output=dict(
-                layout="../../output/fastq-wf/fastq_info/SRR031744/LAYOUT",
-                summary="../../output/fastq-wf/fastq_info/SRR031744/summary.tsv",
+                layout="../output/fastq-wf/layout/SRR031744.parquet",
+                summary="../output/fastq-wf/libsize/SRR031744.parquet"
             ),
         )
 
