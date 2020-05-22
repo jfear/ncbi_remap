@@ -22,7 +22,7 @@ def sqlite(*args, **kwargs):
     cur.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='biometa'")
     if cur.fetchone()[0] == 0:
         cur.execute(
-            "CREATE TABLE biometa (biosample text PRIMARY KEY, sex text, dev_stage text, tissue text, cell_type text, perturbed integer, complete integer)"
+            "CREATE TABLE biometa (biosample text PRIMARY KEY, sex text, devel_stage text, tissue text, cell_line text, notes text, genetic integer, diet integer, chemical integer, radiation integer, temperature integer, other integer, control integer)"
         )
         conn.commit()
     try:

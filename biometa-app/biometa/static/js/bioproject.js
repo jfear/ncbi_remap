@@ -13,14 +13,45 @@ var propagateValues = function (name) {
     })
 }
 
-var togglePerturb = function () {
-    document.querySelectorAll("[id$=_perturb]").forEach(function (e) {
+// genetic, diet, chemical, radiation, temperature, other, control
+var toggleGenetic = function () {
+    document.querySelectorAll("[id$=_genetic]").forEach(function (e) {
         e.checked = !e.checked;
     });
 }
 
-var toggleComplete = function () {
-    document.querySelectorAll("[id$=_complete]").forEach(function (e) {
+var toggleDiet = function () {
+    document.querySelectorAll("[id$=_diet]").forEach(function (e) {
+        e.checked = !e.checked;
+    });
+}
+
+var toggleChemical = function () {
+    document.querySelectorAll("[id$=_chemical]").forEach(function (e) {
+        e.checked = !e.checked;
+    });
+}
+
+var toggleRadiation = function () {
+    document.querySelectorAll("[id$=_radiation]").forEach(function (e) {
+        e.checked = !e.checked;
+    });
+}
+
+var toggleTemperature = function () {
+    document.querySelectorAll("[id$=_temperature]").forEach(function (e) {
+        e.checked = !e.checked;
+    });
+}
+
+var toggleOther = function () {
+    document.querySelectorAll("[id$=_other]").forEach(function (e) {
+        e.checked = !e.checked;
+    });
+}
+
+var toggleControl = function () {
+    document.querySelectorAll("[id$=_control]").forEach(function (e) {
         e.checked = !e.checked;
     });
 }
@@ -28,17 +59,38 @@ var toggleComplete = function () {
 $(document).ready(function () {
     $("#propButton").click(function () {
         propagateValues("sex")
-        propagateValues("dev")
+        propagateValues("devel")
         propagateValues("tissue")
         propagateValues("cell")
+        propagateValues("notes")
     });
 
-    $("#togglePerturbButton").click(function () {
-        togglePerturb()
+    $("#toggleGeneticButton").click(function () {
+        toggleGenetic()
     });
 
-    $("#toggleCompleteButton").click(function () {
-        toggleComplete()
+    $("#toggleDietButton").click(function () {
+        toggleDiet()
+    });
+
+    $("#toggleChemicalButton").click(function () {
+        toggleChemical()
+    });
+
+    $("#toggleRadiationButton").click(function () {
+        toggleRadiation()
+    });
+
+    $("#toggleTemperatureButton").click(function () {
+        toggleTemperature()
+    });
+
+    $("#toggleOtherButton").click(function () {
+        toggleOther()
+    });
+
+    $("#toggleControlButton").click(function () {
+        toggleControl()
     });
 
 });
