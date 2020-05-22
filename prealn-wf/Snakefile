@@ -40,7 +40,8 @@ localrules: srr_complete, collectrnaseqmetrics_summary
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    completed="../output/prealn-wf/done",
+    targets="../output/rnaseq_srxs.txt",
+    completed="../output/prealn-wf/done.txt",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
@@ -48,7 +49,7 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=1_000
+    size=1
 )
 
 # If Dry-Run print queue
@@ -79,6 +80,8 @@ rule srr_complete:
         rules.markduplicates_summary.output[0],
         rules.featurecounts_summary.output[0],
     output: "../output/prealn-wf/done/{srr}"
-    params: lambda wildcards: queue.expand("../output/prealn-wf/samples/{srx}/{srr}", wildcards.srr)
-    shell: "rm -r {params[0]} && touch {output[0]}"
-
+    params: 
+        sample_id=lambda wildcards: wildcards.srr,
+        sample_folder=lambda wildcards: queue.expand("../output/prealn-wf/samples/{srx}/{srr}", wildcards.srr),
+        done_queue="../output/prealn-wf/done.txt",
+    script: "../scripts/done_queue.py"

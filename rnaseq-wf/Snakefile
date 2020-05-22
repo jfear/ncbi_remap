@@ -81,9 +81,9 @@ localrules: srx_complete
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    targets="../output/prealn-wf/done",
-    subset="../output/rnaseq_srxs.txt",
-    completed="../output/rnaseq-wf/done",
+    targets="../output/prealn-wf/done.txt",
+    subset="../output/library_strategy-wf/rnaseq_inliers.pkl",
+    completed="../output/rnaseq-wf/done.txt",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
@@ -94,7 +94,7 @@ queue = Queue(
         "../output/rnaseq-wf/bigwig_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=1#_000
+    size=500
 )
 
 # If Dry-Run print queue
@@ -117,10 +117,6 @@ include: "rules/bigwig.smk"
 ###############################################################################
 # What to keep
 ###############################################################################
-def remove_path(file_name):
-    if Path(file_name).exists():
-        Path(file_name).unlink()
-
 
 rule srx_complete:
     input:
@@ -139,21 +135,8 @@ rule srx_complete:
         rules.flybase_bigwig_second.output[0],
     output: "../output/rnaseq-wf/done/{srx}"
     params:
-        srrs=lambda wildcards: queue.get_srrs(wildcards.srx)
-    run:
-        Path(output[0]).touch()
-        for srr in params.srrs:
-            remove_path(f"../output/fastq-wf/fastqs/{srr}_1.fastq")
-            remove_path(f"../output/fastq-wf/fastqs/{srr}_2.fastq")
-            remove_path(f"../output/fastq-wf/sra_cache/{srr}.sra")
-            shutil.rmtree(f"../output/rnaseq-wf/samples/{wildcards.srx}/{srr}")
-        
-        for pth in Path(f"../output/rnaseq-wf/samples/{wildcards.srx}").iterdir():
-            if pth.is_dir():
-                continue 
-
-            if pth.suffix in [".bam", ".bai"]:
-                continue
-
-            pth.unlink()
-
+        sample_id=lambda wildcards: wildcards.srx,
+        sample_folder="../output/rnaseq-wf/samples/{srx}",
+        done_queue="../output/rnaseq-wf/done.txt",
+        srrs=lambda wildcards: queue.get_srrs(wildcards.srx),
+    script: "../scripts/done_queue.py"
