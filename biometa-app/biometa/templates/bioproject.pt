@@ -38,34 +38,86 @@
 
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-6 form-boxes">
                             <input name="${s.get('biosample')}_sex" class="form-control sex" type="text"
                                 placeholder="sex" value="${s.get('sex')}">
-                            <input name="${s.get('biosample')}_dev" class="form-control dev" type="text"
-                                placeholder="developmental stage" value="${s.get('dev_stage')}">
+                            <input name="${s.get('biosample')}_devel" class="form-control devel" type="text"
+                                placeholder="developmental stage" value="${s.get('devel_stage')}">
                             <input name="${s.get('biosample')}_tissue" class="form-control tissue" type="text"
                                 placeholder="tissue" value="${s.get('tissue')}">
                             <input name="${s.get('biosample')}_cell" class="form-control cell" type="text"
-                                placeholder="cell line" value="${s.get('cell_type')}">
+                                placeholder="cell line" value="${s.get('cell_line')}">
+                            <input name="${s.get('biosample')}_notes" class="form-control notes" type="text"
+                                placeholder="notes" value="${s.get('notes')}">
 
-                            <label class="checkbox-label" for="${s.get('biosample')}_perturb">
-                                <span class="checkbox-text">Perturbed</span>
-                                <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
+                            <label class="checkbox-label" for="${s.get('biosample')}_genetic">
+                                <span class="checkbox-text">Genetic</span>
+                                <input id="${s.get('biosample')}_genetic" name="${s.get('biosample')}_genetic"
                                     class="form-control checkbox" type="checkbox"
-                                    tal:condition="s.get('perturbed') == 1" tal:attributes="checked True">
-                                <input id="${s.get('biosample')}_perturb" name="${s.get('biosample')}_perturb"
+                                    tal:condition="s.get('genetic') == 1" tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_genetic" name="${s.get('biosample')}_genetic"
                                     class="form-control checkbox" type="checkbox"
-                                    tal:condition="not s.get('perturbed') == 1" tal:attributes="checked False">
+                                    tal:condition="not s.get('genetic') == 1" tal:attributes="checked False">
                             </label>
 
-                            <label class="checkbox-label" for="${s.get('biosample')}_complete">
-                                <span class="checkbox-text">Complete</span>
-                                <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
-                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('complete') == 1"
+                            <label class="checkbox-label" for="${s.get('biosample')}_diet">
+                                <span class="checkbox-text">Diet</span>
+                                <input id="${s.get('biosample')}_diet" name="${s.get('biosample')}_diet"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('diet') == 1"
                                     tal:attributes="checked True">
-                                <input id="${s.get('biosample')}_complete" name="${s.get('biosample')}_complete"
+                                <input id="${s.get('biosample')}_diet" name="${s.get('biosample')}_diet"
                                     class="form-control checkbox" type="checkbox"
-                                    tal:condition="not s.get('complete') == 1" tal:attributes="checked False">
+                                    tal:condition="not s.get('diet') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_chemical">
+                                <span class="checkbox-text">Chemical</span>
+                                <input id="${s.get('biosample')}_chemical" name="${s.get('biosample')}_chemical"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('chemical') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_chemical" name="${s.get('biosample')}_chemical"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('chemical') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_radiation">
+                                <span class="checkbox-text">Radiation</span>
+                                <input id="${s.get('biosample')}_radiation" name="${s.get('biosample')}_radiation"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('radiation') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_radiation" name="${s.get('biosample')}_radiation"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('radiation') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_temperature">
+                                <span class="checkbox-text">Temperature</span>
+                                <input id="${s.get('biosample')}_temperature" name="${s.get('biosample')}_temperature"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('temperature') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_temperature" name="${s.get('biosample')}_temperature"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('temperature') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_other">
+                                <span class="checkbox-text">Other</span>
+                                <input id="${s.get('biosample')}_other" name="${s.get('biosample')}_other"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('other') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_other" name="${s.get('biosample')}_other"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('other') == 1" tal:attributes="checked False">
+                            </label>
+
+                            <label class="checkbox-label" for="${s.get('biosample')}_control">
+                                <span class="checkbox-text">Control</span>
+                                <input id="${s.get('biosample')}_control" name="${s.get('biosample')}_control"
+                                    class="form-control checkbox" type="checkbox" tal:condition="s.get('control') == 1"
+                                    tal:attributes="checked True">
+                                <input id="${s.get('biosample')}_control" name="${s.get('biosample')}_control"
+                                    class="form-control checkbox" type="checkbox"
+                                    tal:condition="not s.get('control') == 1" tal:attributes="checked False">
                             </label>
 
                         </div>
@@ -95,7 +147,7 @@
                 <div class="row">
                     <div class="col-md-4">
                         <input type="text" name="sex_propagate" placeholder="sex to propagate" class="form-control sex">
-                        <input type="text" name="dev_propagate" placeholder="developmental stage to propagate"
+                        <input type="text" name="devel_propagate" placeholder="developmental stage to propagate"
                             class="form-control dev">
                     </div>
                     <div class="col-md-4">
@@ -104,14 +156,28 @@
                         <input type="text" name="cell_propagate" placeholder="cell line to propagate"
                             class="form-control cell">
                     </div>
+                    <div class="col-md-4">
+                        <input type="text" name="notes_propagate" placeholder="notes to propagate"
+                            class="form-control notes">
+                    </div>
                 </div>
                 <div class="row">
                     <input type="button" value="propagateValues" id="propButton" class="btn btn-danger"
                         class="form-control">
-                    <input type="button" value="togglePerturb" id="togglePerturbButton" class="btn btn-danger"
-                        class="form-control">
-                    <input type="button" value="toggleComplete" id="toggleCompleteButton" class="btn btn-danger"
-                        class="form-control">
+                </div>
+                <div class="row">
+                    <div class="col-md-2">
+                        <p>Toggle Values:</p>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="button" value="Genetic" id="toggleGeneticButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Diet" id="toggleDietButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Chemical" id="toggleChemicalButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Radiation" id="toggleRadiationButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Temperature" id="toggleTemperatureButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Other" id="toggleOtherButton" class="btn btn-danger" class="form-control">
+                        <input type="button" value="Control" id="toggleControlButton" class="btn btn-danger" class="form-control">
+                    </div>
                 </div>
             </div>
 
@@ -129,7 +195,7 @@
             $(function () {
                 var sexVals = ${ structure: sex_values };
                 var tissueVals = ${ structure: tissue_values };
-                var devVals = ${ structure: dev_values };
+                var devVals = ${ structure: devel_values };
                 var cellVals = ${ structure: cell_values };
 
                 $(".sex").autocomplete({

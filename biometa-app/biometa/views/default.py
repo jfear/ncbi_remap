@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 
 from pyramid.view import view_config
@@ -17,8 +16,8 @@ from biometa.data_access import (
 
 SEX = ["male", "female", "mixed", "None"]
 TISSUE = get_fly_anatomy()
-DEV_STAGE = get_fly_development()
-CELL_TYPE = get_fly_cell_line()
+DEVEL_STAGE = get_fly_development()
+CELL_LINE = get_fly_cell_line()
 BIOPROJECTS = [x["_id"] for x in get_bioprojects()]
 
 
@@ -56,9 +55,9 @@ def bioproject_page(request: Request):
         return {
             "bioproject": bioproject,
             "sex_values": SEX,
-            "dev_values": DEV_STAGE,
+            "devel_values": DEVEL_STAGE,
             "tissue_values": TISSUE,
-            "cell_values": CELL_TYPE,
+            "cell_values": CELL_LINE,
         }
 
     raise pyramid.httpexceptions.HTTPNotFound()
@@ -79,11 +78,17 @@ def bioproject_post(request: Request):
         (
             biosample,
             metadata["sex"],
-            metadata["dev"],
+            metadata["devel"],
             metadata["tissue"],
             metadata["cell"],
-            str(int(metadata.get("perturb") == "on")),
-            str(int(metadata.get("complete") == "on")),
+            metadata["notes"],
+            str(int(metadata.get("genetic") == "on")),
+            str(int(metadata.get("diet") == "on")),
+            str(int(metadata.get("chemical") == "on")),
+            str(int(metadata.get("radiation") == "on")),
+            str(int(metadata.get("temperature") == "on")),
+            str(int(metadata.get("other") == "on")),
+            str(int(metadata.get("control") == "on")),
         )
         for biosample, metadata in result_dict.items()
     ]
@@ -133,9 +138,9 @@ def query_page(request: Request):
         return {
             "bioproject": bioproject,
             "sex_values": SEX,
-            "dev_values": DEV_STAGE,
+            "devel_values": DEVEL_STAGE,
             "tissue_values": TISSUE,
-            "cell_values": CELL_TYPE,
+            "cell_values": CELL_LINE,
         }
 
     raise pyramid.httpexceptions.HTTPNotFound()
@@ -156,11 +161,17 @@ def query_post(request: Request):
         (
             biosample,
             metadata["sex"],
-            metadata["dev"],
+            metadata["devel"],
             metadata["tissue"],
             metadata["cell"],
-            str(int(metadata.get("perturb") == "on")),
-            str(int(metadata.get("complete") == "on")),
+            metadata["notes"],
+            str(int(metadata.get("genetic") == "on")),
+            str(int(metadata.get("diet") == "on")),
+            str(int(metadata.get("chemical") == "on")),
+            str(int(metadata.get("radiation") == "on")),
+            str(int(metadata.get("temperature") == "on")),
+            str(int(metadata.get("other") == "on")),
+            str(int(metadata.get("control") == "on")),
         )
         for biosample, metadata in result_dict.items()
     ]

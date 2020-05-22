@@ -58,15 +58,21 @@ def sql_query_biosample(biosample) -> tuple:
 
 
 def sql_update_biosample(results: List[tuple]):
-    sql_upsert = """INSERT INTO biometa(biosample, sex, dev_stage, tissue, cell_type, perturbed, complete)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+    sql_upsert = """INSERT INTO biometa(biosample, sex, devel_stage, tissue, cell_line, notes, genetic, diet, chemical, radiation, temperature, other, control)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(biosample) DO UPDATE SET
             sex = excluded.sex,
-            dev_stage = excluded.dev_stage,
+            devel_stage = excluded.devel_stage,
             tissue = excluded.tissue,
-            cell_type = excluded.cell_type,
-            perturbed = excluded.perturbed,
-            complete = excluded.complete
+            cell_line = excluded.cell_line,
+            notes = excluded.notes,
+            genetic = excluded.genetic,
+            diet = excluded.diet,
+            chemical = excluded.chemical,
+            radiation = excluded.radiation,
+            temperature = excluded.temperature,
+            other = excluded.other,
+            control = excluded.control,
     """
     with sqlite() as db:  # type: sqlite3.Connection
         cur = db.cursor()  # type: sqlite3.Cursor
@@ -116,11 +122,17 @@ def get_bioproject(bioproject: str) -> dict:
         values = sql_query_biosample(sample["biosample"])
         if values:
             sample["sex"] = values[1]
-            sample["dev_stage"] = values[2]
+            sample["devel_stage"] = values[2]
             sample["tissue"] = values[3]
-            sample["cell_type"] = values[4]
-            sample["perturbed"] = values[5]
-            sample["complete"] = values[6]
+            sample["cell_line"] = values[4]
+            sample["notes"] = values[5]
+            sample["genetic"] = values[6]
+            sample["diet"] = values[7]
+            sample["chemical"] = values[8]
+            sample["radiation"] = values[9]
+            sample["temperature"] = values[10]
+            sample["other"] = values[11]
+            sample["control"] = values[12]
         samples.append(sample)
     bioproject["samples"] = samples
 
@@ -133,9 +145,9 @@ def query_term(col: str, term: str) -> dict:
     # This allows me to query in different columns. I could not pass a column name without making
     # the app vulnerable to SQL injection.
     query_table = {
-        "cell_type": "SELECT biosample FROM biometa WHERE cell_type LIKE ( '%' || ? || '%')",
+        "cell_line": "SELECT biosample FROM biometa WHERE cell_line LIKE ( '%' || ? || '%')",
         "tissue": "SELECT biosample FROM biometa WHERE tissue LIKE ( '%' || ? || '%')",
-        "dev_stage": "SELECT biosample FROM biometa WHERE dev_stage LIKE ( '%' || ? || '%')",
+        "devel_stage": "SELECT biosample FROM biometa WHERE devel_stage LIKE ( '%' || ? || '%')",
         "sex": "SELECT biosample FROM biometa WHERE sex LIKE ( '%' || ? || '%')",
     }
 
@@ -173,11 +185,17 @@ def query_term(col: str, term: str) -> dict:
         values = sql_query_biosample(sample["biosample"])
         if values:
             sample["sex"] = values[1]
-            sample["dev_stage"] = values[2]
+            sample["devel_stage"] = values[2]
             sample["tissue"] = values[3]
-            sample["cell_type"] = values[4]
-            sample["perturbed"] = values[5]
-            sample["complete"] = values[6]
+            sample["cell_line"] = values[4]
+            sample["notes"] = values[5]
+            sample["genetic"] = values[6]
+            sample["diet"] = values[7]
+            sample["chemical"] = values[8]
+            sample["radiation"] = values[9]
+            sample["temperature"] = values[10]
+            sample["other"] = values[11]
+            sample["control"] = values[12]
         samples.append(sample)
     mock_project["samples"] = samples
 
