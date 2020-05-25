@@ -53,7 +53,7 @@ def main():
             raise Hisat2Exception
 
     except Hisat2Exception:
-        alignment_bad_path = Path(Path(snakemake.input.log).parents[1], "alignment_bad")
+        alignment_bad_path = Path(Path(snakemake.input.log).parents[3], "alignment_bad")
         alignment_bad_path.mkdir(exist_ok=True)
         Path(alignment_bad_path, snakemake.wildcards.srr).touch()
 
