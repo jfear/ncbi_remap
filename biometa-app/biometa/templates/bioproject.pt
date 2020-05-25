@@ -31,7 +31,7 @@
                             <h3><a href="https://www.ncbi.nlm.nih.gov/biosample/?term=${ s.get('biosample') }">${
                                     s.get("biosample") }</a> (${ s.get("accn") })</h3>
                             <span class="attr-name">Title:</span><span class="attr-value">${ s.get('title') }</span>
-                            <div class="attributes" tal:repeat="attr s.get('attributes')">
+                            <div class="attributes" id="${attr.name.lower()}" tal:repeat="attr s.get('attributes')">
                                 <span class="attr-name">${attr.name}: </span>
                                 <span class="attr-value">${attr.value}</span>
                             </div>

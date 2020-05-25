@@ -72,7 +72,7 @@ def sql_update_biosample(results: List[tuple]):
             radiation = excluded.radiation,
             temperature = excluded.temperature,
             other = excluded.other,
-            control = excluded.control,
+            control = excluded.control
     """
     with sqlite() as db:  # type: sqlite3.Connection
         cur = db.cursor()  # type: sqlite3.Cursor
