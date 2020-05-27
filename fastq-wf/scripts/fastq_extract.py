@@ -147,13 +147,13 @@ def save_summary(fq: Fastq, summary_file):
     if isinstance(fq.avgReadLen, list):
         r1, r2 = fq.avgReadLen
     else:
-        r1, r2 = fq.avgReadLen, 0
+        r1, r2 = fq.avgReadLen, 0.0
 
     idx = pd.Index([snakemake.wildcards.srr], name="srr")
     df = pd.DataFrame(
-        [[fq.libsize, r1, fq.libsize, r2]],
+        [[fq.libsize, r1, r2]],
         index=idx,
-        columns=["libsize_R1", "avgLen_R1", "libsize_R2", "avgLen_R2"],
+        columns=["libsize", "avgLen_R1", "avgLen_R2"],
     )
     df.to_parquet(summary_file)
 
