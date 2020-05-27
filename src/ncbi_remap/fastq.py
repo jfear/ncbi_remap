@@ -12,6 +12,7 @@ from more_itertools import grouper
 class UnequalNumberReadsException(Exception):
     """Basic exception when PE data don't have the same number of reads"""
 
+
 class MixedUpReadsException(Exception):
     """Basic exception when PE reads are not in the same order"""
 
