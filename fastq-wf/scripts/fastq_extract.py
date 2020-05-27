@@ -43,6 +43,7 @@ def main():
             fq = Fastq(R1, R2)
             check_pe(fq, snakemake.output.r1, snakemake.output.r2)
 
+        logger.info(fq)
         save_layout(fq, snakemake.output.layout)
         save_summary(fq, snakemake.output.summary)
 
@@ -137,7 +138,6 @@ def check_pe(fq: Fastq, R1_out: str, R2_out: str):
 
 def save_layout(fq: Fastq, layout_file):
     layout = fq.flags.intersection(set(["SE", "PE", "keep_R1", "keep_R2"])).pop()
-    logger.info(f"{snakemake.wildcards.srr} Layout: {layout}")
     idx = pd.Index([snakemake.wildcards.srr], name="srr")
     df = pd.DataFrame([[layout]], index=[idx], columns=["layout"])
     df.to_parquet(layout_file)
