@@ -56,7 +56,7 @@ class Fastq:
         AbiException: If FASTQ is from ABI Solid.
 
         """
-        if self._is_abi():
+        if self._is_abi():  # Ignore samples stored as colorspace
             self.flags.add("abi_solid")
             return
 
@@ -64,27 +64,38 @@ class Fastq:
             self.flags.add("download_bad")
             return
 
-        if (~self._is_empty(self.R1) & self._is_empty(self.R2)) | ("keep_R1" in self.flags):
-            self.flags.add("keep_R1")
+        if "keep_R1" in self.flags:  # Re-running b/c PE failed
             self.R2 = None
             yield from self._process_single_end()
             return
 
-        if (self._is_empty(self.R1) & ~self._is_empty(self.R2)) | ("keep_R2" in self.flags):
-            self.flags.add("keep_R2")
+        if "keep_R2" in self.flags:  # Re-running b/c PE failed
             self.R1 = self.R2
             self.R2 = None
             yield from self._process_single_end()
             return
 
-        if ~self._is_empty(self.R1) & (self.R2 is None):
+        if ~self._is_empty(self.R1) & (self.R2 is None):  # Single End (SE)
             self.flags.add("SE")
             yield from self._process_single_end()
             return
 
-        if ~self._is_empty(self.R1) & ~self._is_empty(self.R2):
+        if ~self._is_empty(self.R1) & ~self._is_empty(self.R2):  # Paired End (PE)
             self.flags.add("PE")
             yield from self._process_pair_end()
+            return
+
+        if ~self._is_empty(self.R1) & self._is_empty(self.R2):  # R2 is empty treat as SE
+            self.flags.add("keep_R1")
+            self.R2 = None
+            yield from self._process_single_end()
+            return
+
+        if self._is_empty(self.R1) & ~self._is_empty(self.R2):  # R1 is empty treat as SE
+            self.flags.add("keep_R2")
+            self.R1 = self.R2
+            self.R2 = None
+            yield from self._process_single_end()
             return
 
     def open_fastq(self, fastq: Union[str, bytes] = None):
