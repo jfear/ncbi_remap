@@ -40,7 +40,7 @@ localrules: srr_complete, collectrnaseqmetrics_summary
 # Set up file naming patterns and targets
 ###############################################################################
 queue = Queue(
-    targets="../output/rnaseq_srxs.txt",
+    # targets="../output/rnaseq_srxs.txt",
     completed="../output/prealn-wf/done.txt",
     problems=[
         "../output/fastq-wf/download_bad",
@@ -48,8 +48,9 @@ queue = Queue(
         "../output/prealn-wf/atropos_bad",
         "../output/prealn-wf/alignment_bad",
     ],
-    srx2srr="../output/srx2srr.csv",
-    size=1
+    # srx2srr="../output/srx2srr.csv",
+    srx2srr="../src/test_data/srx2srr.csv",
+    size=10
 )
 
 # If Dry-Run print queue
@@ -57,7 +58,8 @@ if any([x == "-n" for x in sys.argv]):
     print(queue)
 
 rule run_all:
-    input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
+    # input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
+    input: "../output/prealn-wf/samples/SRX262875/SRR823324/SRR823324.hisat2.bam"
 
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
