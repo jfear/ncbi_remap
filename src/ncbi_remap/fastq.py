@@ -271,3 +271,15 @@ class Fastq:
     @staticmethod
     def _read_to_string(read: Read) -> str:
         return read.h1 + read.seq + read.h2 + read.qual
+
+    def __str__(self):
+        return (
+            f"{'R1':<20} : {self.R1}\n"
+            f"{'R2':<20} : {self.R2}\n"
+            f"{'# Reads':<20} : {self.libsize:,}\n"
+            f"{'# Avg Read Length':<20} : {self.avgReadLen:.0f}\n"
+            f"{'# Seq/Qual Mismatch':<20} : {self.unequal_len:,}\n"
+            f"{'# Non-ASCII':<20} : {self.bad_ecoding:,}\n"
+            f"{'# Incomplete':<20} : {self.incomplete_read:,}\n"
+            f"{'Flags':<20} : {', '.join(self.flags)}\n"
+        )
