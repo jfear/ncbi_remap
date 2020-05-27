@@ -49,7 +49,7 @@ queue = Queue(
         "../output/prealn-wf/alignment_bad",
     ],
     srx2srr="../output/srx2srr.csv",
-    size=1
+    size=10
 )
 
 # If Dry-Run print queue

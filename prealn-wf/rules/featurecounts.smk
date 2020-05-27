@@ -10,7 +10,7 @@ rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=rules.hisat2.output.bam,
-        layout=rules.fastq_check.output.layout,
+        layout=rules.fastq_dump.output.layout,
         strand=rules.collectrnaseqmetrics_summary.output.strand,
     output:
         counts=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam.feature_counts.counts"),

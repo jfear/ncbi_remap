@@ -22,4 +22,17 @@ rule pe_example:
         layout="../output/fastq-wf/layout/SRR031714.parquet",
         summary="../output/fastq-wf/libsize/SRR031714.parquet"
 
+
+rule abi_example:
+    input: 
+        layout="../output/fastq-wf/layout/SRR8933023.parquet",
+        summary="../output/fastq-wf/libsize/SRR8933023.parquet"
+
+
+rule unequal_seq_qual_example:
+    input: 
+        layout="../output/fastq-wf/layout/SRR823324.parquet",
+        summary="../output/fastq-wf/libsize/SRR823324.parquet"
+
+
 include: "rules/download_fastq.smk"

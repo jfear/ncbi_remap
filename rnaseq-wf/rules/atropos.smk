@@ -11,10 +11,10 @@ rule atropos:
     input:
         R1=rules.fastq_dump.output.r1,
         R2=rules.fastq_dump.output.r2,
-        layout=rules.fastq_check.output.layout
+        layout=rules.fastq_dump.output.layout
     output:
-        R1=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq"),
-        R2=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq")
+        R1=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_1.trim.clean.fastq.gz"),
+        R2=temp("../output/rnaseq-wf/samples/{srx}/{srr}/{srr}_2.trim.clean.fastq.gz")
     params:
         extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',

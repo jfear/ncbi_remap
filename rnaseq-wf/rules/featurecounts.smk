@@ -13,7 +13,7 @@ rule feature_counts:
     input:
         annotation=config['references']['dmel']['gtf'],
         bam=rules.bamMerge.output.bam,
-        layout=lambda wildcards: queue.expand(rules.fastq_check.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.counts"),
@@ -53,7 +53,7 @@ rule feature_counts_intergenic:
     input:
         annotation=config['references']['dmel']['intergenic'],
         bam=rules.bamMerge.output.bam,
-        layout=lambda wildcards: queue.expand(rules.fastq_check.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.intergenic.counts"),
@@ -85,7 +85,7 @@ rule feature_counts_segments:
     input:
         annotation=config['references']['dmel']['nonstranded_segments'],
         bam=rules.bamMerge.output.bam,
-        layout=lambda wildcards: queue.expand(rules.fastq_check.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_segments.counts"),
@@ -117,7 +117,7 @@ rule feature_counts_fusions:
     input:
         annotation=config['references']['dmel']['nonstranded_fusions'],
         bam=rules.bamMerge.output.bam,
-        layout=lambda wildcards: queue.expand(rules.fastq_check.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts=temp("../output/rnaseq-wf/samples/{srx}/{srx}.bam.exon_fusions.counts"),

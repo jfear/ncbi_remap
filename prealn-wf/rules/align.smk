@@ -12,7 +12,7 @@ rule hisat2:
         splice_sites=config['references']['dmel']['known_splice_sites'],
         R1=rules.atropos.output.R1,
         R2=rules.atropos.output.R2,
-        layout=rules.fastq_check.output.layout,
+        layout=rules.fastq_dump.output.layout,
         _=rules.atropos_check.output[0]
     output:
         bam=temp("../output/prealn-wf/samples/{srx}/{srr}/{srr}.hisat2.bam"),
