@@ -74,6 +74,18 @@ LONGER_QUAL_STRING = dedent(
 """
 )
 
+CONTROL_CHAR_STRING = (
+    "@SRR823324.sra.1 HWI-ST1024_0265:8:1101:1417:2091 length=29\n"
+    "TTTCTTAAAAATAGGTAATCTAATTGAAA\n"
+    "+SRR823324.sra.1 HWI-ST1024_0265:8:1101:1417:2091 length=29\n"
+    "DDDDDDDDDEIEEECF4<CEFF>EF?CFF\n"
+    "@SRR823324.sra.2 HWI-ST1024_0265:8:1101:3024:2199 length=26\n"
+    "TGTAATTGTTTAAGCCAACTATTTGT\x01\x08\x02\x04\x01\n"
+    "+SRR823324.sra.2 HWI-ST1024_0265:8:1101:3024:2199 length=26\n"
+    "FFFDHHHGHJJEHFIHJJJEGIJJGI!!!!!\n"
+)
+
+
 EMPTY_FASTQ = ""
 
 ABI_FASTQ = dedent(
@@ -210,3 +222,7 @@ def test_read2_mixed():
         list(fq.process())
     assert "keep_R1" in fq.flags
 
+def test_remove_ascii_control_characters():
+    fq = Fastq(CONTROL_CHAR_STRING)
+    list(fq.process())
+    assert fq.unequal_len == 1

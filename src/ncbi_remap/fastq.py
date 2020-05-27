@@ -20,6 +20,16 @@ class MixedUpReadsException(Exception):
 Read = namedtuple("Read", "h1,seq,h2,qual")
 
 
+def _strip_control_characters(string: str):
+    """Removes ASCII control characters
+    
+    I have come across examples when there are control characters embedded
+    in a read. This removes those before comparing lengths.
+
+    """
+    return "".join([x for x in string if ord(x) > 32])
+
+
 class Fastq:
     """A simple FASTQ Parser"""
 
@@ -263,8 +273,8 @@ class Fastq:
     @staticmethod
     def _is_unequal_seq_qual(read: Read) -> bool:
         """Determine if read has equal length seq and qual"""
-        seq = read.seq.decode("ascii").strip()
-        qual = read.qual.decode("ascii").strip()
+        seq = _strip_control_characters(read.seq.decode("ascii")).strip()
+        qual = _strip_control_characters(read.qual.decode("ascii")).strip()
         if len(seq) != len(qual):
             return True
         return False
@@ -273,7 +283,7 @@ class Fastq:
     def _is_different_header(r1: Read, r2: Read) -> bool:
         """Determine if PE has same header"""
         # Ignore read length because they can be different
-        regex = re.compile(r"length=\d+") 
+        regex = re.compile(r"length=\d+")
         r1_h1 = re.sub(regex, "", r1.h1.decode("ascii").strip())
         r2_h1 = re.sub(regex, "", r2.h1.decode("ascii").strip())
         if r1_h1 != r2_h1:
