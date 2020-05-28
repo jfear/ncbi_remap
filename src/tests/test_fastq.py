@@ -225,4 +225,4 @@ def test_read2_mixed():
 def test_remove_ascii_control_characters():
     fq = Fastq(CONTROL_CHAR_STRING)
     list(fq.process())
-    assert fq.unequal_len == 1
+    assert fq.bad_ecoding == 1
