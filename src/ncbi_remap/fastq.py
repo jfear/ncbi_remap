@@ -122,12 +122,13 @@ class Fastq:
         elif isinstance(fastq, str):
             return BytesIO(fastq.encode("ascii"))
 
-    @staticmethod
-    def iter_reads(file_handle: TextIO) -> Read:
+    def iter_reads(self, file_handle: TextIO) -> Read:
         for h1, seq, h2, qual in grouper(file_handle, 4):
             if seq is None and qual is None:
                 continue
-            yield Read(h1, seq, h2, qual)
+            yield Read(
+                self._decode(h1), self._decode(seq), self._decode(h2), self._decode(qual),
+            )
 
     def _process_single_end(self):
         self.libsize = 0
@@ -152,8 +153,8 @@ class Fastq:
                     continue
 
                 self.libsize += 1
-                total_len += len(read.seq.decode("ascii").strip())
-                yield self._read_to_string(read)
+                total_len += len(read.seq)
+                yield self._read_to_bytes(read)
 
         self.avgReadLen = total_len / self.libsize
 
@@ -198,11 +199,18 @@ class Fastq:
                     raise MixedUpReadsException
 
                 self.libsize += 1
-                total_len[0] += len(read1.seq.decode("ascii").strip())
-                total_len[1] += len(read2.seq.decode("ascii").strip())
-                yield self._read_to_string(read1), self._read_to_string(read2)
+                total_len[0] += len(read1.seq)
+                total_len[1] += len(read2.seq)
+                yield self._read_to_bytes(read1), self._read_to_bytes(read2)
 
         self.avgReadLen = [total_len[0] / self.libsize, total_len[1] / self.libsize]
+
+    @staticmethod
+    def _decode(value: Optional[bytes]):
+        try:
+            return value.decode("ascii", errors="ignore").strip()
+        except AttributeError:
+            return None
 
     @staticmethod
     def _is_empty(data: Union[str, bytes]) -> bool:
@@ -247,7 +255,7 @@ class Fastq:
             +SRR######.1 solid0527_####### length=50
             !/<%2/:%*)-%%0'--'')/.!%('1'%),+/%!&',!!!'+!!!!!!!!
         """
-        if re.match(r"^T[\d\.]+$", read.seq.decode("ascii")):
+        if re.match(r"^T[\d\.]+$", read.seq):
             return True
         return False
 
@@ -258,24 +266,63 @@ class Fastq:
             return True
         return False
 
-    @staticmethod
-    def _is_wrong_encoding(read: Read) -> bool:
+    def _is_wrong_encoding(self, read: Read) -> bool:
         """Determine if read is correctly encoded"""
-        try:
-            read.h1.decode("ascii")
-            read.seq.decode("ascii")
-            read.h2.decode("ascii")
-            read.qual.decode("ascii")
-        except UnicodeDecodeError:
+        if self._is_invaid_header(read.h1) | self._is_invaid_header(read.h1):
             return True
+
+        if self._is_invalid_seq(read.seq):
+            return True
+
+        if self._is_invalid_qual(read.qual):
+            return True
+
+        return False
+
+    @staticmethod
+    def _is_invaid_header(string: str):
+        """Make sure only contains valid ascii characters
+
+            Valid characters are between ascii 32-126. Where chr(32) is space
+            and chr(126) is ~. Below are all the valid characters.
+
+             !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+        """
+        for character in string:
+            if ord(character) < 32 | 126 < ord(character):
+                return True
+        return False
+
+    @staticmethod
+    def _is_invalid_seq(string: str):
+        """Make sure sequence is a nucleotide or N."""
+        for character in string:
+            if character.upper() not in "ACTGN":
+                return True
+        return False
+
+    @staticmethod
+    def _is_invalid_qual(string: str):
+        """Make sure only contains valid ascii characters
+
+            Valid characters are between ascii 33-126. A quality score cannot
+            contain a space (i.e., 32). Below are all the valid characters.
+
+            !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+            See https://en.wikipedia.org/wiki/FASTQ_format for more details.
+
+        """
+        for character in string:
+            if ord(character) < 33 or 126 < ord(character):
+                return True
         return False
 
     @staticmethod
     def _is_unequal_seq_qual(read: Read) -> bool:
         """Determine if read has equal length seq and qual"""
-        seq = _strip_control_characters(read.seq.decode("ascii")).strip()
-        qual = _strip_control_characters(read.qual.decode("ascii")).strip()
-        if len(seq) != len(qual):
+        if len(read.seq) != len(read.qual):
             return True
         return False
 
@@ -284,15 +331,15 @@ class Fastq:
         """Determine if PE has same header"""
         # Ignore read length because they can be different
         regex = re.compile(r"length=\d+")
-        r1_h1 = re.sub(regex, "", r1.h1.decode("ascii").strip())
-        r2_h1 = re.sub(regex, "", r2.h1.decode("ascii").strip())
+        r1_h1 = re.sub(regex, "", r1.h1)
+        r2_h1 = re.sub(regex, "", r2.h1)
         if r1_h1 != r2_h1:
             return True
         return False
 
     @staticmethod
-    def _read_to_string(read: Read) -> str:
-        return read.h1 + read.seq + read.h2 + read.qual
+    def _read_to_bytes(read: Read) -> str:
+        return f"{read.h1}\n{read.seq}\n{read.h2}\n{read.qual}\n".encode("ascii")
 
     def __str__(self):
         return (
