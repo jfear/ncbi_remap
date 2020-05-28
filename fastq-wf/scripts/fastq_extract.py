@@ -48,13 +48,13 @@ def main():
         save_summary(fq, snakemake.output.summary)
 
     except AbiException:
-        logger.warn(f"{snakemake.wildcards.srr} is from ABI Solid")
+        logger.warning(f"Flagging {snakemake.wildcards.srr} as ABI Solid")
         Path(snakemake.params.abi_solid, snakemake.wildcards.srr).touch()
         remove_file(snakemake.output.r1)
         remove_file(snakemake.output.r2)
         remove_file(snakemake.input.sra)
     except DownloadException:
-        logger.warn(f"There was a problem parsing {snakemake.wildcards.srr}")
+        logger.warning(f"Flagging {snakemake.wildcards.srr} as Download Bad")
         Path(snakemake.params.download_bad, snakemake.wildcards.srr).touch()
         remove_file(snakemake.output.r1)
         remove_file(snakemake.output.r2)
@@ -70,6 +70,7 @@ def verify_sra_download(download_log: str):
     with open(download_log) as fh:
         text = fh.read()
         if "downloaded successfully" not in text:
+            logger.error(f"SRA file for {snakemake.wildcards.srr} was not downloaded successfully")
             raise DownloadException
 
 
@@ -111,7 +112,12 @@ def check_se(fq: Fastq, R1_out: str, R2_out: str):
         for read in fq.process():
             file_out1.write(read)
 
-    if ("download_bad" in fq.flags) | (fq.libsize < 1000):
+    if "download_bad" in fq.flags:
+        logger.error(f"{snakemake.wildcards.srr} had no data.")
+        raise DownloadException
+
+    if fq.libsize < 1000:
+        logger.warning(f"{snakemake.wildcards.srr} had less than 1,000 reads.")
         raise DownloadException
 
     if "abi_solid" in fq.flags:
@@ -125,12 +131,19 @@ def check_pe(fq: Fastq, R1_out: str, R2_out: str):
                 file_out1.write(read1)
                 file_out2.write(read2)
 
-        if ("download_bad" in fq.flags) | (fq.libsize < 1000):
+        if "download_bad" in fq.flags:
+            logger.error(f"{snakemake.wildcards.srr} had no data.")
+            raise DownloadException
+
+        if fq.libsize < 1000:
+            logger.warning(f"{snakemake.wildcards.srr} had less than 1,000 reads.")
             raise DownloadException
 
         if "abi_solid" in fq.flags:
             raise AbiException
+
     except (UnequalNumberReadsException, MixedUpReadsException):
+        logger.warning(f"{snakemake.wildcards.srr} switching from PE to SE.")
         remove_file(R1_out)
         remove_file(R2_out)
         check_se(fq, R1_out, R2_out)
