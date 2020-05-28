@@ -30,18 +30,27 @@ def main():
         staged_data = stage_data(snakemake.input.sra)
         extract_fastq(staged_data)
 
-        if Path(TMPDIR, f"{snakemake.wildcards.srr}.sra.fastq").exists():
+        se_file_name_R1 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra.fastq")
+        pe_file_name_R1 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra_1.fastq")
+        pe_file_name_R2 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra_2.fastq")
+
+        if se_file_name_R1.exists():
             logger.info("Processing FASTQ as Single-End")
-            R1 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra.fastq").absolute().as_posix()
+            R1 = se_file_name_R1.absolute().as_posix()
             R2 = None
-            fq = Fastq(R1)
+            fq = Fastq(R1, R2)
             check_se(fq, snakemake.output.r1, snakemake.output.r2)
-        else:
+        elif pe_file_name_R1.exists() and pe_file_name_R2.exists():
             logger.info("Processing FASTQ as Pair-End")
-            R1 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra_1.fastq").absolute().as_posix()
-            R2 = Path(TMPDIR, f"{snakemake.wildcards.srr}.sra_2.fastq").absolute().as_posix()
+            R1 = pe_file_name_R1.absolute().as_posix()
+            R2 = pe_file_name_R2.absolute().as_posix()
             fq = Fastq(R1, R2)
             check_pe(fq, snakemake.output.r1, snakemake.output.r2)
+        else:
+            logger.error(f"No FASTQ data extracted for {snakemake.wildcards.srr}")
+            R1 = None
+            R2 = None
+            raise DownloadException
 
         logger.info(fq)
         save_layout(fq, snakemake.output.layout)
@@ -173,7 +182,7 @@ def save_summary(fq: Fastq, summary_file):
 
 def remove_file(file_name: str):
     if file_name is None:
-        return 
+        return
 
     if Path(file_name).exists():
         Path(file_name).unlink()
