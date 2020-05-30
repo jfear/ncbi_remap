@@ -41,7 +41,7 @@ def main():
 
     except AtroposException:
         # Add to bad list
-        atropos_bad_path = Path(Path(snakemake.output[0]).parents[3], "atropos_bad")
+        atropos_bad_path = Path(Path(snakemake.output[0]).parents[1], "atropos_bad")
         atropos_bad_path.mkdir(exist_ok=True)
         Path(atropos_bad_path, snakemake.wildcards.srr).touch()
 
