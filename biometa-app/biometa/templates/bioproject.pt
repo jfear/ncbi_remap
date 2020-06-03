@@ -148,7 +148,7 @@
                     <div class="col-md-4">
                         <input type="text" name="sex_propagate" placeholder="sex to propagate" class="form-control sex">
                         <input type="text" name="devel_propagate" placeholder="developmental stage to propagate"
-                            class="form-control dev">
+                            class="form-control devel">
                     </div>
                     <div class="col-md-4">
                         <input type="text" name="tissue_propagate" placeholder="tissue to propagate"
@@ -195,7 +195,7 @@
             $(function () {
                 var sexVals = ${ structure: sex_values };
                 var tissueVals = ${ structure: tissue_values };
-                var devVals = ${ structure: devel_values };
+                var develVals = ${ structure: devel_values };
                 var cellVals = ${ structure: cell_values };
 
                 $(".sex").autocomplete({
@@ -210,8 +210,8 @@
                     minLength: 3
                 });
 
-                $(".dev").autocomplete({
-                    source: devVals,
+                $(".devel").autocomplete({
+                    source: develVals,
                     delay: 500,
                     minLength: 3
                 });
