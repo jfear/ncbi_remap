@@ -80,6 +80,11 @@ def iterdir(pth, ok_list):
     for pth_ in pth.iterdir():
         file_ = pth_.name.split(".")[0].split("_")[0]
         if file_ not in ok_list:
+            if pth_.is_dir():
+                remove_folder(pth_)
+            elif pth_.is_file():
+                remove_file(pth_)
+
             cnt += 1
     try:
         print(f"{pth_.as_posix():<80}{file_}: {cnt:,}")
@@ -94,6 +99,8 @@ def iterdir_nested(pth, ok_list):
             continue
         folder_ = pth_.name.split(".")[0].split("_")[0]
         if folder_ not in ok_list:
+            if pth_.is_dir():
+                remove_folder(pth_)
             cnt += 1
 
     try:
