@@ -212,7 +212,6 @@ if __name__ == "__main__":
         pth.mkdir(exist_ok=True)
         (pth / SRR).touch()
         remove_outputs(snakemake.output)
-        sys.exit(100)
     except DownloadException as error:
         logger.warning(f"Flagging {SRR} as Download Bad")
         logger.warning(str(error))
@@ -221,6 +220,5 @@ if __name__ == "__main__":
         pth.mkdir(exist_ok=True)
         (pth / SRR).touch()
         remove_outputs(snakemake.output)
-        sys.exit(100)
     finally:
         shutil.rmtree(TMPDIR)
