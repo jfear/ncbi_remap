@@ -150,6 +150,17 @@ rule markduplicates:
     threads: 4
     script: "scripts/markduplicates.py"
 
+rule feature_counts:
+    input:
+        bam=rules.hisat2.output.bam,
+        gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
+        layout=rules.fastq_dump.output.layout,
+        strand=rules.collectrnaseqmetrics.output.strand,
+    output: "../output/prealn-wf/count_summary/{srr}.parquet",
+    log: "../output/prealn-wf/logs/featurecounts/{srr}.log"
+    threads: 4
+    script: "scripts/featurecounts.py"
+
 rule srr_complete:
     input: 
         rules.fastq_screen_summary.output[0],
