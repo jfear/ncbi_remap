@@ -131,6 +131,17 @@ rule hisat2:
     threads: 4
     script: "../scripts/hisat2.py"
 
+rule collectrnaseqmetrics:
+    input:
+        bam=rules.hisat2.output.bam,
+        refflat="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.refflat",
+    output:
+        strand="../output/prealn-wf/strand/{srr}.parquet",
+        table="../output/prealn-wf/rnaseqmetrics/{srr}.parquet",
+        genebody_coverage="../output/prealn-wf/genebody_coverage/{srr}.parquet",
+    log: "../output/prealn-wf/logs/rnaseqmetrics/{srr}.log"
+    threads: 4
+    script: "scripts/picard_rnaseqmetrics.py"
 
 rule srr_complete:
     input: 
