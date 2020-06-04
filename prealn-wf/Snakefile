@@ -80,7 +80,7 @@ rule fastq_screen:
     """Check for contamination."""
     input: rules.fastq_dump.output.r1
     output: "../output/prealn-wf/fastq_screen/{srr}.parquet"
-    log: "../output/prealn-wf/samples/{srr}/fastq_screen.log"
+    log: "../output/prealn-wf/logs/fastq_screen/{srr}.log"
     params:
         references=dict(
             dm6="../lcdb-references/dmel/r6-11/bowtie2/dmel_r6-11",
@@ -109,7 +109,7 @@ rule atropos:
     params:
         extra_pe='-U 0 --minimum-length 25',
         extra_se='--minimum-length 25',
-    log: "../output/prealn-wf/samples/{srr}/atropos.log"
+    log: "../output/prealn-wf/logs/atropos/{srr}.log"
     threads: 4
     script: "../scripts/atropos.py"
 
