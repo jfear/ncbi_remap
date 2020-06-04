@@ -342,13 +342,18 @@ class Fastq:
         return f"{read.h1}\n{read.seq}\n{read.h2}\n{read.qual}\n".encode("ascii")
 
     def __str__(self):
+        if isinstance(self.avgReadLen, list):
+            avgReadLen = f"{self.avgReadLen[0] or 0.0:.0f}|{self.avgReadLen[1] or 0.0:.0f}"
+        else:
+            avgReadLen = f"{self.avgReadLen or 0.0:.0f}"
+
         return (
             f"{'R1':<20} : {self.R1}\n"
             f"{'R2':<20} : {self.R2}\n"
-            f"{'# Reads':<20} : {self.libsize:,}\n"
-            f"{'# Avg Read Length':<20} : {self.avgReadLen:.0f}\n"
-            f"{'# Seq/Qual Mismatch':<20} : {self.unequal_len:,}\n"
-            f"{'# Non-ASCII':<20} : {self.bad_ecoding:,}\n"
-            f"{'# Incomplete':<20} : {self.incomplete_read:,}\n"
+            f"{'# Reads':<20} : {self.libsize or 0:,}\n"
+            f"{'# Avg Read Length':<20} : {avgReadLen}\n"
+            f"{'# Seq/Qual Mismatch':<20} : {self.unequal_len or 0:,}\n"
+            f"{'# Non-ASCII':<20} : {self.bad_ecoding or 0:,}\n"
+            f"{'# Incomplete':<20} : {self.incomplete_read or 0:,}\n"
             f"{'Flags':<20} : {', '.join(self.flags)}\n"
         )
