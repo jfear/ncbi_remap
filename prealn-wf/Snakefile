@@ -76,6 +76,26 @@ rule fastq_dump:
     log: "../output/fastq-wf/logs/{srr}.log"
     script: "../fastq-wf/scripts/fastq_dump.py"
 
+rule fastq_screen:
+    """Check for contamination."""
+    input: rules.fastq_dump.output.r1
+    output: "../output/prealn-wf/fastq_screen/{srr}.parquet"
+    log: "../output/prealn-wf/samples/{srr}/fastq_screen.log"
+    params:
+        references=dict(
+            dm6="../lcdb-references/dmel/r6-11/bowtie2/dmel_r6-11",
+            hg19="../lcdb-references/human/gencode-v19/bowtie2/human_gencode-v19",
+            wolbachia="../lcdb-references/wolbachia/default/bowtie2/wolbachia_default",
+            ecoli="../lcdb-references/ecoli/default/bowtie2/ecoli_default",
+            yeast="../lcdb-references/sacCer3/default/bowtie2/sacCer3_default",
+            rRNA="../lcdb-references/dmel/rRNA/bowtie2/dmel_rRNA",
+            phix="../lcdb-references/phix/default/bowtie2/phix_default",
+            ercc="../lcdb-references/ercc/srm2374/bowtie2/ercc_srm2374",
+            adapters="../lcdb-references/adapters/default/bowtie2/adapters_default",
+        )
+    threads: 4
+    script: "scripts/fastq_screen.py"
+
 
 rule srr_complete:
     input: 
