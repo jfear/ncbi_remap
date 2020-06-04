@@ -5,21 +5,24 @@ from itertools import zip_longest
 from yaml import full_load
 
 import pandas as pd
+from yaml import full_load
+
 from .logging import logger
 
 
 def slack(text):
     try:
         from slackclient import SlackClient
-        token = os.environ['SLACK_SNAKEMAKE_BOT_TOKEN']
+
+        token = os.environ["SLACK_SNAKEMAKE_BOT_TOKEN"]
         sc = SlackClient(token)
-        sc.api_call('chat.postMessage', channel='U6N9L3ZSQ', text=text)
+        sc.api_call("chat.postMessage", channel="U6N9L3ZSQ", text=text)
     except (ImportError, KeyError):
         pass
 
 
 def wrapper_for(path):
-    return 'file:' + path
+    return "file:" + path
 
 
 def put_flag(fname, flag):
@@ -28,7 +31,7 @@ def put_flag(fname, flag):
     This is a little helper script to write a flag to a file.
 
     """
-    with open(fname, 'w') as fh:
+    with open(fname, "w") as fh:
         fh.write(flag)
 
 
@@ -43,7 +46,7 @@ def get_flag(fname):
 
 
 def get_patterns(fname):
-    with open(fname, 'r') as fh:
+    with open(fname, "r") as fh:
         return full_load(fh)
 
 
@@ -68,8 +71,8 @@ def combine(func, pattern, **kwargs):
         parse dataframe.
 
     """
-    srx = kwargs['srx']
-    srr = kwargs.get('srr', None)
+    srx = kwargs["srx"]
+    srr = kwargs.get("srr", None)
     return func(srx, srr, pattern.format(**kwargs))
 
 
@@ -98,10 +101,10 @@ def agg(store, key, func, pattern, df, large=False):
     """
     done = []
     if store.get_node(key):
-        done = set()        # change to set to keep memory down.
+        done = set()  # change to set to keep memory down.
         # Iterate over chunks and grab srrs that are already there.
         for chunk in store.select(key, chunksize=1e5):
-            idx = chunk.index.names.index('srr')
+            idx = chunk.index.names.index("srr")
             done |= set(chunk.index.levels[idx])
         done = list(done)
 
@@ -119,7 +122,7 @@ def agg(store, key, func, pattern, df, large=False):
                     continue
                 dfs.append(dat)
         except ValueError:
-            logger.error('Error parsing {srx}->{srr}'.format(row.to_dict()))
+            logger.error("Error parsing {srx}->{srr}".format(row.to_dict()))
 
     if dfs:
         ddf = pd.concat(dfs)
@@ -151,10 +154,10 @@ def agg_srx(store, key, func, pattern, srxs, large=False):
     """
     done = []
     if store.get_node(key):
-        done = set()        # change to set to keep memory down.
+        done = set()  # change to set to keep memory down.
         # Iterate over chunks and grab srxs that are already there.
         for chunk in store.select(key, chunksize=1e5):
-            idx = chunk.index.names.index('srx')
+            idx = chunk.index.names.index("srx")
             done |= set(chunk.index.levels[idx])
         done = list(done)
 
@@ -172,7 +175,7 @@ def agg_srx(store, key, func, pattern, srxs, large=False):
                     continue
                 dfs.append(dat)
         except ValueError:
-            logger.error('Error parsing {}'.format(srx))
+            logger.error("Error parsing {}".format(srx))
 
     if dfs:
         ddf = pd.concat(dfs)
