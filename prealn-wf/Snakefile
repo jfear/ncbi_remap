@@ -113,6 +113,24 @@ rule atropos:
     threads: 4
     script: "../scripts/atropos.py"
 
+rule hisat2:
+    """Basic alignment."""
+    input:
+        r1=rules.atropos.output.r1,
+        r2=rules.atropos.output.r2,
+        layout=rules.fastq_dump.output.layout,
+    output:
+        bam="../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam",
+        bai="../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam.bai",
+        hisat_summary="../output/prealn-wf/hisat2/{srr}.parquet",
+        aln_stats="../output/prealn-wf/aln_stats/{srr}.parquet",
+    log: "../output/prealn-wf/logs/hisat2/{srr}.log"
+    params:
+        reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
+        splice_sites="../output/known_splice_sites_r6-11.txt",
+    threads: 4
+    script: "../scripts/hisat2.py"
+
 
 rule srr_complete:
     input: 
