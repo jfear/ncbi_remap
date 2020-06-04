@@ -60,13 +60,22 @@ rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
 
 ## Rules
-include: "../fastq-wf/rules/download_fastq.smk"
-include: "rules/fastq_screen.smk"
-include: "rules/atropos.smk"
-include: "rules/align.smk"
-include: "rules/rnaseqmetrics.smk"
-include: "rules/markduplicates.smk"
-include: "rules/featurecounts.smk"
+rule fastq_dump:
+    output: 
+        r1="../output/fastq-wf/fastqs/{srr}_1.fastq.gz",
+        r2="../output/fastq-wf/fastqs/{srr}_2.fastq.gz",
+        layout="../output/fastq-wf/layout/{srr}.parquet",
+        summary="../output/fastq-wf/libsize/{srr}.parquet"
+    params:
+        sra="../output/fastq-wf/sra_cache/{srr}.sra",
+        download_bad="../output/fastq-wf/download_bad",
+        abi_solid="../output/fastq-wf/abi_solid",
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 4,
+        time_hr=lambda wildcards, attempt: attempt * 12
+    log: "../output/fastq-wf/logs/{srr}.log"
+    script: "../fastq-wf/scripts/fastq_dump.py"
+
 
 rule srr_complete:
     input: 
