@@ -96,6 +96,23 @@ rule fastq_screen:
     threads: 4
     script: "scripts/fastq_screen.py"
 
+rule atropos:
+    """Filter reads that are less than 25bp."""
+    input:
+        r1=rules.fastq_dump.output.r1,
+        r2=rules.fastq_dump.output.r2,
+        layout=rules.fastq_dump.output.layout,
+    output:
+        r1="../output/prealn-wf/samples/{srr}/{srr}_1.trim.fastq.gz",
+        r2="../output/prealn-wf/samples/{srr}/{srr}_2.trim.fastq.gz",
+        summary="../output/prealn-wf/atropos/{srr}.parquet",
+    params:
+        extra_pe='-U 0 --minimum-length 25',
+        extra_se='--minimum-length 25',
+    log: "../output/prealn-wf/samples/{srr}/atropos.log"
+    threads: 4
+    script: "../scripts/atropos.py"
+
 
 rule srr_complete:
     input: 
