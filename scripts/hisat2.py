@@ -124,6 +124,7 @@ def hisat2(
     )
     LOG.append("Hisat2 Command", text=cmd)
     shell(cmd)
+    LOG.append("Hisat2", text=log)
 
     remove_file(r1)
     remove_file(r2)
