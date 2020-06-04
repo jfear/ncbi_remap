@@ -143,6 +143,13 @@ rule collectrnaseqmetrics:
     threads: 4
     script: "scripts/picard_rnaseqmetrics.py"
 
+rule markduplicates:
+    input: rules.hisat2.output.bam
+    output: "../output/prealn-wf/markduplicates/{srr}.parquet"
+    log: "../output/prealn-wf/logs/markduplicates/{srr}.log"
+    threads: 4
+    script: "scripts/markduplicates.py"
+
 rule srr_complete:
     input: 
         rules.fastq_screen_summary.output[0],
