@@ -64,7 +64,6 @@ def stage_data(bam: str, ref_flat: str) -> Tuple[Path, Path]:
 
 def picard(bam: Path, ref_flat: Path) -> Tuple[Path, Path, Path]:
     cmd = (
-        # "export LC_ALL=C && "
         f"picard -Xmx{MEM}g CollectRnaSeqMetrics REF_FLAT={ref_flat} "
         f"INPUT={bam} OUTPUT={{out_file}} STRAND={{strand}} > {{log}} 2>&1"
     )
