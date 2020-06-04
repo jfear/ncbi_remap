@@ -2,7 +2,7 @@
 """Set of helpers for use with snakemake."""
 import os
 from itertools import zip_longest
-from yaml import full_load
+from pathlib import Path
 
 import pandas as pd
 from yaml import full_load
@@ -192,3 +192,22 @@ def grouper(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
     return zip_longest(*args, fillvalue=fillvalue)
 
+
+class StepLogger:
+    def __init__(self, log_file):
+        self.log_file = log_file
+
+        if Path(self.log_file).exists():
+            Path(self.log_file).unlink()
+
+    def append(self, title, log_file=None, text=None):
+        if log_file:
+            with open(log_file, "r") as s_log, open(self.log_file, "a") as m_log:
+                m_log.write(f"[ {title.strip()} ]\n")
+                m_log.write(s_log.read().strip())
+                m_log.write("\n\n")
+        elif text:
+            with open(self.log_file, "a") as m_log:
+                m_log.write(f"[ {title.strip()} ]\n")
+                m_log.write(text.strip())
+                m_log.write("\n\n")
