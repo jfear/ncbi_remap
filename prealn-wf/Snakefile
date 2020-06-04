@@ -26,7 +26,7 @@ else:
 shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
 
 singularity: "../singularity/drosSRA_workflow.sif"
-configfile: '../config/reference_config.yaml'
+
 onsuccess:
     print('All Finished')
     slack('prealn-wf: All Finished')
@@ -34,7 +34,7 @@ onerror:
     print('Something went wrong, you need to re-run')
     slack('prealn-wf: Something went wrong, you need to re-run') 
 
-localrules: srr_complete, collectrnaseqmetrics_summary
+localrules: srr_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
@@ -103,8 +103,8 @@ rule atropos:
         r2=rules.fastq_dump.output.r2,
         layout=rules.fastq_dump.output.layout,
     output:
-        r1="../output/prealn-wf/samples/{srr}/{srr}_1.trim.fastq.gz",
-        r2="../output/prealn-wf/samples/{srr}/{srr}_2.trim.fastq.gz",
+        r1=temp("../output/prealn-wf/samples/{srr}/{srr}_1.trim.fastq.gz"),
+        r2=temp("../output/prealn-wf/samples/{srr}/{srr}_2.trim.fastq.gz"),
         summary="../output/prealn-wf/atropos/{srr}.parquet",
     params:
         extra_pe='-U 0 --minimum-length 25',
@@ -120,8 +120,8 @@ rule hisat2:
         r2=rules.atropos.output.r2,
         layout=rules.fastq_dump.output.layout,
     output:
-        bam="../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam",
-        bai="../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam.bai",
+        bam=temp("../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam"),
+        bai=temp("../output/prealn-wf/samples/{srr}/{srr}.hisat2.bam.bai"),
         hisat_summary="../output/prealn-wf/hisat2/{srr}.parquet",
         aln_stats="../output/prealn-wf/aln_stats/{srr}.parquet",
     log: "../output/prealn-wf/logs/hisat2/{srr}.log"
@@ -163,18 +163,18 @@ rule feature_counts:
 
 rule srr_complete:
     input: 
-        rules.fastq_screen_summary.output[0],
-        rules.atropos_check.output[0],
-        rules.hisat2_check.output[0],
-        rules.aln_stats_summary.output[0],
-        rules.collectrnaseqmetrics_summary.output.strand,
-        rules.collectrnaseqmetrics_summary.output.table,
-        rules.collectrnaseqmetrics_summary.output.genebody_coverage,
-        rules.markduplicates_summary.output[0],
-        rules.featurecounts_summary.output[0],
+        rules.fastq_screen.output[0],
+        rules.atropos.output.summary,
+        rules.hisat2.output.hisat_summary,
+        rules.hisat2.output.aln_stats,
+        rules.collectrnaseqmetrics.output.strand,
+        rules.collectrnaseqmetrics.output.table,
+        rules.collectrnaseqmetrics.output.genebody_coverage,
+        rules.markduplicates.output[0],
+        rules.feature_counts.output[0],
     output: "../output/prealn-wf/done/{srr}"
-    params: 
-        sample_id=lambda wildcards: wildcards.srr,
-        sample_folder=lambda wildcards: queue.expand("../output/prealn-wf/samples/{srx}/{srr}", wildcards.srr),
-        done_queue="../output/prealn-wf/done.txt",
-    script: "../scripts/done_queue.py"
+    shell: """
+    rm -r ../output/prealn-wf/samples/{wildcards.srr} &&
+    touch {output[0]} &&
+    echo {wildcards.srr} >> ../output/prealn-wf/done.txt
+    """
