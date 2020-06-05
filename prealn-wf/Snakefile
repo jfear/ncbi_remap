@@ -14,6 +14,8 @@ include:
 import os
 import sys
 
+import numpy as np
+
 sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
 from ncbi_remap.snakemake import slack
@@ -34,7 +36,7 @@ onerror:
     print('Something went wrong, you need to re-run')
     slack('prealn-wf: Something went wrong, you need to re-run') 
 
-localrules: srr_complete
+localrules: run_all, srr_complete
 
 ###############################################################################
 # Set up file naming patterns and targets
@@ -56,24 +58,54 @@ queue = Queue(
 if any([x == "-n" for x in sys.argv]):
     print(queue)
 
+###############################################################################
+# Resources
+###############################################################################
+LIBSIZES = queue.srx2srr[["srr", "libsize"]].set_index("srr").squeeze()
+THREADS = 6
+def estimate_resources(wildcards):
+    scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
+    if scale <= 3:
+        return dict(mem_gb=6, time_hr=4, lscratch=50)
+    elif scale <= 6:
+        return dict(mem_gb=12, time_hr=8, lscratch=100)
+    elif scale <= 8:
+        return dict(mem_gb=24, time_hr=12, lscratch=200)
+    else:
+        return dict(mem_gb=36, time_hr=24, lscratch=400)
+
+def estimate_resources_mem(wildcards):
+    return estimate_resources(wildcards)["mem_gb"]
+
+def estimate_resources_time(wildcards):
+    return estimate_resources(wildcards)["time_hr"]
+
+def estimate_resources_lscratch(wildcards):
+    return estimate_resources(wildcards)["lscratch"]
+
+###############################################################################
+# Rules
+###############################################################################
 rule run_all:
     input: expand("../output/prealn-wf/done/{srr}", srr=queue.srrs)
 
-## Rules
 rule fastq_dump:
     output: 
         r1="../output/fastq-wf/fastqs/{srr}_1.fastq.gz",
         r2="../output/fastq-wf/fastqs/{srr}_2.fastq.gz",
         layout="../output/fastq-wf/layout/{srr}.parquet",
         summary="../output/fastq-wf/libsize/{srr}.parquet"
+    log: "../output/fastq-wf/logs/{srr}.log"
     params:
         sra="../output/fastq-wf/sra_cache/{srr}.sra",
         download_bad="../output/fastq-wf/download_bad",
         abi_solid="../output/fastq-wf/abi_solid",
-    resources:
-        mem_gb=lambda wildcards, attempt: attempt * 4,
-        time_hr=lambda wildcards, attempt: attempt * 12
-    log: "../output/fastq-wf/logs/{srr}.log"
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "../fastq-wf/scripts/fastq_dump.py"
 
 rule fastq_screen:
@@ -93,7 +125,12 @@ rule fastq_screen:
             ercc="../lcdb-references/ercc/srm2374/bowtie2/ercc_srm2374",
             adapters="../lcdb-references/adapters/default/bowtie2/adapters_default",
         )
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "scripts/fastq_screen.py"
 
 rule atropos:
@@ -106,11 +143,16 @@ rule atropos:
         r1=temp("../output/prealn-wf/samples/{srr}/{srr}_1.trim.fastq.gz"),
         r2=temp("../output/prealn-wf/samples/{srr}/{srr}_2.trim.fastq.gz"),
         summary="../output/prealn-wf/atropos/{srr}.parquet",
+    log: "../output/prealn-wf/logs/atropos/{srr}.log"
     params:
         extra_pe='-U 0 --minimum-length 25',
         extra_se='--minimum-length 25',
-    log: "../output/prealn-wf/logs/atropos/{srr}.log"
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "../scripts/atropos.py"
 
 rule hisat2:
@@ -128,7 +170,12 @@ rule hisat2:
     params:
         reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
         splice_sites="../output/known_splice_sites_r6-11.txt",
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "../scripts/hisat2.py"
 
 rule collectrnaseqmetrics:
@@ -140,14 +187,24 @@ rule collectrnaseqmetrics:
         table="../output/prealn-wf/rnaseqmetrics/{srr}.parquet",
         genebody_coverage="../output/prealn-wf/genebody_coverage/{srr}.parquet",
     log: "../output/prealn-wf/logs/rnaseqmetrics/{srr}.log"
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "scripts/picard_rnaseqmetrics.py"
 
 rule markduplicates:
     input: rules.hisat2.output.bam
     output: "../output/prealn-wf/markduplicates/{srr}.parquet"
     log: "../output/prealn-wf/logs/markduplicates/{srr}.log"
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "scripts/markduplicates.py"
 
 rule feature_counts:
@@ -158,7 +215,12 @@ rule feature_counts:
         strand=rules.collectrnaseqmetrics.output.strand,
     output: "../output/prealn-wf/count_summary/{srr}.parquet",
     log: "../output/prealn-wf/logs/featurecounts/{srr}.log"
-    threads: 4
+    group: "prealn-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
     script: "scripts/featurecounts.py"
 
 rule srr_complete:
