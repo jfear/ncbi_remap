@@ -129,7 +129,17 @@ if __name__ == "__main__":
     try:
         main()
     except AtroposException as error:
-        logger.warning(f"{SRR}: {error}")
+        logger.warning(f"Flagging {SRR} as Atropos Bad")
         LOG.append("Exception", text=str(error))
+
+        # Add flag
+        pth = Path(snakemake.params.atropos_bad)
+        pth.mkdir(exist_ok=True)
+        (pth / SRR).touch()
+
+        # Remove outputs
+        remove_folder(Path(snakemake.output.r1).parent)
+        remove_file(snakemake.output.summary)
+
     finally:
         remove_folder(TMPDIR)
