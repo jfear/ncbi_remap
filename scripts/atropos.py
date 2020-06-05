@@ -108,7 +108,8 @@ def parse_atropos_log(file_name: Path) -> Tuple[int, int, int]:
         log_text = fh.read().replace(",", "")
 
     if "ERROR" in log_text:
-        raise AtroposException("Log reports an error occured")
+        logger.warning(f"{SRR}: Atropos reported an error")
+        LOG.append("Atropos Check", text="Atropos reported an error")
 
     try:
         tot_processed = int(re.findall(r"Total read.*processed:\s+(\d+)", log_text)[0])
