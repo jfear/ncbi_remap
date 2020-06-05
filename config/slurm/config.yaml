@@ -1,4 +1,3 @@
-restart-times: 2
 jobscript: "../config/slurm/slurm-jobscript.sh"
 cluster: "../config/slurm/slurm-submit.py --partition {cluster.partition} --cpus-per-task {threads} --mem {resources.mem_gb} --time {resources.time_hr} --gres 'lscratch:{resources.lscratch}' --output=slurm_logs/{rule}.o.%j --error=slurm_logs/{rule}.e.%j"
 cluster-status: "../config/slurm/slurm-status.py"
