@@ -62,17 +62,17 @@ if any([x == "-n" for x in sys.argv]):
 # Resources
 ###############################################################################
 LIBSIZES = queue.srx2srr[["srr", "libsize"]].set_index("srr").squeeze()
-THREADS = 6
+THREADS = 4
 def estimate_resources(wildcards):
     scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
     if scale <= 3:
-        return dict(mem_gb=6, time_hr=4, lscratch=50)
+        return dict(mem_gb=2, time_hr=1, lscratch=10)
     elif scale <= 6:
-        return dict(mem_gb=12, time_hr=8, lscratch=100)
+        return dict(mem_gb=2, time_hr=2, lscratch=25)
     elif scale <= 8:
-        return dict(mem_gb=24, time_hr=12, lscratch=200)
+        return dict(mem_gb=2, time_hr=4, lscratch=60)
     else:
-        return dict(mem_gb=36, time_hr=24, lscratch=400)
+        return dict(mem_gb=4, time_hr=12, lscratch=150)
 
 def estimate_resources_mem(wildcards):
     return estimate_resources(wildcards)["mem_gb"]
