@@ -233,7 +233,7 @@ rule srr_complete:
         rules.collectrnaseqmetrics.output.genebody_coverage,
         rules.markduplicates.output[0],
         rules.feature_counts.output[0],
-    output: "../output/prealn-wf/done/{srr}"
+    output: temp("../output/prealn-wf/done/{srr}")
     shell: """
     rm -r ../output/prealn-wf/samples/{wildcards.srr} &&
     touch {output[0]} &&
