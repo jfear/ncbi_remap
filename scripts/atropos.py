@@ -16,8 +16,6 @@ from ncbi_remap.snakemake import StepLogger
 
 LOG = StepLogger(str(snakemake.log))
 SRR = snakemake.wildcards.srr
-PE = snakemake.params.extra_pe
-SE = snakemake.params.extra_se
 THREADS = snakemake.threads
 
 TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRR}/atropos")
@@ -49,34 +47,18 @@ def atropos(layout: str, r1: Path, r2: Path) -> Tuple[Path, Path, Path]:
     layout_ = pd.read_parquet(layout).layout[0]
     if layout_ == "PE":
         shell(
-            "atropos trim "
-            f"--threads {THREADS} "
-            f"{PE} "
-            f"-pe1 {r1} "
-            f"-pe2 {r2} "
-            f"-o {r1_trim} "
-            f"-p {r2_trim} "
-            f">{log} 2>&1"
+            f"atropos trim -U 0 --minimum-length 25 --threads {THREADS} "
+            f"-pe1 {r1} -pe2 {r2} -o {r1_trim} -p {r2_trim} >{log} 2>&1"
         )
     elif layout_ == "keep_R2":
         r1_trim.touch()
         shell(
-            "atropos trim "
-            f"{SE} "
-            f"--threads {THREADS} "
-            f"-se {r2} "
-            f"-o {r2_trim} "
-            f">{log} 2>&1"
+            f"atropos trim --minimum-length 25 --threads {THREADS} -se {r2} -o {r2_trim} >{log} 2>&1"
         )
     else:
         r2_trim.touch()
         shell(
-            "atropos trim "
-            f"{SE} "
-            f"--threads {THREADS} "
-            f"-se {r1} "
-            f"-o {r1_trim} "
-            f">{log} 2>&1"
+            f"atropos trim --minimum-length 25 --threads {THREADS} -se {r1} -o {r1_trim} >{log} 2>&1"
         )
 
     remove_file(r1)
