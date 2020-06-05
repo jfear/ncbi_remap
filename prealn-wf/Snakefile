@@ -66,11 +66,11 @@ THREADS = 4
 def estimate_resources(wildcards):
     scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
     if scale <= 3:
-        return dict(mem_gb=2, time_hr=1, lscratch=10)
+        return dict(mem_gb=4, time_hr=1, lscratch=10)
     elif scale <= 6:
-        return dict(mem_gb=2, time_hr=2, lscratch=25)
+        return dict(mem_gb=4, time_hr=2, lscratch=25)
     elif scale <= 8:
-        return dict(mem_gb=2, time_hr=4, lscratch=60)
+        return dict(mem_gb=4, time_hr=4, lscratch=60)
     else:
         return dict(mem_gb=4, time_hr=12, lscratch=150)
 
