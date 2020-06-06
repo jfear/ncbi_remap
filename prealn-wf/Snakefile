@@ -72,7 +72,7 @@ def estimate_resources(wildcards):
     elif scale <= 8:
         return dict(mem_gb=4, time_hr=4, lscratch=60)
     else:
-        return dict(mem_gb=4, time_hr=12, lscratch=150)
+        return dict(mem_gb=6, time_hr=16, lscratch=200)
 
 def estimate_resources_mem(wildcards):
     return estimate_resources(wildcards)["mem_gb"]
