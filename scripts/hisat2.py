@@ -20,6 +20,7 @@ LOG = StepLogger(str(snakemake.log))
 SRA = snakemake.wildcards.get("srr", snakemake.wildcards.get("srx"))
 SRA_TYPE = "srr" if "RR" in SRA else "srx"
 THREADS = snakemake.threads
+MEM = int(snakemake.resources.get("mem_gb", 4))
 
 TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRA}/hisat2")
 TMPDIR.mkdir(parents=True, exist_ok=True)
@@ -189,7 +190,7 @@ def compress_sort_and_index(sam: Path) -> Tuple[Path, Path]:
     log = TMPDIR / "bam_sort.log"
     tmp = TMPDIR / "samtools_sort"
     shell(
-        "samtools sort -l 9 -m 3G --output-fmt BAM "
+        f"samtools sort -l 9 -m {MEM}G --output-fmt BAM "
         f"-T {tmp} --threads {THREADS} -o {sorted_bam} {bam} 2> {log}"
     )
     LOG.append("Sort Bam", log)
