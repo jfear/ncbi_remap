@@ -61,8 +61,11 @@ def sra_prefetch(SRR: str, sra_file: str) -> Path:
     """Runs SRA Prefetch"""
     scratch = TMPDIR / f"{SRR}.sra"
     log = TMPDIR / "sra.log"
-    shell(f"prefetch --output-file {scratch} " f"--max-size 40G {SRR} " f"> {log} 2>&1")
-    LOG.append("prefetch", log)
+    try:
+        shell(f"prefetch --output-file {scratch} " f"--max-size 40G {SRR} " f"> {log} 2>&1")
+    finally:
+        LOG.append("prefetch", log)
+
     verify_sra_download(log)
     log.unlink()
 
@@ -208,17 +211,22 @@ if __name__ == "__main__":
     except AbiException:
         logger.warning(f"Flagging {SRR} as ABI Solid")
         LOG.append("Exception", text="Abi Solid")
+
         pth = Path(snakemake.params.abi_solid)
         pth.mkdir(exist_ok=True)
         (pth / SRR).touch()
         remove_outputs(snakemake.output)
+
+        raise SystemExit
     except DownloadException as error:
-        logger.warning(f"Flagging {SRR} as Download Bad")
-        logger.warning(str(error))
+        logger.warning(f"Flagging {SRR} as Download Bad: {error}")
         LOG.append("Exception", text="Download Bad")
+
         pth = Path(snakemake.params.download_bad)
         pth.mkdir(exist_ok=True)
         (pth / SRR).touch()
         remove_outputs(snakemake.output)
+
+        raise SystemExit
     finally:
         shutil.rmtree(TMPDIR)

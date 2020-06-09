@@ -20,7 +20,7 @@ LOG = StepLogger(str(snakemake.log))
 SRA = snakemake.wildcards.get("srr", snakemake.wildcards.get("srx"))
 SRA_TYPE = "srr" if "RR" in SRA else "srx"
 THREADS = snakemake.threads
-MEM = int(snakemake.resources.get("mem_gb", 4))
+MEM = int(snakemake.resources.get("mem_gb", 4)) - 1
 
 TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRA}/hisat2")
 TMPDIR.mkdir(parents=True, exist_ok=True)
@@ -124,8 +124,11 @@ def hisat2(
         f">{log} 2>&1"
     )
     LOG.append("Hisat2 Command", text=cmd)
-    shell(cmd)
-    LOG.append("Hisat2", log)
+
+    try:
+        shell(cmd)
+    finally:
+        LOG.append("Hisat2", log)
 
     remove_file(r1)
     remove_file(r2)
@@ -180,8 +183,10 @@ def compress_sort_and_index(sam: Path) -> Tuple[Path, Path]:
     # Convert to BAM
     bam = TMPDIR / f"{SRA}.bam"
     log = TMPDIR / "sam_to_bam.log"
-    shell(f"samtools view -Sb -q20 --threads {THREADS} {sam} > {bam} 2>{log}")
-    LOG.append("Sam to Bam", log)
+    try:
+        shell(f"samtools view -Sb -q20 --threads {THREADS} {sam} > {bam} 2>{log}")
+    finally:
+        LOG.append("Sam to Bam", log)
     remove_file(sam)
     remove_file(log)
 
@@ -189,19 +194,23 @@ def compress_sort_and_index(sam: Path) -> Tuple[Path, Path]:
     sorted_bam = TMPDIR / f"{SRA}.sorted.bam"
     log = TMPDIR / "bam_sort.log"
     tmp = TMPDIR / "samtools_sort"
-    shell(
-        f"samtools sort -l 9 -m {MEM}G --output-fmt BAM "
-        f"-T {tmp} --threads {THREADS} -o {sorted_bam} {bam} 2> {log}"
-    )
-    LOG.append("Sort Bam", log)
+    try:
+        shell(
+            f"samtools sort -l 9 -m {MEM}G --output-fmt BAM "
+            f"-T {tmp} --threads {THREADS} -o {sorted_bam} {bam} 2> {log}"
+        )
+    finally:
+        LOG.append("Sort Bam", log)
     remove_file(bam)
     remove_file(log)
 
     # Index BAM
     sorted_bai = TMPDIR / f"{SRA}.sorted.bam.bai"
     log = TMPDIR / "bam_index.log"
-    shell(f"samtools index {sorted_bam} 2> {log}")
-    LOG.append("Index Bam", log)
+    try:
+        shell(f"samtools index {sorted_bam} 2> {log}")
+    finally:
+        LOG.append("Index Bam", log)
     remove_file(log)
 
     return sorted_bam, sorted_bai
@@ -215,14 +224,18 @@ def save_output(bam: Path, bai: Path, bam_out: str, bai_out: str) -> None:
 def alignment_stats(bam: Path, output_file: str) -> None:
     samtools_stats = TMPDIR / "samtools.stats"
     log = TMPDIR / "samtools.log"
-    shell(f"samtools stats {bam} > {samtools_stats} 2>{log}")
-    LOG.append("Samtools Stats", log)
+    try:
+        shell(f"samtools stats {bam} > {samtools_stats} 2>{log}")
+    finally:
+        LOG.append("Samtools Stats", log)
     remove_file(log)
 
     log = TMPDIR / "bamtools.log"
     bamtools_stats = TMPDIR / "bamtools.stats"
-    shell(f"bamtools stats -in {bam} > {bamtools_stats} 2>{log}")
-    LOG.append("Bamtools Stats", log)
+    try:
+        shell(f"bamtools stats -in {bam} > {bamtools_stats} 2>{log}")
+    finally:
+        LOG.append("Bamtools Stats", log)
     remove_file(log)
 
     # Summarize
@@ -258,7 +271,9 @@ if __name__ == "__main__":
     try:
         main()
     except HisatException as error:
-        logger.warning(f"{SRA}: {error}")
+        logger.warning(f"Flagging {SRA} as Hisat Bad: {error}")
         LOG.append("Exception", text=str(error))
+
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)

@@ -70,8 +70,11 @@ def featurecount(bam: Path, gtf: Path, layout: str, strand: str) -> Tuple[Path, 
     summary = TMPDIR / f"{SRR}.counts.summary"
     log = TMPDIR / f"featurecounts.log"
 
-    shell(f"featureCounts -T {THREADS} {params} -a {gtf} -o {counts} {bam} > {log} 2>&1")
-    LOG.append("Feature Counts", log)
+    try:
+        shell(f"featureCounts -T {THREADS} {params} -a {gtf} -o {counts} {bam} > {log} 2>&1")
+    finally:
+        LOG.append("Feature Counts", log)
+
     _check_log(log)
     remove_file(log)
     remove_file(summary)
@@ -126,5 +129,7 @@ if __name__ == "__main__":
     except FeatureCountsException as error:
         logger.warning(f"{SRR}: {error}")
         LOG.append("Exception", text=error)
+
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)

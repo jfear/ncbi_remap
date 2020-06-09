@@ -72,24 +72,33 @@ def picard(bam: Path, ref_flat: Path) -> Tuple[Path, Path, Path]:
     # Unstranded
     un_out = TMPDIR / "unstranded.txt"
     log = TMPDIR / "unstranded.log"
-    shell(cmd.format(out_file=un_out, strand="NONE", log=log))
-    LOG.append("Picard Unstranded", log)
+    try:
+        shell(cmd.format(out_file=un_out, strand="NONE", log=log))
+    finally:
+        LOG.append("Picard Unstranded", log)
+
     _check_log(log)
     remove_file(log)
 
     # First stranded
     first_out = TMPDIR / "first_stranded.txt"
     log = TMPDIR / "first_stranded.log"
-    shell(cmd.format(out_file=first_out, strand="FIRST_READ_TRANSCRIPTION_STRAND", log=log))
-    LOG.append("Picard Unstranded", log)
+    try:
+        shell(cmd.format(out_file=first_out, strand="FIRST_READ_TRANSCRIPTION_STRAND", log=log))
+    finally:
+        LOG.append("Picard Unstranded", log)
+
     _check_log(log)
     remove_file(log)
 
     # Second stranded
     second_out = TMPDIR / "second_stranded.txt"
     log = TMPDIR / "second_stranded.log"
-    shell(cmd.format(out_file=second_out, strand="SECOND_READ_TRANSCRIPTION_STRAND", log=log))
-    LOG.append("Picard Unstranded", log)
+    try:
+        shell(cmd.format(out_file=second_out, strand="SECOND_READ_TRANSCRIPTION_STRAND", log=log))
+    finally:
+        LOG.append("Picard Unstranded", log)
+
     _check_log(log)
     remove_file(log)
 
@@ -169,5 +178,7 @@ if __name__ == "__main__":
     except PicardException as error:
         logger.warning(f"{SRR}: {error}")
         LOG.append("Exception", text=str(error))
+
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)

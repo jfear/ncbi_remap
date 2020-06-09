@@ -66,17 +66,19 @@ def create_config(references: dict) -> Path:
 
 def fastq_screen(fastq: Path, config: Path) -> Path:
     log = TMPDIR / "fastq_screen.log"
-    shell(
-        f"fastq_screen --outdir {TMPDIR} "
-        "--force "
-        f"--aligner {ALIGNER} "
-        f"--conf {config} "
-        "--subset 100000 "
-        f"--threads {THREADS} "
-        f"{fastq} "
-        f"> {log} 2>&1 "
-    )
-    LOG.append("Fastq Screen", log)
+    try:
+        shell(
+            f"fastq_screen --outdir {TMPDIR} "
+            "--force "
+            f"--aligner {ALIGNER} "
+            f"--conf {config} "
+            "--subset 100000 "
+            f"--threads {THREADS} "
+            f"{fastq} "
+            f"> {log} 2>&1 "
+        )
+    finally:
+        LOG.append("Fastq Screen", log)
 
     # Make sure processing completed
     with log.open() as fh:
@@ -131,5 +133,7 @@ if __name__ == "__main__":
     except FastqScreenException:
         logger.warning(f"{SRR}: fastq screen did not complete")
         LOG.append("Exception", text="fastq screen did not complete")
+
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)

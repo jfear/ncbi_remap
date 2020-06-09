@@ -44,11 +44,14 @@ def markduplicates(bam: Path) -> Path:
     metrics = TMPDIR / f"{SRR}.metrics"
     log = TMPDIR / f"markduplicates.log"
 
-    shell(
-        f"picard -Xmx{MEM}g MarkDuplicates INPUT={bam} "
-        f"OUTPUT={dedup_bam} METRICS_FILE={metrics} >{log} 2>&1"
-    )
-    LOG.append("Markduplicates", log)
+    try:
+        shell(
+            f"picard -Xmx{MEM}g MarkDuplicates INPUT={bam} "
+            f"OUTPUT={dedup_bam} METRICS_FILE={metrics} >{log} 2>&1"
+        )
+    finally:
+        LOG.append("Markduplicates", log)
+
     _check_log(log)
     remove_file(log)
     remove_file(dedup_bam)
@@ -88,5 +91,7 @@ if __name__ == "__main__":
     except PicardException as error:
         logger.warning(f"{SRR}: {error}")
         LOG.append("Exception", text=str(error))
+
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)

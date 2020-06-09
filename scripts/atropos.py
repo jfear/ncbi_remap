@@ -45,25 +45,27 @@ def atropos(layout: str, r1: Path, r2: Path) -> Tuple[Path, Path, Path]:
     r2_trim = TMPDIR / f"{SRR}_2.trim.fastq.gz"
 
     layout_ = pd.read_parquet(layout).layout[0]
-    if layout_ == "PE":
-        shell(
-            f"atropos trim -U 0 --minimum-length 25 --threads {THREADS} "
-            f"-pe1 {r1} -pe2 {r2} -o {r1_trim} -p {r2_trim} >{log} 2>&1"
-        )
-    elif layout_ == "keep_R2":
-        r1_trim.touch()
-        shell(
-            f"atropos trim --minimum-length 25 --threads {THREADS} -se {r2} -o {r2_trim} >{log} 2>&1"
-        )
-    else:
-        r2_trim.touch()
-        shell(
-            f"atropos trim --minimum-length 25 --threads {THREADS} -se {r1} -o {r1_trim} >{log} 2>&1"
-        )
+    try:
+        if layout_ == "PE":
+            shell(
+                f"atropos trim -U 0 --minimum-length 25 --threads {THREADS} "
+                f"-pe1 {r1} -pe2 {r2} -o {r1_trim} -p {r2_trim} >{log} 2>&1"
+            )
+        elif layout_ == "keep_R2":
+            r1_trim.touch()
+            shell(
+                f"atropos trim --minimum-length 25 --threads {THREADS} -se {r2} -o {r2_trim} >{log} 2>&1"
+            )
+        else:
+            r2_trim.touch()
+            shell(
+                f"atropos trim --minimum-length 25 --threads {THREADS} -se {r1} -o {r1_trim} >{log} 2>&1"
+            )
+    finally:
+        LOG.append("atropos", log)
 
     remove_file(r1)
     remove_file(r2)
-    LOG.append("atropos", log)
     return log, r1_trim, r2_trim
 
 
@@ -141,6 +143,7 @@ if __name__ == "__main__":
         # Remove outputs
         remove_folder(Path(snakemake.output.r1).parent)
         remove_file(snakemake.output.summary)
-
+        
+        raise SystemExit
     finally:
         remove_folder(TMPDIR)
