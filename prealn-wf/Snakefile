@@ -69,8 +69,8 @@ def estimate_resources(wildcards):
         return dict(mem_gb=4, time_hr=1, lscratch=10)
     elif scale <= 6:
         return dict(mem_gb=4, time_hr=2, lscratch=25)
-    elif scale <= 8:
-        return dict(mem_gb=4, time_hr=4, lscratch=60)
+    elif scale <= 7:
+        return dict(mem_gb=6, time_hr=4, lscratch=60)
     else:
         return dict(mem_gb=6, time_hr=16, lscratch=200)
 
@@ -91,8 +91,8 @@ rule run_all:
 
 rule fastq_dump:
     output: 
-        r1="../output/fastq-wf/fastqs/{srr}_1.fastq.gz",
-        r2="../output/fastq-wf/fastqs/{srr}_2.fastq.gz",
+        r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq.gz"),
+        r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq.gz"),
         layout="../output/fastq-wf/layout/{srr}.parquet",
         summary="../output/fastq-wf/libsize/{srr}.parquet"
     log: "../output/fastq-wf/logs/{srr}.log"
