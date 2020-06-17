@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """ Set of helper scripts for file handling """
 import re
+import shutil
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Union
-from yaml import full_load
 
 import numpy as np
 import pandas as pd
+from yaml import full_load
 
 
 def patterns(fname):
@@ -14,20 +16,38 @@ def patterns(fname):
         return full_load(fh)
 
 
+def remove_file(file_name: str):
+    if file_name is None:
+        return
+    pth = Path(file_name)
+    if pth.exists() & pth.is_file():
+        pth.unlink()
+
+
+def remove_folder(folder_name: str):
+    if folder_name is None:
+        return
+
+    pth = Path(folder_name)
+    if pth.exists() & pth.is_dir():
+        shutil.rmtree(folder_name)
+
+
 class HDFStore(object):
     """A facade interface to pandas.HDFStore"""
-    def __init__(self, path, mode='a', srx_srr=None, *args, **kwargs):
+
+    def __init__(self, path, mode="a", srx_srr=None, *args, **kwargs):
         self._store = pd.HDFStore(path, mode, *args, **kwargs)
-        if self._store.__contains__('ids'):
+        if self._store.__contains__("ids"):
             return
 
         if srx_srr is not None:
             self.initialize_store(srx_srr)
         else:
             print(
-                'To initialize the data store run '
-                'HDFStore.initialize_store or set `srx_srr` when '
-                'opening the data store.'
+                "To initialize the data store run "
+                "HDFStore.initialize_store or set `srx_srr` when "
+                "opening the data store."
             )
 
     def __getitem__(self, key: str):
@@ -54,7 +74,7 @@ class HDFStore(object):
 
     @property
     def ids(self):
-        return self._store['ids']
+        return self._store["ids"]
 
     def initialize_store(self, srx_srr: pd.DataFrame):
         """Run this once to create basic data store.
@@ -65,9 +85,8 @@ class HDFStore(object):
             A dataframe with an index with SRX, SRR.
 
         """
-        self._store['ids'] = srx_srr
-        self._store.put('prealn/queue', self.ids, data_columns=True,
-                        format='table')
+        self._store["ids"] = srx_srr
+        self._store.put("prealn/queue", self.ids, data_columns=True, format="table")
 
     def initialize_data_table(self, key, names):
         """Create a new empty datatable.
@@ -85,11 +104,9 @@ class HDFStore(object):
             names = names[0]
 
         if isinstance(names, str):
-            self._store[key] = pd.Series(name=names,
-                                         index=self.ids.index)
+            self._store[key] = pd.Series(name=names, index=self.ids.index)
         else:
-            self._store[key] = pd.DataFrame(columns=names,
-                                            index=self.ids.index)
+            self._store[key] = pd.DataFrame(columns=names, index=self.ids.index)
 
     def update_ids_from_db(self, current_srx_srr):
         """
@@ -103,27 +120,22 @@ class HDFStore(object):
         """
         orig_srx_srr = self.ids
 
-        removed_ids = orig_srx_srr[
-            ~orig_srx_srr.index.isin(current_srx_srr.index)
-        ]
+        removed_ids = orig_srx_srr[~orig_srx_srr.index.isin(current_srx_srr.index)]
 
-        new_ids = current_srx_srr[
-            ~current_srx_srr.index.isin(orig_srx_srr.index)
-        ]
+        new_ids = current_srx_srr[~current_srx_srr.index.isin(orig_srx_srr.index)]
 
-        self._store['ids'] = current_srx_srr
+        self._store["ids"] = current_srx_srr
         for key in self._store.keys():
-            if key == '/ids':
+            if key == "/ids":
                 continue
 
-            if 'complete' in key:
+            if "complete" in key:
                 continue
 
             self._append_new_ids(key, new_ids)
             self._drop_removed_ids(key, removed_ids)
 
-    def _append_new_ids(self, key: str, new_srx_srr: pd.DataFrame,
-                        fill=np.nan):
+    def _append_new_ids(self, key: str, new_srx_srr: pd.DataFrame, fill=np.nan):
         """Append new sra ids."""
         if new_srx_srr.shape[0] == 0:
             return
@@ -139,14 +151,14 @@ class HDFStore(object):
             for col in orig.columns:
                 new_dat[col] = fill
         except AttributeError:
-            if orig.dtype.name == 'bool':
+            if orig.dtype.name == "bool":
                 fill = False
 
             new_dat[orig.name] = fill
             new_dat = new_dat.loc[:, orig.name]
 
         new = pd.concat([orig, new_dat])
-        self._store[key] = new[~new.index.duplicated('first')]
+        self._store[key] = new[~new.index.duplicated("first")]
 
     def _drop_removed_ids(self, key: str, removed_srx_srr: pd.DataFrame):
         """Remove sra ids that are no longer present.
@@ -164,19 +176,16 @@ class HDFStore(object):
         self._store[key] = curr_ids
 
     def _tuple_to_frame(self, srx_srr: tuple):
-            return pd.DataFrame(index=pd.MultiIndex.from_tuples(
-                [srx_srr], names=['srx', 'srr']))
+        return pd.DataFrame(index=pd.MultiIndex.from_tuples([srx_srr], names=["srx", "srr"]))
 
-    def pop(self, key: str,
-                  srx_srr: Union[tuple, pd.DataFrame]):
+    def pop(self, key: str, srx_srr: Union[tuple, pd.DataFrame]):
 
         if isinstance(srx_srr, tuple):
             srx_srr = self._tuple_to_frame(srx_srr)
 
         self._drop_removed_ids(key, srx_srr)
 
-    def push(self, key: str,
-                   srx_srr: Union[tuple, pd.DataFrame]):
+    def push(self, key: str, srx_srr: Union[tuple, pd.DataFrame]):
 
         if isinstance(srx_srr, tuple):
             srx_srr = self._tuple_to_frame(srx_srr)
@@ -184,10 +193,10 @@ class HDFStore(object):
         self._append_new_ids(key, srx_srr)
 
     def get_srxs(self, key):
-        return self._store[key].index.get_level_values('srx').unique().tolist()
+        return self._store[key].index.get_level_values("srx").unique().tolist()
 
     def get_srrs(self, key):
-        return self._store[key].index.get_level_values('srr').unique().tolist()
+        return self._store[key].index.get_level_values("srr").unique().tolist()
 
 
 def build_index(store, key, columns=None):
@@ -209,10 +218,10 @@ def build_index(store, key, columns=None):
     """
     if columns is None:
         columns = []
-    elif columns == 'all':
+    elif columns == "all":
         columns = store[key].columns.tolist()
 
-    store.create_table_index(key, columns=columns, optlevel=9, kind='full')
+    store.create_table_index(key, columns=columns, optlevel=9, kind="full")
 
 
 def add_table(store, key, data=None, force=None, **kwargs):
@@ -278,8 +287,8 @@ def remove_id(store, key, **kwargs):
         The path in the HDF5 store to save data to.
 
     """
-    query = ['{} == {}'.format(k, v) for k, v in kwargs.items()]
-    store.remove(key, ' & '.join(query))
+    query = ["{} == {}".format(k, v) for k, v in kwargs.items()]
+    store.remove(key, " & ".join(query))
 
 
 def remove_chunk(store, key, srrs, **kwargs):
@@ -317,6 +326,7 @@ class LazyDict(Mapping):
     >>> settings = LazyDict({'expensive1': (expensive_to_compute, 1), 'expensive2': (expensive_to_compute, 2)})
 
     """
+
     def __init__(self, *args, **kwargs):
         self._func_dict = dict(*args, **kwargs)
         self._dat_dict = dict()

@@ -1,63 +1,139 @@
 import os
+import shutil
+import sys
+from time import sleep
+from pathlib import Path
 from subprocess import SubprocessError
+from typing import Optional, Tuple
+
+from snakemake.logging import logger
 from snakemake.shell import shell
-import tempfile
+import pandas as pd
 
-# Pull in parameters
-extra = snakemake.params.get("extra", "")
-aligner = snakemake.params.get("aligner", "bowtie2")
-subset = snakemake.params.get("subset", 100000)
+sys.path.insert(0, "../src")
+from ncbi_remap.io import remove_folder
+from ncbi_remap.snakemake import StepLogger
+from ncbi_remap.parser import parse_fastq_screen
 
-log = snakemake.log_fmt_shell()
 
-# snakemake.params.fastq_screen_config can be either a dict or a string. If
-# string, interpret as a filename pointing to the fastq_screen config file.
-# Otherwise, create a new tempfile out of the contents of the dict:
+LOG = StepLogger(str(snakemake.log))
+SRR = snakemake.wildcards.srr
+THREADS = snakemake.threads
+TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRR}/fastq_screen")
+TMPDIR.mkdir(parents=True, exist_ok=True)
+TMPREF = Path(os.getenv("TMPDIR", "/tmp"), f"references")
+TMPREF.mkdir(exist_ok=True)
+ALIGNER = "bowtie2"
 
-tmp = tempfile.NamedTemporaryFile(delete=False).name
-with open(tmp, "w") as fout:
-    for k, v in snakemake.input.items():
-        if k == "layout":
-            # Only included layout to make sure download checks were run.
-            continue
 
-        if k == "fastq":
-            # skip because not reference
-            continue
+def main():
+    fastq, references = stage_data(snakemake.input[0], snakemake.params.references)
+    config = create_config(references)
+    results = fastq_screen(fastq, config)
+    summarize(results, snakemake.output[0])
 
-        label = k
-        index = ".".join(v.replace(".rev", "").split(".")[:-2])
-        fout.write("\t".join(["DATABASE", label, index, aligner.upper()]) + "\n")
 
-    config_file = tmp
+def stage_data(fastq_file: str, references: dict) -> Tuple[Path, dict]:
+    # Copy FASTQ
+    fastq_local = TMPDIR / f"{SRR}.fastq.gz"
+    shutil.copy2(fastq_file, fastq_local)
 
-# fastq_screen hard-codes filenames according to this prefix. We will send
-# hard-coded output to a temp dir, and then move them later.
-prefix = os.path.basename(snakemake.input.fastq.split(".fastq")[0])
-tempdir = tempfile.mkdtemp()
+    # Copy References
+    references_local = {}
+    for ref_name, ref_prefix in references.items():
+        ref_dir_local = TMPREF / f"{ALIGNER}/{ref_name}"
+        references_local[ref_name] = (ref_dir_local / Path(ref_prefix).name).as_posix()
 
-shell(
-    "fastq_screen --outdir {tempdir} "
-    "--force "
-    "--aligner {aligner} "
-    "--conf {config_file} "
-    "--subset {subset} "
-    "--threads {snakemake.threads} "
-    "{extra} "
-    "{snakemake.input.fastq} "
-    "{log}"
-)
+        # Stage references if not present
+        if ref_dir_local.exists():
+            # Already on scratch wait to make sure copied
+            sleep(15)
+        else:
+            shutil.copytree(Path(ref_prefix).parent, ref_dir_local, ignore=shutil.ignore_patterns("*.fasta"))
 
-# Make sure processing completed
-with open(snakemake.log[0], "r") as fh:
-    if not "Processing complete" in fh.read():
-        raise SubprocessError(
-            f"Fastq Screen log missing 'Processing complete': {snakemake.wildcards.srx}/{snakemake.wildcards.srr}"
+    return fastq_local, references_local
+
+
+def create_config(references: dict) -> Path:
+    config_file = TMPDIR / "fastq_screen_config.txt"
+
+    with config_file.open("w") as fout:
+        for ref_name, ref_dir in references.items():
+            fout.write("\t".join(["DATABASE", ref_name, ref_dir, ALIGNER.upper()]) + "\n")
+    LOG.append("Fastq Screen Config", config_file)
+    return config_file
+
+
+def fastq_screen(fastq: Path, config: Path) -> Path:
+    log = TMPDIR / "fastq_screen.log"
+    try:
+        shell(
+            f"fastq_screen --outdir {TMPDIR} "
+            "--force "
+            f"--aligner {ALIGNER} "
+            f"--conf {config} "
+            "--subset 100000 "
+            f"--threads {THREADS} "
+            f"{fastq} "
+            f"> {log} 2>&1 "
         )
+    finally:
+        LOG.append("Fastq Screen", log)
 
-# Move output to the filenames specified by the rule
-shell("cp {tempdir}/{prefix}_screen.txt {snakemake.output.txt}")
+    # Make sure processing completed
+    with log.open() as fh:
+        if "Processing complete" not in fh.read():
+            raise FastqScreenException
 
-# Clean up temp
-shell("rm -r {tempdir}")
-shell("rm {tmp}")
+    return TMPDIR / f"{SRR}_screen.txt"
+
+
+def summarize(results: Path, output_file: str) -> None:
+    """Summarizes fastq screen results
+        Cacluates the number of reads mapping to each specific reference. Ignores reads the map to multiple references.
+
+        Goes from this:
+        | reference   |   multiple_hits_multiple_libraries_count |   multiple_hits_multiple_libraries_percent |   multiple_hits_one_library_count |   multiple_hits_one_library_percent |   one_hit_multiple_libraries_count |   one_hit_multiple_libraries_percent |   one_hit_one_library_count |   one_hit_one_library_percent |   reads_processed_count |   unmapped_count |   unmapped_percent |
+        |:------------|-----------------------------------------:|-------------------------------------------:|----------------------------------:|------------------------------------:|-----------------------------------:|-------------------------------------:|----------------------------:|------------------------------:|------------------------:|-----------------:|-------------------:|
+        | adapters    |                                       48 |                                       0.05 |                                 0 |                                0    |                                  0 |                                 0    |                           0 |                          0    |                   99973 |            99925 |              99.95 |
+        | dm6         |                                     1713 |                                       1.71 |                              6278 |                                6.28 |                                224 |                                 0.22 |                       88393 |                         88.42 |                   99973 |             3365 |               3.37 |
+        | ecoli       |                                        1 |                                       0    |                                 0 |                                0    |                                  0 |                                 0    |                           2 |                          0    |                   99973 |            99970 |             100    |
+        ...
+
+        To this:
+        |            |   adapters_pct_reads_mapped |   dm6_pct_reads_mapped |   ecoli_pct_reads_mapped |   ercc_pct_reads_mapped |   hg19_pct_reads_mapped |   phix_pct_reads_mapped |   rRNA_pct_reads_mapped |   wolbachia_pct_reads_mapped |   yeast_pct_reads_mapped |
+        |:-----------|----------------------------:|-----------------------:|-------------------------:|------------------------:|------------------------:|------------------------:|------------------------:|-----------------------------:|-------------------------:|
+        | SRR0000001 |                           0 |                94.6966 |               0.00200054 |                       0 |               0.0160043 |                       0 |              0.00100027 |                            0 |               0.00500135 |
+
+    """
+    df = parse_fastq_screen(results).set_index("reference").fillna(0)
+    summarized = (
+        (
+            (df.one_hit_one_library_count + df.multiple_hits_one_library_count)
+            / df.reads_processed_count
+            * 100
+        )
+        .rename(SRR)
+        .rename_axis("")
+        .to_frame()
+        .T.rename_axis("srr")
+    )
+
+    summarized.columns = [f"{col}_pct_reads_mapped" for col in summarized.columns]
+    summarized.to_parquet(output_file)
+
+
+class FastqScreenException(Exception):
+    """Fastq Screen Processing Exception"""
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except FastqScreenException:
+        logger.warning(f"{SRR}: fastq screen did not complete")
+        LOG.append("Exception", text="fastq screen did not complete")
+
+        raise SystemExit
+    finally:
+        remove_folder(TMPDIR)

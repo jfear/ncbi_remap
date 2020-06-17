@@ -34,5 +34,19 @@ rule unequal_seq_qual_example:
         layout="../output/fastq-wf/layout/SRR823324.parquet",
         summary="../output/fastq-wf/libsize/SRR823324.parquet"
 
+rule fastq_dump:
+    output: 
+        r1="../output/fastq-wf/fastqs/{srr}_1.fastq.gz",
+        r2="../output/fastq-wf/fastqs/{srr}_2.fastq.gz",
+        layout="../output/fastq-wf/layout/{srr}.parquet",
+        summary="../output/fastq-wf/libsize/{srr}.parquet"
+    params:
+        sra="../output/fastq-wf/sra_cache/{srr}.sra",
+        download_bad="../output/fastq-wf/download_bad",
+        abi_solid="../output/fastq-wf/abi_solid",
+    resources:
+        mem_gb=lambda wildcards, attempt: attempt * 4,
+        time_hr=lambda wildcards, attempt: attempt * 12
+    log: "../output/fastq-wf/logs/{srr}.log"
+    script: "scripts/fastq_dump.py"
 
-include: "rules/download_fastq.smk"

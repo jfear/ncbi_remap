@@ -191,13 +191,13 @@ class Queue:
             if re.match(self._srx_pattern, name) or re.match(self._srr_pattern, name):
                 return set([name])
 
-            if name.endswith(".pkl"):
+            if name.endswith(".pkl") & Path(name).exists():
                 return set(pickle.load(open(name, "rb")))
 
-            if name.endswith(".txt"):
+            if name.endswith(".txt") & Path(name).exists():
                 return set(open(name, "r").read().strip().split())
 
-            if Path(name).is_dir():
+            if Path(name).is_dir() & Path(name).exists():
                 return {x.stem for x in Path(name).iterdir()}
 
             return set()
