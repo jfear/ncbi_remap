@@ -20,7 +20,7 @@ LOG = StepLogger(str(snakemake.log))
 SRX = snakemake.wildcards.srx
 THREADS = snakemake.threads
 
-TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRX}/featurecounts")
+TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRX}/{snakemake.rule}")
 TMPDIR.mkdir(parents=True, exist_ok=True)
 
 TMPREF = Path(os.getenv("TMPDIR", "/tmp"), f"references")
