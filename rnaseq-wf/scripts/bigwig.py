@@ -22,7 +22,7 @@ SRX = snakemake.wildcards.srx
 CHROM_SOURCE = snakemake.params.get("chrom_source", "ucsc")
 THREADS = snakemake.threads
 
-TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRX}/bigwig")
+TMPDIR = Path(os.getenv("TMPDIR", "/tmp"), f"{SRX}/{snakemake.rule}")
 TMPDIR.mkdir(parents=True, exist_ok=True)
 
 TMPREF = Path(os.getenv("TMPDIR", "/tmp"), f"references")
