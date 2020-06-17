@@ -172,6 +172,30 @@ rule atropos:
         lscratch=estimate_resources_lscratch,
     script: "../scripts/atropos.py"
 
+rule hisat2:
+    """Basic alignment."""
+    input:
+        r1=rules.atropos.output.r1,
+        r2=rules.atropos.output.r2,
+        layout=rules.fastq_dump.output.layout,
+        strand="../output/prealn-wf/strand/{srr}.parquet",
+    output:
+        bam=temp("../output/rnaseq-wf/samples/{srr}.hisat2.bam"),
+        bai=temp("../output/rnaseq-wf/samples/{srr}.hisat2.bam.bai"),
+        hisat_summary="../output/rnaseq-wf/hisat2/{srr}.parquet",
+        aln_stats="../output/rnaseq-wf/aln_stats/{srr}.parquet",
+    log: "../output/rnaseq-wf/logs/hisat2/{srr}.log"
+    params:
+        reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
+        splice_sites="../output/known_splice_sites_r6-11.txt",
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../scripts/hisat2.py"
+
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/atropos.smk"
