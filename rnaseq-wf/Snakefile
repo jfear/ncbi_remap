@@ -87,8 +87,6 @@ queue = Queue(
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
-        "../output/prealn-wf/atropos_bad",
-        "../output/prealn-wf/alignment_bad",
         "../output/rnaseq-wf/atropos_bad",
         "../output/rnaseq-wf/alignment_bad",
         "../output/rnaseq-wf/bigwig_bad",
@@ -100,6 +98,31 @@ queue = Queue(
 # If Dry-Run print queue
 if any([x == "-n" for x in sys.argv]):
     print(queue)
+
+###############################################################################
+# Resources
+###############################################################################
+LIBSIZES = queue.srx2srr[["srr", "libsize"]].set_index("srr").squeeze()
+THREADS = 4
+def estimate_resources(wildcards):
+    scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
+    if scale <= 3:
+        return dict(mem_gb=4, time_hr=1, lscratch=10)
+    elif scale <= 6:
+        return dict(mem_gb=4, time_hr=2, lscratch=25)
+    elif scale <= 7:
+        return dict(mem_gb=6, time_hr=4, lscratch=60)
+    else:
+        return dict(mem_gb=6, time_hr=16, lscratch=200)
+
+def estimate_resources_mem(wildcards):
+    return estimate_resources(wildcards)["mem_gb"]
+
+def estimate_resources_time(wildcards):
+    return estimate_resources(wildcards)["time_hr"]
+
+def estimate_resources_lscratch(wildcards):
+    return estimate_resources(wildcards)["lscratch"]
 
 rule run_all:
     input: expand("../output/rnaseq-wf/done/{srx}", srx=queue.srxs)
