@@ -124,8 +124,30 @@ def estimate_resources_time(wildcards):
 def estimate_resources_lscratch(wildcards):
     return estimate_resources(wildcards)["lscratch"]
 
+###############################################################################
+# Rules
+###############################################################################
 rule run_all:
     input: expand("../output/rnaseq-wf/done/{srx}", srx=queue.srxs)
+
+rule fastq_dump:
+    output: 
+        r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq.gz"),
+        r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq.gz"),
+        layout="../output/fastq-wf/layout/{srr}.parquet",
+        summary="../output/fastq-wf/libsize/{srr}.parquet"
+    log: "../output/fastq-wf/logs/{srr}.log"
+    params:
+        sra="../output/fastq-wf/sra_cache/{srr}.sra",
+        download_bad="../output/fastq-wf/download_bad",
+        abi_solid="../output/fastq-wf/abi_solid",
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../fastq-wf/scripts/fastq_dump.py"
 
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
