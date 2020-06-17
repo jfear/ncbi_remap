@@ -298,6 +298,43 @@ rule fusion_counts:
         lscratch=estimate_resources_lscratch,
     script: "scripts/featurecounts.py"
 
+rule ucsc_bigwig:
+    input:
+        bam=rules.merge.output.bam,
+        bai=rules.merge.output.bai,
+        chromSizes="../lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes",
+    output: 
+        first="../output/rnaseq-wf/ucsc_bigwigs/{srx}.first.bw",
+        second="../output/rnaseq-wf/ucsc_bigwigs/{srx}.second.bw",
+    log: "../output/rnaseq-wf/logs/ucsc_bigwig/{srx}.log"
+    params: chrom_source="ucsc"
+    conda: "ucsc.yaml"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/bigwig.py"
+
+rule flybase_bigwig:
+    input:
+        bam=rules.merge.output.bam,
+        bai=rules.merge.output.bai,
+        chromSizes="../output/dmel_r6-11.flybase.chromsizes",
+    output: 
+        first="../output/rnaseq-wf/flybase_bigwigs/{srx}.first.bw",
+        second="../output/rnaseq-wf/flybase_bigwigs/{srx}.second.bw",
+    log: "../output/rnaseq-wf/logs/flybase_bigwig/{srx}.log"
+    params: chrom_source="flybase"
+    conda: "ucsc.yaml"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/bigwig.py"
 
 
 ###############################################################################
