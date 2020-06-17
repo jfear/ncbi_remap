@@ -48,18 +48,18 @@ def atropos(layout: str, r1: Path, r2: Path) -> Tuple[Path, Path, Path]:
     try:
         if layout_ == "PE":
             shell(
-                f"atropos trim -U 0 --minimum-length 25 --threads {THREADS} "
+                f"atropos trim {snakemake.params.extra_pe} --threads {THREADS} "
                 f"-pe1 {r1} -pe2 {r2} -o {r1_trim} -p {r2_trim} >{log} 2>&1"
             )
         elif layout_ == "keep_R2":
             r1_trim.touch()
             shell(
-                f"atropos trim --minimum-length 25 --threads {THREADS} -se {r2} -o {r2_trim} >{log} 2>&1"
+                f"atropos trim {snakemake.params.extra_se} --threads {THREADS} -se {r2} -o {r2_trim} >{log} 2>&1"
             )
         else:
             r2_trim.touch()
             shell(
-                f"atropos trim --minimum-length 25 --threads {THREADS} -se {r1} -o {r1_trim} >{log} 2>&1"
+                f"atropos trim {snakemake.params.extra_se} --threads {THREADS} -se {r1} -o {r1_trim} >{log} 2>&1"
             )
     finally:
         LOG.append("atropos", log)

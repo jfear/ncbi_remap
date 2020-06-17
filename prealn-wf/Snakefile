@@ -146,6 +146,8 @@ rule atropos:
     log: "../output/prealn-wf/logs/atropos/{srr}.log"
     params:
         atropos_bad="../output/prealn-wf/atorpos_bad",
+        extra_pe='-U 0 --minimum-length 25',
+        extra_se='--minimum-length 25',
     group: "prealn-wf"
     threads: THREADS
     resources: 

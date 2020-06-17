@@ -149,6 +149,29 @@ rule fastq_dump:
         lscratch=estimate_resources_lscratch,
     script: "../fastq-wf/scripts/fastq_dump.py"
 
+rule atropos:
+    """Filter reads that are less than 25bp."""
+    input:
+        r1=rules.fastq_dump.output.r1,
+        r2=rules.fastq_dump.output.r2,
+        layout=rules.fastq_dump.output.layout,
+    output:
+        r1=temp("../output/rnaseq-wf/samples/{srr}_1.trim.fastq.gz"),
+        r2=temp("../output/rnaseq-wf/samples/{srr}_2.trim.fastq.gz"),
+        summary="../output/rnaseq-wf/atropos/{srr}.parquet",
+    log: "../output/rnaseq-wf/logs/atropos/{srr}.log"
+    params:
+        atropos_bad="../output/rnaseq-wf/atorpos_bad",
+        extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
+        extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../scripts/atropos.py"
+
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/atropos.smk"
