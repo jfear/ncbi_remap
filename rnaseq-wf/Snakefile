@@ -217,14 +217,87 @@ rule merge:
         lscratch=estimate_resources_lscratch,
     script: "scripts/merge.py"
 
-## Rules
-include: "../fastq-wf/rules/download_fastq.smk"
-include: "rules/atropos.smk"
-include: "rules/align.smk"
-include: "rules/merge.smk"
-include: "rules/featurecounts.smk"
-include: "rules/bedgraph.smk"
-include: "rules/bigwig.smk"
+rule gene_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/gene_counts/{srx}.parquet",
+        jcounts="../output/rnaseq-wf/gene_jcounts/{srx}.parquet",
+    log: "../output/rnaseq-wf/logs/gene_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J ',
+        extra_se = '-J '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule intergenic_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/dmel_r6-11.intergenic.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/intergenic_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/intergenic_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t gene ',
+        extra_se = '-J -t gene '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule segment_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/nonstranded_exon_segments.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/segment_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/segment_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t segment -g ID ',
+        extra_se = '-J -t segment -g ID '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule fusion_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/nonstranded_exon_fusions.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/fusion_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/fusion_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t fusion -g ID ',
+        extra_se = '-J -t fusion -g ID '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
 
 
 ###############################################################################
