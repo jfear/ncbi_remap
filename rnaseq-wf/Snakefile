@@ -196,6 +196,22 @@ rule hisat2:
         lscratch=estimate_resources_lscratch,
     script: "../scripts/hisat2.py"
 
+rule merge:
+    """Basic alignment."""
+    input: lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srx),
+    output:
+        bam="../output/rnaseq-wf/samples/{srx}/{srx}.bam",
+        bai="../output/rnaseq-wf/samples/{srx}/{srx}.bam.bai",
+        aln_stats="../output/rnaseq-wf/merge_summary/{srx}.parquet",
+    log: "../output/rnaseq-wf/logs/merge/{srx}.log"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/merge.py"
+
 ## Rules
 include: "../fastq-wf/rules/download_fastq.smk"
 include: "rules/atropos.smk"
