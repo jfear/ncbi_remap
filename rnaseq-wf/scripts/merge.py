@@ -44,11 +44,14 @@ def stage_data(inputs: Iterable) -> List[Path]:
 
 def merge(bams: List[Path]) -> Tuple[Path, Path]:
     if len(bams) > 1:
-        bams_ = " ".join(bams)
+        bams_string = " ".join([bam_.as_posix() for bam_ in bams])
         bam = TMPDIR / f"{SRX}.bam"
         log = TMPDIR / "merge.log"
         try:
-            shell(f"samtools merge -f --threads {THREADS} {bam} {bams_} > {log} 2>&1")
+            shell(
+                f"echo 'Merging: {bams_string}' > {log} && "
+                f"samtools merge -f --threads {THREADS} {bam} {bams_string} >> {log} 2>&1"
+            )
         finally:
             LOG.append("Merge", log)
             [remove_file(bam_) for bam_ in bams]
@@ -72,7 +75,7 @@ def merge(bams: List[Path]) -> Tuple[Path, Path]:
         remove_file(log)
 
     # Index BAM
-    sorted_bai = TMPDIR / f"{SRA}.sorted.bam.bai"
+    sorted_bai = TMPDIR / f"{SRX}.sorted.bam.bai"
     log = TMPDIR / "bam_index.log"
     try:
         shell(f"samtools index {sorted_bam} 2> {log}")

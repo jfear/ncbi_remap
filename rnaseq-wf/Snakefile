@@ -103,9 +103,14 @@ if any([x == "-n" for x in sys.argv]):
 # Resources
 ###############################################################################
 LIBSIZES = queue.srx2srr[["srr", "libsize"]].set_index("srr").squeeze()
+LIBSIZES_SRX = queue.srx2srr.groupby("srx").libsize.sum()
 THREADS = 4
 def estimate_resources(wildcards):
+    if wildcards.get("srr"): # SRR
     scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
+    else: # SRX
+        scale = np.floor(np.log10(LIBSIZES_SRX[wildcards.srx]))
+    
     if scale <= 3:
         return dict(mem_gb=4, time_hr=1, lscratch=10)
     elif scale <= 6:
