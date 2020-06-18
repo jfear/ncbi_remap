@@ -58,7 +58,7 @@ localrules: srx_complete
 ###############################################################################
 queue = Queue(
     targets="../output/prealn-wf/done.txt",
-    subset="../output/library_strategy-wf/rnaseq_inliers.pkl",
+    # subset="../output/library_strategy-wf/rnaseq_inliers.pkl",
     completed="../output/rnaseq-wf/done.txt",
     problems=[
         "../output/fastq-wf/download_bad",
@@ -84,7 +84,7 @@ LIBSIZES_SRX = queue.srx2srr.groupby("srx").libsize.sum()
 THREADS = 4
 def estimate_resources(wildcards):
     if wildcards.get("srr"): # SRR
-    scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
+        scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
     else: # SRX
         scale = np.floor(np.log10(LIBSIZES_SRX[wildcards.srx]))
     
@@ -138,12 +138,12 @@ rule atropos:
         r2=rules.fastq_dump.output.r2,
         layout=rules.fastq_dump.output.layout,
     output:
-        r1=temp("../output/rnaseq-wf/samples/{srr}_1.trim.fastq.gz"),
-        r2=temp("../output/rnaseq-wf/samples/{srr}_2.trim.fastq.gz"),
+        r1=temp("../output/rnaseq-wf/samples/{srr}/{srr}_1.trim.fastq.gz"),
+        r2=temp("../output/rnaseq-wf/samples/{srr}/{srr}_2.trim.fastq.gz"),
         summary="../output/rnaseq-wf/atropos/{srr}.parquet",
     log: "../output/rnaseq-wf/logs/atropos/{srr}.log"
     params:
-        atropos_bad="../output/rnaseq-wf/atorpos_bad",
+        atropos_bad="../output/rnaseq-wf/atropos_bad",
         extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
         extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
     group: "rnaseq-wf"
@@ -162,14 +162,15 @@ rule hisat2:
         layout=rules.fastq_dump.output.layout,
         strand="../output/prealn-wf/strand/{srr}.parquet",
     output:
-        bam=temp("../output/rnaseq-wf/samples/{srr}.hisat2.bam"),
-        bai=temp("../output/rnaseq-wf/samples/{srr}.hisat2.bam.bai"),
+        bam=temp("../output/rnaseq-wf/samples/{srr}/{srr}.hisat2.bam"),
+        bai=temp("../output/rnaseq-wf/samples/{srr}/{srr}.hisat2.bam.bai"),
         hisat_summary="../output/rnaseq-wf/hisat2/{srr}.parquet",
         aln_stats="../output/rnaseq-wf/aln_stats/{srr}.parquet",
     log: "../output/rnaseq-wf/logs/hisat2/{srr}.log"
     params:
         reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
         splice_sites="../output/known_splice_sites_r6-11.txt",
+        alignment_bad="../output/rnaseq-wf/alignment_bad",
     group: "rnaseq-wf"
     threads: THREADS
     resources: 
@@ -182,8 +183,8 @@ rule merge:
     """Basic alignment."""
     input: lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srx),
     output:
-        bam="../output/rnaseq-wf/samples/{srx}/{srx}.bam",
-        bai="../output/rnaseq-wf/samples/{srx}/{srx}.bam.bai",
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        bai="../output/rnaseq-wf/bams/{srx}/{srx}.bam.bai",
         aln_stats="../output/rnaseq-wf/merge_summary/{srx}.parquet",
     log: "../output/rnaseq-wf/logs/merge/{srx}.log"
     group: "rnaseq-wf"
