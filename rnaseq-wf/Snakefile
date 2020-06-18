@@ -1,58 +1,34 @@
 """RNA-Seq Alignment workflow.
 
 The goal of the RNA-Seq workflow is to use parameters determined in the
-pre-alignment workflow and processing files. This workflow uses a queue in
-`../output/sra.h5`. To update the queue you need to run `./aln-store.py queue update
--j 8`. The major file types output by the alignment workflow include:
+pre-alignment workflow and processing files. 
 
-* Strand specific BigWig tracks
-* Gene level coverage counts and junction counts
-* Intergenic coverage counts and junction counts
+Main Outputs
+------------
+- Strand specific BigWig tracks
+- Gene level coverage counts and junction counts
+- Intergenic coverage counts
+- Exon Segment coverage counts
+- Exon Fusion coverage counts
 
 Rules
 -----
-targets
-    create a list of desired output files
-intergenic
-    create an intergenic bed and gtf based on the flybase gtf
-fastq_dump
-    download fastq file from SRA, determine if the file is pair-end or
-    single-end and count the number of reads and average read length
-atropos
-    trim illumina adapters and low quality bases (<20) from fastq file, remove
-    reads that have fewer than 25 bp
-hisat2_splice_site
-    create set of splice sites using the flybase gtf
-hisat2
-    align reads to the flybase reference
-hisat2_summary
-    parse alignment log and determine if the alignment failed (<50% aligned)
-expMerge
-    merge bams (SRRs) to the library (SRX) level
-feature_counts
-    count the number of reads that overlap genic regions and junction counts
-featurecounts_intergenic
-    count the number of reads that overlap intergenic regions and junction
-    counts
-run_stats
-    calculate basic stats with `samtools stats`, `samtools idxstats`, and
-    `bamtools stats`
-bamCoverage
-    create strand specific coverage tracks (bedgraph) using deeptools
-convertToFlybase
-    convert bedgraph chromosome names (UCSC format) to flybase chromosome names
-convertBedGraphToBigWig
-    convert begraph to bigwig
+- run_all: create a list of desired output files
+- fastq_dump: download fastq file from SRA and determines library layout
+- atropos: trim illumina adapters and low quality bases (<20) from fastq file, remove reads that have fewer than 25 bp
+- hisat2: align reads to the flybase reference and outputs summary alignment counts
+- merge: merge bams (SRRs) to the library (SRX) level
+- gene_counts: create gene level counts and junction counts
+- intergenic_counts: create intergenic level counts
+- segment_counts: create exon segment level counts
+- fusion_counts: create exon fusion level counts
+- ucsc_bigwig: creates bigwig that will work on ucsc
+- flybase_bigwig: creates bigwig that will work on flybase
 """
-
 import os
 import sys
-from pathlib import Path
-import re
-import shutil
 
 import numpy as np
-import pandas as pd
 
 sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
@@ -82,16 +58,15 @@ localrules: srx_complete
 ###############################################################################
 queue = Queue(
     targets="../output/prealn-wf/done.txt",
-    subset="../output/library_strategy-wf/rnaseq_inliers.pkl",
+    # subset="../output/library_strategy-wf/rnaseq_inliers.pkl",
     completed="../output/rnaseq-wf/done.txt",
     problems=[
         "../output/fastq-wf/download_bad",
         "../output/fastq-wf/abi_solid",
-        "../output/prealn-wf/atropos_bad",
-        "../output/prealn-wf/alignment_bad",
         "../output/rnaseq-wf/atropos_bad",
         "../output/rnaseq-wf/alignment_bad",
         "../output/rnaseq-wf/bigwig_bad",
+        "../output/rnaseq-wf/revist.txt"
     ],
     srx2srr="../output/srx2srr.csv",
     size=500
@@ -101,42 +76,255 @@ queue = Queue(
 if any([x == "-n" for x in sys.argv]):
     print(queue)
 
+###############################################################################
+# Resources
+###############################################################################
+LIBSIZES = queue.srx2srr[["srr", "libsize"]].set_index("srr").squeeze()
+LIBSIZES_SRX = queue.srx2srr.groupby("srx").libsize.sum()
+THREADS = 4
+def estimate_resources(wildcards):
+    if wildcards.get("srr"): # SRR
+        scale = np.floor(np.log10(LIBSIZES[wildcards.srr]))
+    else: # SRX
+        scale = np.floor(np.log10(LIBSIZES_SRX[wildcards.srx]))
+    
+    if scale <= 3:
+        return dict(mem_gb=4, time_hr=1, lscratch=10)
+    elif scale <= 6:
+        return dict(mem_gb=4, time_hr=2, lscratch=25)
+    elif scale <= 7:
+        return dict(mem_gb=6, time_hr=4, lscratch=60)
+    else:
+        return dict(mem_gb=6, time_hr=16, lscratch=200)
+
+def estimate_resources_mem(wildcards):
+    return estimate_resources(wildcards)["mem_gb"]
+
+def estimate_resources_time(wildcards):
+    return estimate_resources(wildcards)["time_hr"]
+
+def estimate_resources_lscratch(wildcards):
+    return estimate_resources(wildcards)["lscratch"]
+
+###############################################################################
+# Rules
+###############################################################################
 rule run_all:
     input: expand("../output/rnaseq-wf/done/{srx}", srx=queue.srxs)
 
-## Rules
-include: "../fastq-wf/rules/download_fastq.smk"
-include: "rules/atropos.smk"
-include: "rules/align.smk"
-include: "rules/merge.smk"
-include: "rules/featurecounts.smk"
-include: "rules/bedgraph.smk"
-include: "rules/bigwig.smk"
+rule fastq_dump:
+    output: 
+        r1=temp("../output/fastq-wf/fastqs/{srr}_1.fastq.gz"),
+        r2=temp("../output/fastq-wf/fastqs/{srr}_2.fastq.gz"),
+        layout="../output/fastq-wf/layout/{srr}.parquet",
+        summary="../output/fastq-wf/libsize/{srr}.parquet"
+    log: "../output/fastq-wf/logs/{srr}.log"
+    params:
+        sra="../output/fastq-wf/sra_cache/{srr}.sra",
+        download_bad="../output/fastq-wf/download_bad",
+        abi_solid="../output/fastq-wf/abi_solid",
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../fastq-wf/scripts/fastq_dump.py"
 
+rule atropos:
+    """Filter reads that are less than 25bp."""
+    input:
+        r1=rules.fastq_dump.output.r1,
+        r2=rules.fastq_dump.output.r2,
+        layout=rules.fastq_dump.output.layout,
+    output:
+        r1=temp("../output/rnaseq-wf/samples/{srr}/{srr}_1.trim.fastq.gz"),
+        r2=temp("../output/rnaseq-wf/samples/{srr}/{srr}_2.trim.fastq.gz"),
+        summary="../output/rnaseq-wf/atropos/{srr}.parquet",
+    log: "../output/rnaseq-wf/logs/atropos/{srr}.log"
+    params:
+        atropos_bad="../output/rnaseq-wf/atropos_bad",
+        extra_pe='-a file:../data/adapters.fa -A file:../data/adapters.fa -q 20 --minimum-length 25',
+        extra_se='-a file:../data/adapters.fa -q 20 --minimum-length 25',
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../scripts/atropos.py"
 
-###############################################################################
-# What to keep
-###############################################################################
+rule hisat2:
+    """Basic alignment."""
+    input:
+        r1=rules.atropos.output.r1,
+        r2=rules.atropos.output.r2,
+        layout=rules.fastq_dump.output.layout,
+        strand="../output/prealn-wf/strand/{srr}.parquet",
+    output:
+        bam=temp("../output/rnaseq-wf/samples/{srr}/{srr}.hisat2.bam"),
+        bai=temp("../output/rnaseq-wf/samples/{srr}/{srr}.hisat2.bam.bai"),
+        hisat_summary="../output/rnaseq-wf/hisat2/{srr}.parquet",
+        aln_stats="../output/rnaseq-wf/aln_stats/{srr}.parquet",
+    log: "../output/rnaseq-wf/logs/hisat2/{srr}.log"
+    params:
+        reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
+        splice_sites="../output/known_splice_sites_r6-11.txt",
+        alignment_bad="../output/rnaseq-wf/alignment_bad",
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "../scripts/hisat2.py"
+
+rule merge:
+    """Basic alignment."""
+    input: lambda wildcards: queue.expand(rules.hisat2.output.bam, wildcards.srx),
+    output:
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        bai="../output/rnaseq-wf/bams/{srx}/{srx}.bam.bai",
+        aln_stats="../output/rnaseq-wf/merge_summary/{srx}.parquet",
+    log: "../output/rnaseq-wf/logs/merge/{srx}.log"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/merge.py"
+
+rule gene_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/gene_counts/{srx}.parquet",
+        jcounts="../output/rnaseq-wf/gene_jcounts/{srx}.parquet",
+    log: "../output/rnaseq-wf/logs/gene_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J ',
+        extra_se = '-J '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule intergenic_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/dmel_r6-11.intergenic.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/intergenic_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/intergenic_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t gene ',
+        extra_se = '-J -t gene '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule segment_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/nonstranded_exon_segments.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/segment_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/segment_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t segment -g ID ',
+        extra_se = '-J -t segment -g ID '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule fusion_counts:
+    input:
+        bam=rules.merge.output.bam,
+        gtf="../output/nonstranded_exon_fusions.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output: 
+        counts="../output/rnaseq-wf/fusion_counts/{srx}.parquet"
+    log: "../output/rnaseq-wf/logs/fusion_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t fusion -g ID ',
+        extra_se = '-J -t fusion -g ID '
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/featurecounts.py"
+
+rule ucsc_bigwig:
+    input:
+        bam=rules.merge.output.bam,
+        bai=rules.merge.output.bai,
+        chromSizes="../lcdb-references/dmel/r6-11/fasta/dmel_r6-11.chromsizes",
+    output: 
+        first="../output/rnaseq-wf/ucsc_bigwigs/{srx}.first.bw",
+        second="../output/rnaseq-wf/ucsc_bigwigs/{srx}.second.bw",
+    log: "../output/rnaseq-wf/logs/ucsc_bigwig/{srx}.log"
+    params: chrom_source="ucsc"
+    conda: "ucsc.yaml"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/bigwig.py"
+
+rule flybase_bigwig:
+    input:
+        bam=rules.merge.output.bam,
+        bai=rules.merge.output.bai,
+        chromSizes="../output/dmel_r6-11.flybase.chromsizes",
+    output: 
+        first="../output/rnaseq-wf/flybase_bigwigs/{srx}.first.bw",
+        second="../output/rnaseq-wf/flybase_bigwigs/{srx}.second.bw",
+    log: "../output/rnaseq-wf/logs/flybase_bigwig/{srx}.log"
+    params: chrom_source="flybase"
+    conda: "ucsc.yaml"
+    group: "rnaseq-wf"
+    threads: THREADS
+    resources: 
+        mem_gb=estimate_resources_mem,
+        time_hr=estimate_resources_time,
+        lscratch=estimate_resources_lscratch,
+    script: "scripts/bigwig.py"
 
 rule srx_complete:
     input:
-        lambda wildcards: queue.expand(rules.atropos_check.output[0], wildcards.srx),
-        lambda wildcards: queue.expand(rules.hisat2_check.output[0], wildcards.srx),
-        rules.bamMerge.output.bam,
-        rules.aln_stats_summary.output[0],
-        rules.parse_gene_count.output[0],
-        rules.parse_junction_count.output[0],
-        rules.parse_intergenic_count.output[0],
-        rules.parse_segment_count.output[0],
-        rules.parse_fusion_count.output[0],
-        rules.bigwig_first.output[0],
-        rules.bigwig_second.output[0],
-        rules.flybase_bigwig_first.output[0],
-        rules.flybase_bigwig_second.output[0],
-    output: "../output/rnaseq-wf/done/{srx}"
-    params:
-        sample_id=lambda wildcards: wildcards.srx,
-        sample_folder="../output/rnaseq-wf/samples/{srx}",
-        done_queue="../output/rnaseq-wf/done.txt",
-        srrs=lambda wildcards: queue.get_srrs(wildcards.srx),
-    script: "../scripts/done_queue.py"
+        rules.merge.output.bam,
+        rules.gene_counts.output.counts,
+        rules.intergenic_counts.output.counts,
+        rules.segment_counts.output.counts,
+        rules.fusion_counts.output.counts,
+        rules.ucsc_bigwig.output.first, 
+        rules.flybase_bigwig.output.first,
+    output: temp("../output/rnaseq-wf/done/{srx}")
+    shell: """
+    touch {output[0]} &&
+    echo {wildcards.srx} >> ../output/rnaseq-wf/done.txt
+    """

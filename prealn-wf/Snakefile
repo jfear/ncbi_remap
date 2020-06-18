@@ -145,6 +145,8 @@ rule atropos:
         summary="../output/prealn-wf/atropos/{srr}.parquet",
     log: "../output/prealn-wf/logs/atropos/{srr}.log"
     params:
+        extra_pe='-U 0 --minimum-length 25',
+        extra_se='--minimum-length 25',
         atropos_bad="../output/prealn-wf/atropos_bad",
     group: "prealn-wf"
     threads: THREADS
@@ -169,6 +171,7 @@ rule hisat2:
     params:
         reference="../lcdb-references/dmel/r6-11/hisat2/dmel_r6-11",
         splice_sites="../output/known_splice_sites_r6-11.txt",
+        alignment_bad="../output/prealn-wf/alignment_bad",
     group: "prealn-wf"
     threads: THREADS
     resources: 

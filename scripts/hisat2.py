@@ -274,6 +274,16 @@ if __name__ == "__main__":
         logger.warning(f"Flagging {SRA} as Hisat Bad: {error}")
         LOG.append("Exception", text=str(error))
 
+        # Add flag
+        pth = Path(snakemake.params.alignment_bad)
+        pth.mkdir(exist_ok=True)
+        (pth / SRR).touch()
+
+        # Remove outputs
+        remove_folder(Path(snakemake.output.bam).parent)
+        remove_file(snakemake.output.hisat_summary)
+        remove_file(snakemake.output.aln_stats)
+        
         raise SystemExit
     finally:
         remove_folder(TMPDIR)
