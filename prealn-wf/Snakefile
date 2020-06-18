@@ -145,7 +145,7 @@ rule atropos:
         summary="../output/prealn-wf/atropos/{srr}.parquet",
     log: "../output/prealn-wf/logs/atropos/{srr}.log"
     params:
-        atropos_bad="../output/prealn-wf/atorpos_bad",
+        atropos_bad="../output/prealn-wf/atropos_bad",
     group: "prealn-wf"
     threads: THREADS
     resources: 
