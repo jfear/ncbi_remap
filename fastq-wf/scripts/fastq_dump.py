@@ -182,7 +182,7 @@ def save_output(
 
 def save_layout(fq: Fastq, layout_file) -> None:
     layout = fq.flags.intersection(set(["SE", "PE", "keep_R1", "keep_R2"])).pop()
-    idx = pd.Index([SRR], name="SRR")
+    idx = pd.Index([SRR], name="srr")
     df = pd.DataFrame([[layout]], index=[idx], columns=["layout"])
     df.to_parquet(layout_file)
 
@@ -193,7 +193,7 @@ def save_summary(fq: Fastq, summary_file) -> None:
     else:
         r1, r2 = fq.avgReadLen, 0.0
 
-    idx = pd.Index([SRR], name="SRR")
+    idx = pd.Index([SRR], name="srr")
     df = pd.DataFrame(
         [[fq.libsize, r1, r2]], index=idx, columns=["libsize", "avgLen_R1", "avgLen_R2"],
     )
