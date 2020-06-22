@@ -46,7 +46,9 @@ rule pull_sra_strategy_and_selection_from_mongo:
 # Prep Features
 ################################################################################
 rule build_prealn_features:
-    input: "../output/srx2srr.csv"
+    input: 
+        srx2srr="../output/srx2srr.csv",
+        prealn_done="../output/prealn-wf/done.txt",
     params:
         libsize="../output/fastq-wf/libsize",
         fastq_screen="../output/prealn-wf/fastq_screen",
@@ -57,7 +59,6 @@ rule build_prealn_features:
         genebody_coverage="../output/prealn-wf/genebody_coverage",
         markduplicates="../output/prealn-wf/markduplicates",
         count_summary="../output/prealn-wf/count_summary",
-        done="../output/prealn-wf/done"
     threads: 8
     output: "../output/library_strategy-wf/prealn_features.parquet",
     script: "scripts/build_prealn_features.py"

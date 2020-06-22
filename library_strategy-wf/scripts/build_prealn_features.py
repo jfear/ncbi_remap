@@ -21,13 +21,14 @@ Features include:
 * FeatureCounts
     * Number of reads mapping to junction
 """
-import os
 from pathlib import Path
 from multiprocessing import Pool
 
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+THREADS = snakemake.threads
 
 # NOTE: features commented out are being dropped because they are repetitive or not important.
 FEATURE_AGG = {
@@ -101,19 +102,14 @@ FEATURE_RENAME = {
     "Percent Reverse": "percent_reverse",
 }
 
-def main():
-    pool = Pool(snakemake.threads)
 
-    srx2srr = pd.read_csv(snakemake.input[0], index_col="srr")
-    done = {pth.stem for pth in Path(snakemake.params.done).iterdir()}
-    df = pd.concat(
-        pool.map(pd.read_parquet, [v for k, v in snakemake.params.items() if k != "done"]),
-        axis=1,
-        sort=False,
-    ).reindex(done)
+def main():
+    srx2srr = pd.read_csv(snakemake.input.srx2srr, index_col="srr", usecols=["srx", "srr"])
+    done_srrs = [srr.strip() for srr in open(snakemake.input.prealn_done)]
 
     (
-        df.join(srx2srr)
+        workflow_data(done_srrs, snakemake.params)
+        .join(srx2srr)
         .pipe(aggregate_gene_body_coverage)
         .groupby("srx")
         .agg(FEATURE_AGG)
@@ -122,8 +118,23 @@ def main():
     )
 
 
+def workflow_data(srrs: list, workflow_folders: dict) -> pd.DataFrame:
+    pool = Pool(THREADS)
+    df = (
+        pd.concat(
+            pool.map(pd.read_parquet, [path for _, path in workflow_folders.items()]),
+            axis=1,
+            sort=False,
+        )
+        .rename_axis("srr")
+        .reindex(srrs)
+    )
+    pool.close()
 
-def aggregate_gene_body_coverage(df):
+    return df
+
+
+def aggregate_gene_body_coverage(df: pd.DataFrame) -> pd.DataFrame:
     """Sum gene body coverage to tertile.
 
     GBC is reported as a centile, with positions next to each other being
@@ -141,29 +152,4 @@ def aggregate_gene_body_coverage(df):
 
 
 if __name__ == "__main__":
-    if os.getenv("SNAKE_DEBUG", False):
-        import sys
-
-        sys.path.insert(0, "../../src")
-        from ncbi_remap.debug import snakemake_debug
-
-        snakemake = snakemake_debug(
-            input="../../output/srx2srr_full.csv",
-            threads=8,
-            params=dict(
-                libsize="../../output/fastq-wf/libsize",
-                layout="../../output/fastq-wf/layout",
-                fastq_screen="../../output/prealn-wf/fastq_screen",
-                atropos="../../output/prealn-wf/atropos",
-                hisat2="../../output/prealn-wf/hisat2",
-                aln_stats="../../output/prealn-wf/aln_stats",
-                rnaseqmetrics="../../output/prealn-wf/rnaseqmetrics",
-                genebody_coverage="../../output/prealn-wf/genebody_coverage",
-                strand="../../output/prealn-wf/strand",
-                markduplicates="../../output/prealn-wf/markduplicates",
-                count_summary="../../output/prealn-wf/count_summary",
-                done="../../output/prealn-wf/done",
-            ),
-        )
-
     main()
