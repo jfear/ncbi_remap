@@ -4,10 +4,11 @@ from snakemake.io import Namedlist, InputFiles, OutputFiles, Wildcards, Params, 
 class MockSnake:
     """Mock the snakemake class used inside of python scripts."""
 
-    def __init__(self, input=None, output=None, params=None, wildcards=None, log="", config=None):
+    def __init__(self, input=None, output=None, params=None, threads=1, wildcards=None, log="", config=None):
         self.input = InputFiles(self.make_namedlist(input))
         self.output = OutputFiles(self.make_namedlist(output))
         self.params = Params(self.make_namedlist(params))
+        self.threads = threads
         self.wildcards = Wildcards(self.make_namedlist(wildcards))
         self.log = Log(log)
         self.config = config or {}
