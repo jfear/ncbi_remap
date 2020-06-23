@@ -2,9 +2,10 @@ channels:
   - bioconda
   - conda-forge
   - defaults
-  - lcdb
-  - jfear
 dependencies:
   - python=3.7
+  - numpy
+  - pandas
+  - pybedtools=0.8.1
   - ucsc-bedgraphtobigwig=377
   - ucsc-bedsort=377
