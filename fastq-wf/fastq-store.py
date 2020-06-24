@@ -1,41 +1,26 @@
 #!/usr/bin/env python
-"""Aggregate pre-alignment workflow data"""
+"""Aggregate fastq workflow data"""
 from pathlib import Path
 from typing import Optional, Set, Tuple
 
 import pandas as pd
 
-PREALN_OUTPUT = Path(__file__).absolute().parents[1] / "output/prealn-wf"
+FASTQ_OUTPUT = Path(__file__).absolute().parents[1] / "output/fastq-wf"
 OUTPUTS = [
-    "aln_stats",
-    "atropos",
-    "count_summary",
-    "fastq_screen",
-    "genebody_coverage",
-    "hisat2",
-    "markduplicates",
-    "rnaseqmetrics",
-    "strand",
+    "layout",
+    "libsize",
 ]
 
 
 def main():
-    workflow_samples = load_complete_samples()
     for output in OUTPUTS:
         print(f"Aggregating: {output:>20}", end="\t")
-        aggregate_data_store(
-            workflow_samples, PREALN_OUTPUT / output, PREALN_OUTPUT / f"{output}.parquet"
-        )
+        aggregate_data_store(FASTQ_OUTPUT / output, FASTQ_OUTPUT / f"{output}.parquet")
 
 
-def load_complete_samples() -> Set[str]:
-    with (PREALN_OUTPUT / "done.txt").open() as fh:
-        return set([srr.strip() for srr in fh])
-
-
-def aggregate_data_store(workflow_samples: set, data_folder_pth: Path, data_store_pth: Path):
+def aggregate_data_store(data_folder_pth: Path, data_store_pth: Path):
     data_store, old_samples = load_data_store(data_store_pth)
-    new_samples = find_new_samples(workflow_samples, old_samples, data_folder_pth)
+    new_samples = find_new_samples(old_samples, data_folder_pth)
 
     print(f"({len(new_samples):,})")
     new_data = load_data_folder(new_samples, data_folder_pth)
@@ -54,9 +39,9 @@ def load_data_store(data_store_pth: Path) -> Tuple[Optional[pd.DataFrame], Set[s
     return data_store, old_samples
 
 
-def find_new_samples(workflow_samples: set, old_samples: set, data_folder_pth: Path) -> Set[str]:
+def find_new_samples(old_samples: set, data_folder_pth: Path) -> Set[str]:
     dir_content = set([file_name.stem for file_name in data_folder_pth.iterdir()])
-    return workflow_samples.intersection(dir_content - old_samples)
+    return dir_content - old_samples
 
 
 def load_data_folder(samples: set, data_pth: Path) -> Optional[pd.DataFrame]:

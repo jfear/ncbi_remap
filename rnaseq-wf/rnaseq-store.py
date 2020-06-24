@@ -1,21 +1,16 @@
 #!/usr/bin/env python
-"""Aggregate pre-alignment workflow data"""
+"""Aggregate rnaseq workflow data"""
 from pathlib import Path
 from typing import Optional, Set, Tuple
 
 import pandas as pd
 
-PREALN_OUTPUT = Path(__file__).absolute().parents[1] / "output/prealn-wf"
+RNASEQ_OUTPUT = Path(__file__).absolute().parents[1] / "output/rnaseq-wf"
 OUTPUTS = [
     "aln_stats",
     "atropos",
-    "count_summary",
-    "fastq_screen",
-    "genebody_coverage",
     "hisat2",
-    "markduplicates",
-    "rnaseqmetrics",
-    "strand",
+    "merge_summary",
 ]
 
 
@@ -24,34 +19,32 @@ def main():
     for output in OUTPUTS:
         print(f"Aggregating: {output:>20}", end="\t")
         aggregate_data_store(
-            workflow_samples, PREALN_OUTPUT / output, PREALN_OUTPUT / f"{output}.parquet"
+            workflow_samples, RNASEQ_OUTPUT / output, RNASEQ_OUTPUT / f"{output}.parquet"
         )
 
 
 def load_complete_samples() -> Set[str]:
-    with (PREALN_OUTPUT / "done.txt").open() as fh:
+    with (RNASEQ_OUTPUT / "done.txt").open() as fh:
         return set([srr.strip() for srr in fh])
 
 
 def aggregate_data_store(workflow_samples: set, data_folder_pth: Path, data_store_pth: Path):
-    data_store, old_samples = load_data_store(data_store_pth)
+    old_samples = load_data_store(data_store_pth)
     new_samples = find_new_samples(workflow_samples, old_samples, data_folder_pth)
 
     print(f"({len(new_samples):,})")
     new_data = load_data_folder(new_samples, data_folder_pth)
 
     if new_data is not None:
-        updated_data = update_data_store(data_store, new_data)
+        updated_data = update_data_store(data_store_pth, new_data)
         updated_data.to_parquet(data_store_pth)
 
 
-def load_data_store(data_store_pth: Path) -> Tuple[Optional[pd.DataFrame], Set[str]]:
+def load_data_store(data_store_pth: Path) -> Set[str]:
     if data_store_pth.exists():
         data_store = pd.read_parquet(data_store_pth)
-        old_samples = set(data_store.index.unique())
-    else:
-        data_store, old_samples = None, set()
-    return data_store, old_samples
+        return set(data_store.index.unique())
+    return set()
 
 
 def find_new_samples(workflow_samples: set, old_samples: set, data_folder_pth: Path) -> Set[str]:
@@ -64,14 +57,16 @@ def load_data_folder(samples: set, data_pth: Path) -> Optional[pd.DataFrame]:
         return None
 
     return pd.concat(
-        [pd.read_parquet(data_pth / f"{sample}.parquet") for sample in samples], sort=False
+        [pd.read_parquet(data_pth / f"{sample}.parquet") for sample in samples],
+        sort=False,
     )
 
 
-def update_data_store(data_store: Optional[pd.DataFrame], new_data: pd.DataFrame) -> pd.DataFrame:
-    if data_store:
-        return pd.concat([data_store, new_data], sort=False)
-    return new_data
+def update_data_store(data_store_pth: Path, new_data: pd.DataFrame) -> pd.DataFrame:
+    try:
+        return pd.concat([pd.read_parquet(data_store_pth), new_data], sort=False)
+    except OSError:
+        return new_data
 
 
 if __name__ == "__main__":
