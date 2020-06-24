@@ -25,7 +25,9 @@ def main():
 
 def load_complete_samples() -> Set[str]:
     with (RNASEQ_OUTPUT / "done.txt").open() as fh:
-        return set([srr.strip() for srr in fh])
+        srxs = [srx.strip() for srx in fh]
+        srrs = pd.read_csv(RNASEQ_OUTPUT / "../srx2srr.csv").query("srx == @srxs").srr.to_list()
+    return set(srxs).union(set(srrs))
 
 
 def aggregate_data_store(workflow_samples: set, data_folder_pth: Path, data_store_pth: Path):
