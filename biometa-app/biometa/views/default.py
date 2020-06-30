@@ -126,7 +126,7 @@ def next_project(request: Request):
 @view_config(route_name="previous_project")
 def previous_project(request: Request):
     accn = request.matchdict.get("accn")
-    curr_idx = BIOPROJECTS.index(accn)
+    curr_idx = BIOPROJECTS.index(accn) or 0
     prev_idx = max(0, curr_idx - 1)
 
     prev_accn = BIOPROJECTS[prev_idx]
