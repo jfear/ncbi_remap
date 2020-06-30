@@ -12,13 +12,19 @@ from biometa.data_access import (
     get_fly_anatomy,
     get_fly_cell_line,
     get_fly_development,
+    get_biosamples_in_sql,
 )
+
+IGNORE_SAMPLE_IN_DB = True  # Set if you want to focus on samples not yet annotated
+IGNORE_SAMPLES = []
+if IGNORE_SAMPLE_IN_DB:
+    IGNORE_SAMPLES = get_biosamples_in_sql()
 
 SEX = ["male", "female", "mixed", "None"]
 TISSUE = get_fly_anatomy()
 DEVEL_STAGE = get_fly_development()
 CELL_LINE = get_fly_cell_line()
-BIOPROJECTS = [x["_id"] for x in get_bioprojects()]
+BIOPROJECTS = [x["_id"] for x in get_bioprojects(ignore_already_processed=IGNORE_SAMPLES)]
 
 
 # /
@@ -37,7 +43,9 @@ def bioprojects_page(request):
     _prev = max(0, int(start) - limit)
 
     return {
-        "bioprojects": get_bioprojects(limit=limit, skip=start),
+        "bioprojects": get_bioprojects(
+            limit=limit, skip=start, ignore_already_processed=IGNORE_SAMPLES
+        ),
         "next": str(_next),
         "prev": str(_prev),
     }
@@ -123,6 +131,7 @@ def previous_project(request: Request):
 
     prev_accn = BIOPROJECTS[prev_idx]
     return pyramid.httpexceptions.HTTPFound(location=f"/project/{prev_accn}")
+
 
 # /search/{col}/{term}
 @view_config(

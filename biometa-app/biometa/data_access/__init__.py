@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 import sqlite3
 
 from more_itertools import flatten
@@ -40,9 +40,9 @@ def get_fly_cell_line() -> List[str]:
         return [row.strip().split("\t")[1] for row in fh]
 
 
-def sql_query_complete_biosamples() -> List[str]:
+def get_biosamples_in_sql() -> List[str]:
     """These samples are already in the database"""
-    sql_query = "SELECT biosample FROM biometa WHERE complete = 1"
+    sql_query = "SELECT biosample FROM biometa"
     with sqlite() as db:
         c = db.cursor()  # type: sqlite3.Cursor
         c.execute(sql_query)
@@ -80,13 +80,16 @@ def sql_update_biosample(results: List[tuple]):
         db.commit()
 
 
-def get_bioprojects(limit=100_000, skip=0) -> List[dict]:
+def get_bioprojects(
+    limit=100_000, skip=0, ignore_already_processed: Optional[list] = None
+) -> List[dict]:
     rnaseq_srxs = get_rnaseq_srxs()
+    already_processed = ignore_already_processed or []
 
     with mongo() as db:
         cursor = db.aggregate(
             [
-                {"$match": {"srx": {"$in": rnaseq_srxs},}},
+                {"$match": {"srx": {"$in": rnaseq_srxs}, "BioSample.accn": {"$nin": already_processed}}},
                 {"$group": {"_id": "$BioProject.accn", "title": {"$first": "$BioProject.title"},}},
                 {"$sort": {"_id": 1}},
                 {"$skip": skip},
@@ -138,6 +141,7 @@ def get_bioproject(bioproject: str) -> dict:
 
     return bioproject
 
+
 def query_term(col: str, term: str) -> dict:
     """Get a list of all samples with a given term"""
     rnaseq_srxs = get_rnaseq_srxs()
@@ -154,7 +158,7 @@ def query_term(col: str, term: str) -> dict:
     # Get all biosamples that match term
     with sqlite() as db:
         cur = db.cursor()  # type: sqlite3.Cursor
-        cur.execute(query_table[col], (term, ))
+        cur.execute(query_table[col], (term,))
         biosamples = list(flatten(cur.fetchall()))
 
     # Get their SRA attributes and build a fake bioproject
@@ -162,12 +166,7 @@ def query_term(col: str, term: str) -> dict:
         cursor = db.aggregate(
             [
                 {"$match": {"BioSample.accn": {"$in": biosamples}, "srx": {"$in": rnaseq_srxs},}},
-                {
-                    "$group": {
-                        "_id": "$BioSample.accn",
-                        "info": {"$first": "$sample"},
-                    }
-                },
+                {"$group": {"_id": "$BioSample.accn", "info": {"$first": "$sample"},}},
             ]
         )
 
@@ -176,7 +175,7 @@ def query_term(col: str, term: str) -> dict:
             "_id": f"{col} == {term}",
             "title": "",
             "description": "",
-            "samples": [sample["info"] for sample in cursor]
+            "samples": [sample["info"] for sample in cursor],
         }
 
     # Add on updated annotations from SQL database
