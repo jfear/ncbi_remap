@@ -50,12 +50,12 @@ def load_data_store(data_store_pth: Path) -> Set[str]:
 
 
 def find_new_samples(workflow_samples: set, old_samples: set, data_folder_pth: Path) -> Set[str]:
-    dir_content = set([file_name.stem for file_name in data_folder_pth.iterdir()])
+    dir_content = {file_name.stem for file_name in data_folder_pth.iterdir()}
     return workflow_samples.intersection(dir_content - old_samples)
 
 
 def load_data_folder(samples: set, data_pth: Path) -> Optional[pd.DataFrame]:
-    if len(samples) == 0:
+    if not samples:
         return None
 
     return pd.concat(

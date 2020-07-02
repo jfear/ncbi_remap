@@ -27,7 +27,7 @@ def _parse_obo(file_name):
 
 
 def get_fly_anatomy() -> List[str]:
-    return [term for term in _parse_obo(ANATOMY_OBO) if not "cell-line" in term]
+    return [term for term in _parse_obo(ANATOMY_OBO) if "cell-line" not in term]
 
 
 def get_fly_development() -> List[str]:
@@ -42,23 +42,25 @@ def get_fly_cell_line() -> List[str]:
 
 def get_biosamples_in_sql() -> List[str]:
     """These samples are already in the database"""
-    sql_query = "SELECT biosample FROM biometa"
     with sqlite() as db:
         c = db.cursor()  # type: sqlite3.Cursor
+        sql_query = "SELECT biosample FROM biometa"
         c.execute(sql_query)
         return list(flatten(c.fetchall()))
 
 
 def sql_query_biosample(biosample) -> tuple:
-    sql_query = "SELECT * FROM biometa WHERE biosample = ?"
     with sqlite() as db:
         cur = db.cursor()  # type: sqlite3.Cursor
+        sql_query = "SELECT * FROM biometa WHERE biosample = ?"
         cur.execute(sql_query, (biosample,))
         return cur.fetchone()
 
 
 def sql_update_biosample(results: List[tuple]):
-    sql_upsert = """INSERT INTO biometa(biosample, sex, devel_stage, tissue, cell_line, notes, genetic, diet, chemical, radiation, temperature, other, control)
+    with sqlite() as db:  # type: sqlite3.Connection
+        cur = db.cursor()  # type: sqlite3.Cursor
+        sql_upsert = """INSERT INTO biometa(biosample, sex, devel_stage, tissue, cell_line, notes, genetic, diet, chemical, radiation, temperature, other, control)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(biosample) DO UPDATE SET
             sex = excluded.sex,
@@ -74,8 +76,6 @@ def sql_update_biosample(results: List[tuple]):
             other = excluded.other,
             control = excluded.control
     """
-    with sqlite() as db:  # type: sqlite3.Connection
-        cur = db.cursor()  # type: sqlite3.Cursor
         cur.executemany(sql_upsert, results)
         db.commit()
 
@@ -146,18 +146,18 @@ def query_term(col: str, term: str) -> dict:
     """Get a list of all samples with a given term"""
     rnaseq_srxs = get_rnaseq_srxs()
 
-    # This allows me to query in different columns. I could not pass a column name without making
-    # the app vulnerable to SQL injection.
-    query_table = {
-        "cell_line": "SELECT biosample FROM biometa WHERE cell_line LIKE ( '%' || ? || '%')",
-        "tissue": "SELECT biosample FROM biometa WHERE tissue LIKE ( '%' || ? || '%')",
-        "devel_stage": "SELECT biosample FROM biometa WHERE devel_stage LIKE ( '%' || ? || '%')",
-        "sex": "SELECT biosample FROM biometa WHERE sex LIKE ( '%' || ? || '%')",
-    }
-
     # Get all biosamples that match term
     with sqlite() as db:
         cur = db.cursor()  # type: sqlite3.Cursor
+        # This allows me to query in different columns. I could not pass a column name without making
+        # the app vulnerable to SQL injection.
+        query_table = {
+            "cell_line": "SELECT biosample FROM biometa WHERE cell_line LIKE ( '%' || ? || '%')",
+            "tissue": "SELECT biosample FROM biometa WHERE tissue LIKE ( '%' || ? || '%')",
+            "devel_stage": "SELECT biosample FROM biometa WHERE devel_stage LIKE ( '%' || ? || '%')",
+            "sex": "SELECT biosample FROM biometa WHERE sex LIKE ( '%' || ? || '%')",
+        }
+
         cur.execute(query_table[col], (term,))
         biosamples = list(flatten(cur.fetchall()))
 

@@ -90,7 +90,7 @@ def fastq_screen(fastq: Path, config: Path) -> Path:
 
 def summarize(results: Path, output_file: str) -> None:
     """Summarizes fastq screen results
-        Cacluates the number of reads mapping to each specific reference. Ignores reads the map to multiple references.
+        Calculates the number of reads mapping to each specific reference. Ignores reads the map to multiple references.
 
         Goes from this:
         | reference   |   multiple_hits_multiple_libraries_count |   multiple_hits_multiple_libraries_percent |   multiple_hits_one_library_count |   multiple_hits_one_library_percent |   one_hit_multiple_libraries_count |   one_hit_multiple_libraries_percent |   one_hit_one_library_count |   one_hit_one_library_percent |   reads_processed_count |   unmapped_count |   unmapped_percent |
