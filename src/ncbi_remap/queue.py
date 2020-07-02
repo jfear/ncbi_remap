@@ -211,7 +211,7 @@ class Queue:
         `values` can be a mixture of SRXs and SRRs. Iterate over and create a
         set of SRRs.
         """
-        if len(values) > 0:
+        if values:
             srrs = set()
             for value in values:
                 if re.match(self._srx_pattern, value):
