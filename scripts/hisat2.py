@@ -277,7 +277,7 @@ if __name__ == "__main__":
         # Add flag
         pth = Path(snakemake.params.alignment_bad)
         pth.mkdir(exist_ok=True)
-        (pth / SRR).touch()
+        (pth / SRA).touch()
 
         # Remove outputs
         remove_folder(Path(snakemake.output.bam).parent)
