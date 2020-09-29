@@ -6,7 +6,7 @@ from pprint import pprint
 
 def main():
 
-    df = pd.merge(get_sra(), get_annot(), on="BioSample")
+    df = pd.merge(get_sra(), get_annot(), on="BioSample", how="left")
 
     apply_func(df, "BioProject", format_bioproject_accession)
     apply_func(df, "BioSample", format_biosample_accession)
@@ -18,7 +18,7 @@ def main():
     (
         df.set_index(
             ["BioProject", "Project Title", "Project Description", "Submission Date"]
-        ).to_excel("../output/notebook/2020-05-20_example_annot.xlsx")
+        ).to_excel("../output/notebook/2020-07-23_example_annot.xlsx")
     )
 
 
@@ -46,7 +46,7 @@ def get_sra():
                         }
                     },
                 ],
-                allowDiskUse=True
+                allowDiskUse=True,
             )
         )
         .set_index("_id")
@@ -62,24 +62,36 @@ def apply_func(df, col, func):
 
 
 def format_bioproject_accession(x):
-    return f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/bioproject/?term={x.upper()}", "{x.upper()}")'
+    try:
+        return f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/bioproject/?term={x.upper()}", "{x.upper()}")'
+    except AttributeError:
+        return ""
 
 
 def format_biosample_accession(x):
-    return f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/biosample/?term={x.upper()}", "{x.upper()}")'
+    try:
+        return f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/biosample/?term={x.upper()}", "{x.upper()}")'
+    except AttributeError:
+        return ""
 
 
 def format_sra_accession(x):
-    return ", ".join(
-        [
-            f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/sra/?term={y.upper()}", "{y.upper()}")'
-            for y in x
-        ]
-    )
+    try:
+        return ", ".join(
+            [
+                f'=HYPERLINK("https://www.ncbi.nlm.nih.gov/sra/?term={y.upper()}", "{y.upper()}")'
+                for y in x
+            ]
+        )
+    except AttributeError:
+        return ""
 
 
 def format_sample_desc(x):
-    return "\n".join([f"{attr['name']}: {attr['value']}" for attr in x])
+    try:
+        return "\n".join([f"{attr['name']}: {attr['value']}" for attr in x])
+    except AttributeError:
+        return ""
 
 
 def format_papers(papers):
@@ -99,11 +111,24 @@ def get_annot():
     con = sqlite3.connect("../data/biometa.db")
     cur = con.cursor()
     cur.execute("SELECT * FROM biometa")
-    df = pd.DataFrame(
+    return pd.DataFrame(
         cur.fetchall(),
-        columns=["BioSample", "sex", "devel_stage", "tissue", "cell_line", "perturbed", "complete"],
-    ).drop("complete", axis=1)
-    return df[df.tissue.str.contains("neuron")]
+        columns=[
+            "BioSample",
+            "sex",
+            "devel_stage",
+            "tissue",
+            "cell_line",
+            "notes",
+            "genetic_factor",
+            "diet_factor",
+            "chemical_factor",
+            "radiation_factor",
+            "temperature_factor",
+            "other_factor",
+            "experimental_control",
+        ],
+    )
 
 
 if __name__ == "__main__":
