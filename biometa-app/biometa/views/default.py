@@ -25,6 +25,7 @@ TISSUE = get_fly_anatomy()
 DEVEL_STAGE = get_fly_development()
 CELL_LINE = get_fly_cell_line()
 BIOPROJECTS = [x["_id"] for x in get_bioprojects(ignore_already_processed=IGNORE_SAMPLES)]
+print(len(BIOPROJECTS))
 
 
 # /
