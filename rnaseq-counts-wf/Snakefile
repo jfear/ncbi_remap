@@ -1,0 +1,148 @@
+"""RNA-Seq Alignment workflow.
+
+"""
+import os
+import sys
+
+import numpy as np
+
+sys.path.insert(0, "../src")
+from ncbi_remap.queue import Queue
+from ncbi_remap.snakemake import slack
+
+
+# Setup tempdir to work with lscratch
+if os.getenv("SLURM_JOBID"):
+    TMPDIR = os.path.join('/lscratch', os.getenv('SLURM_JOBID'))
+else:
+    TMPDIR = os.getenv('TMPDIR', "/tmp")
+shell.prefix("set -euo pipefail; export TMPDIR={};".format(TMPDIR))
+
+singularity: "../singularity/drosSRA_workflow.sif"
+configfile: '../config/reference_config.yaml'
+
+###############################################################################
+# Set up file naming patterns and targets
+###############################################################################
+queue = Queue(
+    targets="../output/rnaseq-wf/done.txt",
+    completed="../output/rnaseq-counts-wf/done.txt",
+    srx2srr="../output/srx2srr.csv",
+    size=1,
+)
+
+localrules: run_all, srx_complete
+
+# If Dry-Run print queue
+if any([x == "-n" for x in sys.argv]):
+    print(queue)
+
+###############################################################################
+# Resources
+###############################################################################
+THREADS = 4
+MEM = 8
+LSCRATCH = 60
+TIME = 4
+
+###############################################################################
+# Rules
+###############################################################################
+rule run_all:
+    input: expand("../output/rnaseq-counts-wf/done/{srx}", srx=queue.srxs)
+
+rule gene_counts:
+    input:
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output:
+        counts="../output/rnaseq-counts-wf/gene_counts/{srx}.bam.counts.txt.gz",
+        jcounts="../output/rnaseq-counts-wf/gene_counts/{srx}.bam.counts.jcounts.txt.gz",
+    log: "../output/rnaseq-counts-wf/logs/gene_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J ',
+        extra_se = '-J '
+    group: "rnaseq-counts-wf"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
+    script: "scripts/featurecounts.py"
+
+rule intergenic_counts:
+    input:
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        gtf="../output/dmel_r6-11.intergenic.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output:
+        counts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.txt.gz",
+        jcounts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.jcounts.txt.gz",
+    log: "../output/rnaseq-wf/logs/intergenic_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t gene ',
+        extra_se = '-J -t gene '
+    group: "rnaseq-counts-wf"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
+    script: "scripts/featurecounts.py"
+
+rule segment_counts:
+    input:
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        gtf="../output/nonstranded_exon_segments.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output:
+        counts="../output/rnaseq-counts-wf/segment_counts/{srx}.bam.segment.counts.txt.gz",
+        jcounts="../output/rnaseq-counts-wf/segment_counts/{srx}.bam.segment.counts.jcounts.txt.gz",
+    log: "../output/rnaseq-counts-wf/logs/segment_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t segment -g ID ',
+        extra_se = '-J -t segment -g ID '
+    group: "rnaseq-counts-wf"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
+    script: "scripts/featurecounts.py"
+
+rule fusion_counts:
+    input:
+        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
+        gtf="../output/nonstranded_exon_fusions.gtf",
+        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+    output:
+        counts="../output/rnaseq-counts-wf/fusion_counts/{srx}.bam.fusion.counts.txt.gz",
+        jcounts="../output/rnaseq-counts-wf/fusion_counts/{srx}.bam.fusion.counts.jcounts.txt.gz",
+    log: "../output/rnaseq-counts-wf/logs/fusion_counts/{srx}.log"
+    params:
+        extra_pe = '-p -P -C -J -t fusion -g ID ',
+        extra_se = '-J -t fusion -g ID '
+    group: "rnaseq-counts-wf"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
+    script: "scripts/featurecounts.py"
+
+rule srx_complete:
+    input:
+        rules.gene_counts.output.counts,
+        rules.intergenic_counts.output.counts,
+        rules.segment_counts.output.counts,
+        rules.fusion_counts.output.counts,
+    output: temp("../output/rnaseq-counts-wf/done/{srx}")
+    shell: """
+    touch {output[0]} &&
+    echo {wildcards.srx} >> ../output/rnaseq-counts-wf/done.txt
+    """
