@@ -25,6 +25,7 @@ configfile: '../config/reference_config.yaml'
 ###############################################################################
 queue = Queue(
     targets="../output/rnaseq-wf/done.txt",
+    subset="../output/prealn-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
     size="none",
