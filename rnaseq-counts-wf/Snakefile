@@ -27,7 +27,7 @@ queue = Queue(
     targets="../output/rnaseq-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
-    size=100,
+    size="none",
 )
 
 localrules: run_all, srx_complete
@@ -39,10 +39,10 @@ if any([x == "-n" for x in sys.argv]):
 ###############################################################################
 # Resources
 ###############################################################################
-THREADS = 4
-MEM = 8
+THREADS = 2
+MEM = 4
 LSCRATCH = 60
-TIME = 4
+TIME = 2
 
 ###############################################################################
 # Rules
