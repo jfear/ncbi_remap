@@ -55,7 +55,7 @@ rule gene_counts:
     input:
         bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
         gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
-        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts="../output/rnaseq-counts-wf/gene_counts/{srx}.bam.counts.txt.gz",
@@ -76,7 +76,7 @@ rule intergenic_counts:
     input:
         bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
         gtf="../output/dmel_r6-11.intergenic.gtf",
-        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.txt.gz",
@@ -97,7 +97,7 @@ rule segment_counts:
     input:
         bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
         gtf="../output/nonstranded_exon_segments.gtf",
-        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts="../output/rnaseq-counts-wf/segment_counts/{srx}.bam.segment.counts.txt.gz",
@@ -118,7 +118,7 @@ rule fusion_counts:
     input:
         bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
         gtf="../output/nonstranded_exon_fusions.gtf",
-        layout=lambda wildcards: queue.expand(rules.fastq_dump.output.layout, wildcards.srx)[0],
+        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
         strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
     output:
         counts="../output/rnaseq-counts-wf/fusion_counts/{srx}.bam.fusion.counts.txt.gz",
