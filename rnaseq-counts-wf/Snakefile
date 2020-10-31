@@ -81,7 +81,7 @@ rule intergenic_counts:
     output:
         counts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.txt.gz",
         jcounts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.jcounts.txt.gz",
-    log: "../output/rnaseq-wf/logs/intergenic_counts/{srx}.log"
+    log: "../output/rnaseq-counts-wf/logs/intergenic_counts/{srx}.log"
     params:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
