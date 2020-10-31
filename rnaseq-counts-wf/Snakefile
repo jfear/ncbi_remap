@@ -8,7 +8,6 @@ import numpy as np
 
 sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
-from ncbi_remap.snakemake import slack
 
 
 # Setup tempdir to work with lscratch
@@ -28,7 +27,7 @@ queue = Queue(
     targets="../output/rnaseq-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
-    size=1,
+    size=100,
 )
 
 localrules: run_all, srx_complete
