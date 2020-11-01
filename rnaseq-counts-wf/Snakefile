@@ -70,10 +70,10 @@ rule gene_counts:
         extra_se = '-J '
     group: "rnaseq-counts-wf"
     threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
+    # resources:
+    #     mem_gb=MEM,
+    #     time_hr=TIME,
+    #     lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule intergenic_counts:
@@ -91,10 +91,10 @@ rule intergenic_counts:
         extra_se = '-J -t gene '
     group: "rnaseq-counts-wf"
     threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
+    # resources:
+    #     mem_gb=MEM,
+    #     time_hr=TIME,
+    #     lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule segment_counts:
@@ -112,10 +112,10 @@ rule segment_counts:
         extra_se = '-J -t segment -g ID '
     group: "rnaseq-counts-wf"
     threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
+    # resources:
+    #     mem_gb=MEM,
+    #     time_hr=TIME,
+    #     lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule fusion_counts:
@@ -133,10 +133,10 @@ rule fusion_counts:
         extra_se = '-J -t fusion -g ID '
     group: "rnaseq-counts-wf"
     threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
+    # resources:
+    #     mem_gb=MEM,
+    #     time_hr=TIME,
+    #     lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 def _grouper(wildcards):
