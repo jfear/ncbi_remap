@@ -33,7 +33,7 @@ queue = Queue(
     size=100,
 )
 
-chunks = {i: chunk for i, chunk in enumerate(chunked(queue.srxs, 999))}
+chunks = {str(i): chunk for i, chunk in enumerate(chunked(queue.srxs, 999))}
 
 localrules: run_all, srx_complete
 
