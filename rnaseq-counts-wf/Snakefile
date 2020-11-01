@@ -163,14 +163,14 @@ rule srx_complete:
     input: expand(rules.grouper.output, group=chunks.keys())
     output: temp("../output/rnaseq-counts-wf/done/{group}")
     params:
-        rules.gene_counts.output.counts,
-        rules.intergenic_counts.output.counts,
-        rules.segment_counts.output.counts,
-        rules.fusion_counts.output.counts,
+        files = [
+            rules.gene_counts.output.counts,
+            rules.intergenic_counts.output.counts,
+            rules.segment_counts.output.counts,
+            rules.fusion_counts.output.counts,
+        ]
     run:
-        _srxs = chunks[wildcards.group]
-        for _srx in _srxs:
-            _pths = [Path(x.format(srx=_srx)).exists() for x in params]
+        for _srx in chunks[wildcards.group]:
+            _pths = [Path(x.format(srx=_srx)).exists() for x in params.files]
             if all(_pths):
                 Path("../output/rnaseq-counts-wf/done.txt").open("at").write(f"{_srx}\n")
-    """
