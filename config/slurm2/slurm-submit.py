@@ -3,10 +3,13 @@
 Snakemake SLURM submit script.
 """
 import warnings  # use warnings.warn() rather than print() to output info in this script
+import sys
+from pathlib import Path
 
 from snakemake.utils import read_job_properties
 
-from . import slurm_utils
+sys.path.insert(0, Path(__file__).parent)
+import slurm_utils
 
 # cookiecutter arguments
 SBATCH_DEFAULTS = """"""
