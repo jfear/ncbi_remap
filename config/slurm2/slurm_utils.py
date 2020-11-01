@@ -59,7 +59,7 @@ def format(_pattern, _quote_all=False, **kwargs):
 #  adapted from Job.format_wildcards in snakemake.jobs
 def format_wildcards(string, job_properties):
     """ Format a string with variables from the job. """
-    
+
     class Job(object):
         def __init__(self, job_properties):
             for key in job_properties:
@@ -69,7 +69,12 @@ def format_wildcards(string, job_properties):
       job._format_params = Wildcards(fromdict=job_properties['params'])
     else:
       job._format_params = None
-    job._format_wildcards = Wildcards(fromdict=job_properties['wildcards'])
+
+    if 'wildcards' in job_properties:
+        job._format_wildcards = Wildcards(fromdict=job_properties['wildcards'])
+    else:
+        job._format_wildcards = None
+
     _variables = dict()
     _variables.update(
         dict(
@@ -103,7 +108,7 @@ def format_values(dictionary, job_properties):
                 )
                 raise WorkflowError(msg, e)
     return formatted
-    
+
 def convert_job_properties(job_properties, resource_mapping={}):
     options = {}
     resources = job_properties.get("resources", {})
