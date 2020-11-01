@@ -69,7 +69,7 @@ rule gene_counts:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
     group: "rnaseq-counts-wf"
-    threads: THREADS
+    # threads: THREADS
     # resources:
     #     mem_gb=MEM,
     #     time_hr=TIME,
@@ -90,7 +90,7 @@ rule intergenic_counts:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
     group: "rnaseq-counts-wf"
-    threads: THREADS
+    # threads: THREADS
     # resources:
     #     mem_gb=MEM,
     #     time_hr=TIME,
@@ -111,7 +111,7 @@ rule segment_counts:
         extra_pe = '-p -P -C -J -t segment -g ID ',
         extra_se = '-J -t segment -g ID '
     group: "rnaseq-counts-wf"
-    threads: THREADS
+    # threads: THREADS
     # resources:
     #     mem_gb=MEM,
     #     time_hr=TIME,
@@ -132,7 +132,7 @@ rule fusion_counts:
         extra_pe = '-p -P -C -J -t fusion -g ID ',
         extra_se = '-J -t fusion -g ID '
     group: "rnaseq-counts-wf"
-    threads: THREADS
+    # threads: THREADS
     # resources:
     #     mem_gb=MEM,
     #     time_hr=TIME,
