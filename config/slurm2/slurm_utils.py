@@ -77,12 +77,11 @@ def format_wildcards(string, job_properties):
 
     _variables = dict()
     _variables.update(
-        dict(
-            params=job._format_params,
-            wildcards=job._format_wildcards,
-            rule=job.rule
-        )
+        dict(params=job._format_params, wildcards=job._format_wildcards)
     )
+    if hasattr(job, "rule"):
+        _variables.update(dict(rule=job.rule))
+
     try:
         return format(string, **_variables)
     except NameError as ex:
