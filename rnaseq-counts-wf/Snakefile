@@ -139,7 +139,7 @@ rule fusion_counts:
         lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
-def _gropuer(wildcards):
+def _grouper(wildcards):
     _srxs = chunks[wildcards.group]
     return flatten(
         expand(rules.gene_counts.output.counts, srx=_srxs),
