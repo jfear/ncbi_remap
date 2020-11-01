@@ -3,24 +3,3 @@ __default__:
   mem_gb: 2
   gres: "lscratch:80"
   partition: 'norm'
-
-fastq_dump:
-  gres: "lscratch:250"
-
-atropos:
-  gres: "lscratch:250"
-
-hisat2:
-  gres: "lscratch:250"
-
-expMerge:
-  gres: "lscratch:250"
-
-run_stats:
-  gres: "lscratch:250"
-
-bamCoverage:
-  gres: "lscratch:250"
-
-convertBedGraphToBigWig:
-  gres: "lscratch:250"
