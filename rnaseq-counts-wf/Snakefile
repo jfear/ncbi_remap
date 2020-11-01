@@ -53,7 +53,7 @@ TIME = 8
 # Rules
 ###############################################################################
 rule run_all:
-    input: expand("../output/rnaseq-counts-wf/done/{group}", group=chunks.keys())
+    input: expand("../output/rnaseq-counts-wf/done/{srx}", srx=queue.srxs)
 
 rule gene_counts:
     input:
@@ -68,12 +68,12 @@ rule gene_counts:
     params:
         extra_pe = '-p -P -C -J ',
         extra_se = '-J '
-    group: "rnaseq-counts-wf"
-    # threads: THREADS
-    # resources:
-    #     mem_gb=MEM,
-    #     time_hr=TIME,
-    #     lscratch=LSCRATCH,
+    group: "gene-counts"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule intergenic_counts:
@@ -89,12 +89,12 @@ rule intergenic_counts:
     params:
         extra_pe = '-p -P -C -J -t gene ',
         extra_se = '-J -t gene '
-    group: "rnaseq-counts-wf"
-    # threads: THREADS
-    # resources:
-    #     mem_gb=MEM,
-    #     time_hr=TIME,
-    #     lscratch=LSCRATCH,
+    group: "intergenic-counts"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule segment_counts:
@@ -110,12 +110,12 @@ rule segment_counts:
     params:
         extra_pe = '-p -P -C -J -t segment -g ID ',
         extra_se = '-J -t segment -g ID '
-    group: "rnaseq-counts-wf"
-    # threads: THREADS
-    # resources:
-    #     mem_gb=MEM,
-    #     time_hr=TIME,
-    #     lscratch=LSCRATCH,
+    group: "segment-counts"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
 rule fusion_counts:
@@ -131,46 +131,22 @@ rule fusion_counts:
     params:
         extra_pe = '-p -P -C -J -t fusion -g ID ',
         extra_se = '-J -t fusion -g ID '
-    group: "rnaseq-counts-wf"
-    # threads: THREADS
-    # resources:
-    #     mem_gb=MEM,
-    #     time_hr=TIME,
-    #     lscratch=LSCRATCH,
+    group: "fusion-counts"
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
-def _grouper(wildcards):
-    _srxs = chunks[wildcards.group]
-    return flatten([
-        expand(rules.gene_counts.output.counts, srx=_srxs),
-        expand(rules.intergenic_counts.output.counts, srx=_srxs),
-        expand(rules.segment_counts.output.counts, srx=_srxs),
-        expand(rules.fusion_counts.output.counts, srx=_srxs),
-    ])
-
-rule grouper:
-    input: _grouper
-    output: "../output/rnaseq-counts-wf/groups/{group}.txt"
-    group: "rnaseq-counts-wf"
-    # threads: THREADS
-    # resources:
-    #     mem_gb=MEM,
-    #     time_hr=TIME,
-    #     lscratch=LSCRATCH,
-    shell: "touch {output[0]}"
-
 rule srx_complete:
-    input: expand(rules.grouper.output, group=chunks.keys())
-    output: temp("../output/rnaseq-counts-wf/done/{group}")
-    params:
-        files = [
-            rules.gene_counts.output.counts,
-            rules.intergenic_counts.output.counts,
-            rules.segment_counts.output.counts,
-            rules.fusion_counts.output.counts,
-        ]
-    run:
-        for _srx in chunks[wildcards.group]:
-            _pths = [Path(x.format(srx=_srx)).exists() for x in params.files]
-            if all(_pths):
-                Path("../output/rnaseq-counts-wf/done.txt").open("at").write(f"{_srx}\n")
+    input:
+        rules.gene_counts.output.counts,
+        rules.intergenic_counts.output.counts,
+        rules.segment_counts.output.counts,
+        rules.fusion_counts.output.counts,
+    output: temp("../output/rnaseq-counts-wf/done/{srx}")
+    shell: """
+    touch {output[0]} &&
+    echo {wildcards.srx} >> ../output/rnaseq-counts-wf/done.txt
+    """
