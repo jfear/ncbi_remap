@@ -6,7 +6,7 @@ import warnings  # use warnings.warn() rather than print() to output info in thi
 
 from snakemake.utils import read_job_properties
 
-import .slurm_utils
+from . import slurm_utils
 
 # cookiecutter arguments
 SBATCH_DEFAULTS = """"""
