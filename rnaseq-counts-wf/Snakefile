@@ -141,12 +141,12 @@ rule fusion_counts:
 
 def _grouper(wildcards):
     _srxs = chunks[wildcards.group]
-    return flatten(
+    return flatten([
         expand(rules.gene_counts.output.counts, srx=_srxs),
         expand(rules.intergenic_counts.output.counts, srx=_srxs),
         expand(rules.segment_counts.output.counts, srx=_srxs),
         expand(rules.fusion_counts.output.counts, srx=_srxs),
-    )
+    ])
 
 rule grouper:
     input: _grouper
