@@ -26,8 +26,13 @@ TMPREF.mkdir(exist_ok=True)
 
 
 def main():
-    bam, gtf = stage_data(snakemake.input.bam, snakemake.input.gtf)
-    counts, jcounts = featurecount(bam, gtf, snakemake.input.layout, snakemake.input.strand)
+    # bam, gtf = stage_data(snakemake.input.bam, snakemake.input.gtf)
+    counts, jcounts = featurecount(
+        Path(str(snakemake.input.bam)),
+        Path(str(snakemake.input.gtf)),
+        snakemake.input.layout,
+        snakemake.input.strand,
+    )
 
     process_counts(counts, snakemake.output.counts)
     process_counts(jcounts, snakemake.output.jcounts)
