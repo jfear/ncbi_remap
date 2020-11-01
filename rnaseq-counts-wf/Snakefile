@@ -151,6 +151,7 @@ def _gropuer(wildcards):
 rule grouper:
     input: _grouper
     output: touch("../output/rnaseq-counts-wf/groups/{group}.txt")
+    group: "rnaseq-counts-wf"
     threads: THREADS
     resources:
         mem_gb=MEM,
