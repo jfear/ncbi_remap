@@ -3,8 +3,10 @@
 """
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
+from more_itertools import chunked, flatten
 
 sys.path.insert(0, "../src")
 from ncbi_remap.queue import Queue
@@ -28,8 +30,10 @@ queue = Queue(
     subset="../output/prealn-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
-    size="none",
+    size=100,
 )
+
+chunks = {i: chunk for i, chunk in enumerate(chunked(queue.srxs, 999))}
 
 localrules: run_all, srx_complete
 
@@ -40,16 +44,16 @@ if any([x == "-n" for x in sys.argv]):
 ###############################################################################
 # Resources
 ###############################################################################
-THREADS = 2
-MEM = 4
-LSCRATCH = 60
-TIME = 2
+THREADS = 4
+MEM = 8
+LSCRATCH = 400
+TIME = 8
 
 ###############################################################################
 # Rules
 ###############################################################################
 rule run_all:
-    input: expand("../output/rnaseq-counts-wf/done/{srx}", srx=queue.srxs)
+    input: expand("../output/rnaseq-counts-wf/done/{group}", group=chunks.keys())
 
 rule gene_counts:
     input:
@@ -135,14 +139,36 @@ rule fusion_counts:
         lscratch=LSCRATCH,
     script: "scripts/featurecounts.py"
 
+def _gropuer(wildcards):
+    _srxs = chunks[wildcards.group]
+    return flatten(
+        expand(rules.gene_counts.output.counts, srx=_srxs),
+        expand(rules.intergenic_counts.output.counts, srx=_srxs),
+        expand(rules.segment_counts.output.counts, srx=_srxs),
+        expand(rules.fusion_counts.output.counts, srx=_srxs),
+    )
+
+rule grouper:
+    input: _grouper
+    output: touch("../output/rnaseq-counts-wf/groups/{group}.txt")
+    threads: THREADS
+    resources:
+        mem_gb=MEM,
+        time_hr=TIME,
+        lscratch=LSCRATCH,
+
 rule srx_complete:
-    input:
+    input: expand(rules.grouper.output, group=chunks.keys())
+    output: temp("../output/rnaseq-counts-wf/done/{group}")
+    params:
         rules.gene_counts.output.counts,
         rules.intergenic_counts.output.counts,
         rules.segment_counts.output.counts,
         rules.fusion_counts.output.counts,
-    output: temp("../output/rnaseq-counts-wf/done/{srx}")
-    shell: """
-    touch {output[0]} &&
-    echo {wildcards.srx} >> ../output/rnaseq-counts-wf/done.txt
+    run:
+        _srxs = chunks[wildcards.group]
+        for _srx in _srxs:
+            _pths = [Path(x.format(srx=_srx)).exists() for x in params]
+            if all(_pths):
+                Path("../output/rnaseq-counts-wf/done.txt").open("at").write(f"{_srx}\n")
     """
