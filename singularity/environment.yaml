@@ -34,7 +34,7 @@ dependencies:
   - sra-tools=2.10.1
   - sramongo=1.2.0
   - statsmodels=0.11.1
-  - subread=1.6.4
+  - subread=1.5.3
   - svgutils=0.3.1
   - ucsc-bedgraphtobigwig=357
   - ucsc-bedsort=357

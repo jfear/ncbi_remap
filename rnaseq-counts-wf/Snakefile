@@ -30,12 +30,12 @@ queue = Queue(
     subset="../output/prealn-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
-    size=10,
+    size=100,
 )
 
-chunks = {str(i): chunk for i, chunk in enumerate(chunked(queue.srxs, 999))}
+chunks = {str(i): chunk for i, chunk in enumerate(chunked(queue.srxs, 50), 1)}
 
-localrules: run_all, srx_complete
+localrules: run_all
 
 # If Dry-Run print queue
 if any([x == "-n" for x in sys.argv]):
@@ -44,109 +44,64 @@ if any([x == "-n" for x in sys.argv]):
 ###############################################################################
 # Resources
 ###############################################################################
-THREADS = 2
-MEM = 2
-LSCRATCH = 10
-TIME = 1
+THREADS = 4
+MEM = 4
+LSCRATCH = 200
+TIME = 4
 
 ###############################################################################
 # Rules
 ###############################################################################
 rule run_all:
-    input: expand("../output/rnaseq-counts-wf/done/{srx}", srx=queue.srxs)
+    input: "../output/rnaseq-counts-wf/done.txt"
 
-rule gene_counts:
+
+def expand_bams(wildcards):
+    return [
+        expand("../output/rnaseq-wf/bams/{srx}/{srx}.bam", srx=srx)[0]
+        for srx in chunks[wildcards.i]
+    ]
+
+
+def expand_layouts(wildcards):
+    return [
+        queue.expand("../output/fastq-wf/layout/{srr}.parquet", srx)[0]
+        for srx in chunks[wildcards.i]
+    ]
+
+
+def expand_strands(wildcards):
+    return [
+        queue.expand("../output/prealn-wf/strand/{srr}.parquet", srx)[0]
+        for srx in chunks[wildcards.i]
+    ]
+
+
+rule featurecounts:
     input:
-        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
-        gtf="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
-        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
-        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
+        genic="../lcdb-references/dmel/r6-11/gtf/dmel_r6-11.gtf",
+        intergenic="../output/dmel_r6-11.intergenic.gtf",
+        fusion="../output/nonstranded_exon_fusions.gtf",
+        segment="../output/nonstranded_exon_segments.gtf",
+        bams=expand_bams,
+        layouts=expand_layouts,
+        strands=expand_strands,
     output:
-        counts="../output/rnaseq-counts-wf/gene_counts/{srx}.bam.counts.txt.gz",
-        jcounts="../output/rnaseq-counts-wf/gene_counts/{srx}.bam.counts.jcounts.txt.gz",
-    log: "../output/rnaseq-counts-wf/logs/gene_counts/{srx}.log"
-    params:
-        extra_pe = '-p -P -C -J ',
-        extra_se = '-J '
-    group: "rnaseq-counts-wf"
+        done_flag="../output/rnaseq-counts-wf/done/group_{i}.txt"
     threads: THREADS
     resources:
         mem_gb=MEM,
         time_hr=TIME,
         lscratch=LSCRATCH,
-    script: "scripts/featurecounts.py"
-
-rule intergenic_counts:
-    input:
-        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
-        gtf="../output/dmel_r6-11.intergenic.gtf",
-        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
-        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
-    output:
-        counts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.txt.gz",
-        jcounts="../output/rnaseq-counts-wf/intergenic_counts/{srx}.bam.intergenic.counts.jcounts.txt.gz",
-    log: "../output/rnaseq-counts-wf/logs/intergenic_counts/{srx}.log"
-    params:
-        extra_pe = '-p -P -C -J -t gene ',
-        extra_se = '-J -t gene '
-    group: "rnaseq-counts-wf"
-    threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
-    script: "scripts/featurecounts.py"
-
-rule segment_counts:
-    input:
-        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
-        gtf="../output/nonstranded_exon_segments.gtf",
-        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
-        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
-    output:
-        counts="../output/rnaseq-counts-wf/segment_counts/{srx}.bam.segment.counts.txt.gz",
-        jcounts="../output/rnaseq-counts-wf/segment_counts/{srx}.bam.segment.counts.jcounts.txt.gz",
-    log: "../output/rnaseq-counts-wf/logs/segment_counts/{srx}.log"
-    params:
-        extra_pe = '-p -P -C -J -t segment -g ID ',
-        extra_se = '-J -t segment -g ID '
-    group: "rnaseq-counts-wf"
-    threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
-    script: "scripts/featurecounts.py"
-
-rule fusion_counts:
-    input:
-        bam="../output/rnaseq-wf/bams/{srx}/{srx}.bam",
-        gtf="../output/nonstranded_exon_fusions.gtf",
-        layout=lambda wildcards: queue.expand("../output/fastq-wf/layout/{srr}.parquet", wildcards.srx)[0],
-        strand=lambda wildcards: queue.expand("../output/prealn-wf/strand/{srr}.parquet", wildcards.srx)[0]
-    output:
-        counts="../output/rnaseq-counts-wf/fusion_counts/{srx}.bam.fusion.counts.txt.gz",
-        jcounts="../output/rnaseq-counts-wf/fusion_counts/{srx}.bam.fusion.counts.jcounts.txt.gz",
-    log: "../output/rnaseq-counts-wf/logs/fusion_counts/{srx}.log"
-    params:
-        extra_pe = '-p -P -C -J -t fusion -g ID ',
-        extra_se = '-J -t fusion -g ID '
-    group: "rnaseq-counts-wf"
-    threads: THREADS
-    resources:
-        mem_gb=MEM,
-        time_hr=TIME,
-        lscratch=LSCRATCH,
-    script: "scripts/featurecounts.py"
+    script:
+        "scripts/grouped_featurecounts.py"
 
 rule srx_complete:
-    input:
-        rules.gene_counts.output.counts,
-        rules.intergenic_counts.output.counts,
-        rules.segment_counts.output.counts,
-        rules.fusion_counts.output.counts,
-    output: temp("../output/rnaseq-counts-wf/done/{srx}")
-    shell: """
-    touch {output[0]} &&
-    echo {wildcards.srx} >> ../output/rnaseq-counts-wf/done.txt
-    """
+    input: expand("../output/rnaseq-counts-wf/done/group_{i}.txt", i=chunks.keys())
+    output: "../output/rnaseq-counts-wf/done.txt"
+    shell:
+        """
+        for FILE in {input}; do
+            cat $FILE >> {output}
+        done
+        """
