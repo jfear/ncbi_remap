@@ -23,7 +23,7 @@ def main(
     for bam, layout, strand in zip(bams, layouts, strands):
         fc.run(bam, pd.read_parquet(layout).layout[0], pd.read_parquet(strand).strand[0])
 
-    done_flag.write_text("\n".join(bam.stem for bam in bams))
+    done_flag.write_text("\n".join(bam.stem for bam in bams) + "\n")
 
 
 class FeatureCountsException(Exception):

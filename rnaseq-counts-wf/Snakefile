@@ -30,12 +30,12 @@ queue = Queue(
     subset="../output/prealn-wf/done.txt",
     completed="../output/rnaseq-counts-wf/done.txt",
     srx2srr="../output/srx2srr.csv",
-    size=100,
+    size=5000,
 )
 
-chunks = {str(i): chunk for i, chunk in enumerate(chunked(queue.srxs, 50), 1)}
+chunks = {str(i): chunk for i, chunk in enumerate(chunked(queue.srxs, 5), 1)}
 
-localrules: run_all
+localrules: run_all, srx_complete
 
 # If Dry-Run print queue
 if any([x == "-n" for x in sys.argv]):
@@ -47,13 +47,13 @@ if any([x == "-n" for x in sys.argv]):
 THREADS = 4
 MEM = 4
 LSCRATCH = 200
-TIME = 4
+TIME = 12
 
 ###############################################################################
 # Rules
 ###############################################################################
 rule run_all:
-    input: "../output/rnaseq-counts-wf/done.txt"
+    input: "../output/rnaseq-counts-wf/run.done"
 
 
 def expand_bams(wildcards):
@@ -87,7 +87,7 @@ rule featurecounts:
         layouts=expand_layouts,
         strands=expand_strands,
     output:
-        done_flag="../output/rnaseq-counts-wf/done/group_{i}.txt"
+        done_flag=temp("../output/rnaseq-counts-wf/done/group_{i}.txt")
     threads: THREADS
     resources:
         mem_gb=MEM,
@@ -98,10 +98,11 @@ rule featurecounts:
 
 rule srx_complete:
     input: expand("../output/rnaseq-counts-wf/done/group_{i}.txt", i=chunks.keys())
-    output: "../output/rnaseq-counts-wf/done.txt"
+    output: temp("../output/rnaseq-counts-wf/run.done")
     shell:
         """
         for FILE in {input}; do
-            cat $FILE >> {output}
+            cat $FILE >> ../output/rnaseq-counts-wf/done.txt
         done
+        touch {output}
         """
